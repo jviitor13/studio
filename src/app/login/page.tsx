@@ -63,6 +63,14 @@ export default function LoginPage() {
             <Button type="submit" className="w-full">
               Entrar
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push('/dashboard')}
+            >
+              Pular Login (Desenvolvimento)
+            </Button>
           </form>
         </CardContent>
       </Card>
