@@ -12,7 +12,8 @@ import {
   BarChart3,
   LogOut,
   ShieldCheck,
-  ListChecks
+  ListChecks,
+  CircleDot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
@@ -47,6 +48,7 @@ const getMenuItems = (role: string) => {
     ],
     gestor: [
       { href: "/veiculos", label: "Veículos", icon: Truck },
+      { href: "/pneus", label: "Gestão de Pneus", icon: CircleDot },
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },
       { href: "/usuarios", label: "Usuários", icon: Users },
       { href: "/escalas", label: "Escalas", icon: Calendar },
