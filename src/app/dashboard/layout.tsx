@@ -56,20 +56,6 @@ const getMenuItems = (role: string) => {
     ]
   };
 
-  // For now, let's create placeholder pages for items that don't exist yet
-  // to avoid 404 errors.
-  const allRoleItems = [
-    ...roleItems.motorista, 
-    ...roleItems.gestor, 
-    ...roleItems.mecanico
-  ];
-  const existingHrefs = new Set(getMenuItems(userRole).map(i => i.href));
-  const uniqueItems = allRoleItems.filter(item => {
-    if (existingHrefs.has(item.href)) return false;
-    existingHrefs.add(item.href);
-    return true;
-  });
-
   return [...baseItems, ...(roleItems[role] || [])];
 };
 
