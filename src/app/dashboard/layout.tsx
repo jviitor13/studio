@@ -11,7 +11,8 @@ import {
   Calendar,
   BarChart3,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  ListChecks
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
@@ -50,6 +51,7 @@ const getMenuItems = (role: string) => {
       { href: "/usuarios", label: "Usuários", icon: Users },
       { href: "/escalas", label: "Escalas", icon: Calendar },
       { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+      { href: "/checklist-templates", label: "Modelos de Checklist", icon: ListChecks },
     ],
     mecanico: [
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },

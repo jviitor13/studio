@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -20,21 +20,37 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, Loader2 } from "lucide-react";
+import { UploadCloud, Loader2, Camera, Trash2, GripVertical, Image as ImageIcon } from "lucide-react";
 import Image from 'next/image';
 import { handleDamageAssessment } from "@/lib/actions";
 import { DamageAssessmentDialog } from "@/components/damage-assessment-dialog";
+import { initialQuestions } from "@/lib/checklist-data";
+
+
+const answerSchema = z.object({
+  questionId: z.string(),
+  questionText: z.string(),
+  questionType: z.enum(["boolean", "text", "photo"]),
+  answer: z.any(),
+});
 
 const checklistSchema = z.object({
   vehicleId: z.string().min(1, "Selecione um veículo"),
-  cnhOk: z.boolean().refine(val => val === true, "CNH deve estar válida"),
-  epiOk: z.boolean().refine(val => val === true, "EPI deve estar completo"),
-  attentionTest: z.string().min(1, "Selecione uma opção"),
-  phoneCharged: z.string().min(1, "Selecione uma opção"),
-  tachoOk: z.string().min(1, "Selecione uma opção"),
   initialKm: z.coerce.number().min(1, "Quilometragem inicial é obrigatória"),
   observations: z.string().optional(),
+  answers: z.array(answerSchema).refine(
+    (answers) => {
+      return answers.every((a) => {
+        if (a.questionType === "boolean") return typeof a.answer === "boolean";
+        if (a.questionType === "text") return typeof a.answer === "string" && a.answer.length > 0;
+        if (a.questionType === "photo") return typeof a.answer === "string" && a.answer.length > 0;
+        return true;
+      });
+    },
+    { message: "Todas as perguntas obrigatórias devem ser respondidas." }
+  ),
 });
+
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 
@@ -45,16 +61,27 @@ export default function PreTripChecklistPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [damageInfo, setDamageInfo] = useState("");
   
-  const { control, handleSubmit, formState: { errors } } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, watch } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
-      cnhOk: false,
-      epiOk: false,
+      vehicleId: "",
+      initialKm: 0,
       observations: "",
+      answers: initialQuestions.map(q => ({
+          questionId: q.id,
+          questionText: q.text,
+          questionType: q.type,
+          answer: q.type === 'boolean' ? false : ''
+      }))
     }
   });
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const { fields, update } = useFieldArray({
+    control,
+    name: "answers",
+  });
+
+  const handleVehicleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (file.size > 4 * 1024 * 1024) {
@@ -73,7 +100,7 @@ export default function PreTripChecklistPage() {
           const result = await handleDamageAssessment({
             vehicleImageUri: base64Image,
             checklistId: `checklist-${Date.now()}`,
-            vehicleId: "RDO2C24" // Placeholder
+            vehicleId: watch("vehicleId") || "RDO-GEN"
           });
           
           if(result.success && result.data?.damageDetected) {
@@ -93,12 +120,25 @@ export default function PreTripChecklistPage() {
     }
   };
 
+  const handleQuestionImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+     if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+            const base64Image = reader.result as string;
+            update(index, { ...fields[index], answer: base64Image });
+        };
+     }
+  };
+
+
   const onSubmit = (data: ChecklistFormValues) => {
     if(vehicleImages.length === 0) {
         toast({ variant: "destructive", title: "Erro", description: "É obrigatório o envio de pelo menos uma foto do veículo." });
         return;
     }
-    console.log(data);
+    console.log(JSON.stringify(data, null, 2));
     toast({ title: "Checklist Enviado!", description: "Seu checklist de viagem foi enviado com sucesso." });
   };
   
@@ -121,7 +161,7 @@ export default function PreTripChecklistPage() {
         <form onSubmit={handleSubmit(onSubmit)}>
           <Card>
             <CardHeader>
-              <CardTitle>Informações do Veículo</CardTitle>
+              <CardTitle>Informações Iniciais</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -150,17 +190,17 @@ export default function PreTripChecklistPage() {
                       <Controller
                           name="initialKm"
                           control={control}
-                          render={({ field }) => <Input id="initialKm" type="number" {...field} />}
+                          render={({ field }) => <Input id="initialKm" type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} />}
                       />
                       {errors.initialKm && <p className="text-sm text-destructive">{errors.initialKm.message}</p>}
                   </div>
                 </div>
                 <div className="grid gap-2">
-                    <Label>Fotos do Veículo (Frente, Traseira, Laterais)</Label>
+                    <Label>Fotos Gerais do Veículo (Frente, Traseira, Laterais)</Label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {vehicleImages.map((src, index) => (
                             <div key={index} className="relative aspect-video rounded-md overflow-hidden" data-ai-hint="car truck">
-                                <Image src={src} alt={`Veículo ${index + 1}`} fill className="object-cover" />
+                                <Image src={src} alt={`Veículo ${index + 1}`} layout="fill" className="object-cover" />
                             </div>
                         ))}
                         {vehicleImages.length < 4 && (
@@ -174,71 +214,77 @@ export default function PreTripChecklistPage() {
                                     <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Clique para enviar</span></p>
                                     <p className="text-xs text-gray-500">PNG, JPG (MAX. 4MB)</p>
                                 </div>
-                                <Input id="photo-upload" type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleImageUpload} disabled={isProcessing} />
+                                <Input id="photo-upload" type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleVehicleImageUpload} disabled={isProcessing} />
                             </Label>
                         )}
                     </div>
-                     {vehicleImages.length === 0 && <p className="text-sm text-destructive">Envio de foto é obrigatório</p>}
+                     {vehicleImages.length === 0 && <p className="text-sm text-destructive">Envio de foto geral do veículo é obrigatório</p>}
                 </div>
             </CardContent>
           </Card>
+
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Verificações do Motorista</CardTitle>
+              <CardTitle>Itens de Verificação</CardTitle>
+              <CardDescription>Responda a todas as perguntas abaixo.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">
-              <div className="flex items-center space-x-2">
-                <Controller name="cnhOk" control={control} render={({ field }) => <Checkbox id="cnhOk" checked={field.value} onCheckedChange={field.onChange} />} />
-                <Label htmlFor="cnhOk">CNH está válida e comigo?</Label>
-              </div>
-              {errors.cnhOk && <p className="text-sm text-destructive -mt-4">{errors.cnhOk.message}</p>}
-
-              <div className="flex items-center space-x-2">
-                <Controller name="epiOk" control={control} render={({ field }) => <Checkbox id="epiOk" checked={field.value} onCheckedChange={field.onChange} />} />
-                <Label htmlFor="epiOk">Estou com meu EPI completo?</Label>
-              </div>
-              {errors.epiOk && <p className="text-sm text-destructive -mt-4">{errors.epiOk.message}</p>}
+              {fields.map((item, index) => (
+                <div key={item.id} className="grid gap-3 p-4 border rounded-lg">
+                   <Label className="font-semibold">{index + 1}. {item.questionText}</Label>
+                    <Controller
+                        name={`answers.${index}.answer`}
+                        control={control}
+                        render={({ field }) => {
+                            switch(item.questionType) {
+                                case 'boolean':
+                                    return (
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} id={`q-${item.id}`} />
+                                            <Label htmlFor={`q-${item.id}`}>Sim / Verificado</Label>
+                                        </div>
+                                    )
+                                case 'text':
+                                    return <Textarea placeholder="Digite sua resposta..." {...field} />;
+                                case 'photo':
+                                    return (
+                                        <div>
+                                            {field.value ? (
+                                                <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
+                                                    <Image src={field.value} alt="Foto da resposta" layout="fill" className="object-cover" />
+                                                    <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => field.onChange('')}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Label htmlFor={`photo-${item.id}`} className="flex flex-col items-center justify-center w-full max-w-xs h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
+                                                    <div className="flex flex-col items-center justify-center text-center">
+                                                        <Camera className="w-8 h-8 mb-2 text-gray-500" />
+                                                        <p className="text-sm text-gray-500">Enviar Foto</p>
+                                                    </div>
+                                                    <Input id={`photo-${item.id}`} type="file" className="hidden" accept="image/png, image/jpeg" onChange={(e) => handleQuestionImageUpload(e, index)} />
+                                                </Label>
+                                            )}
+                                        </div>
+                                    )
+                                default:
+                                    return null;
+                            }
+                        }}
+                    />
+                    {errors.answers?.[index]?.answer && <p className="text-sm text-destructive">Este campo é obrigatório</p>}
+                </div>
+              ))}
 
               <div className="grid gap-2">
-                <Label>Realizei o teste de atenção?</Label>
-                <Controller name="attentionTest" control={control} render={({ field }) => (
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                        <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="at-sim" /><Label htmlFor="at-sim">Sim</Label></div>
-                        <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="at-nao" /><Label htmlFor="at-nao">Não</Label></div>
-                    </RadioGroup>
-                )} />
-                {errors.attentionTest && <p className="text-sm text-destructive">{errors.attentionTest.message}</p>}
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Celular carregado e com créditos?</Label>
-                <Controller name="phoneCharged" control={control} render={({ field }) => (
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                        <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="pc-sim" /><Label htmlFor="pc-sim">Sim</Label></div>
-                        <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="pc-nao" /><Label htmlFor="pc-nao">Não</Label></div>
-                    </RadioGroup>
-                )} />
-                {errors.phoneCharged && <p className="text-sm text-destructive">{errors.phoneCharged.message}</p>}
-              </div>
-
-               <div className="grid gap-2">
-                <Label>Tacógrafo funcionando corretamente?</Label>
-                <Controller name="tachoOk" control={control} render={({ field }) => (
-                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                        <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="to-sim" /><Label htmlFor="to-sim">Sim</Label></div>
-                        <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="to-nao" /><Label htmlFor="to-nao">Não</Label></div>
-                    </RadioGroup>
-                )} />
-                 {errors.tachoOk && <p className="text-sm text-destructive">{errors.tachoOk.message}</p>}
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="observacoes">Observações</Label>
+                <Label htmlFor="observacoes">Observações Gerais</Label>
                  <Controller name="observations" control={control} render={({ field }) => (
                     <Textarea id="observacoes" placeholder="Alguma observação sobre o veículo ou a viagem?" {...field} />
                  )} />
               </div>
             </CardContent>
+          </Card>
+          <Card className="mt-6">
             <CardFooter className="border-t px-6 py-4">
               <Button type="submit">Enviar Checklist</Button>
             </CardFooter>
