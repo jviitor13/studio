@@ -1,9 +1,12 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ShieldCheck, FileText, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function DriverDashboard() {
   const lastChecklists = [
@@ -43,20 +46,42 @@ export function DriverDashboard() {
             <h2 className="text-xl font-headline font-semibold">Acesso Rápido</h2>
             <div className="flex-1 border-t"></div>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Link href="/checklist/viagem" className="w-full">
-            <Button size="lg" className="w-full h-24 text-base">
-                <ShieldCheck className="mr-4 h-6 w-6" /> Novo Checklist
-            </Button>
-          </Link>
-          <Button size="lg" variant="secondary" className="w-full h-24 text-base">
-            <AlertTriangle className="mr-4 h-6 w-6" /> Registrar Ocorrência
-          </Button>
-          <Button size="lg" variant="secondary" className="w-full h-24 text-base">
-            <FileText className="mr-4 h-6 w-6" /> Meus Documentos
-          </Button>
-        </div>
+        <TooltipProvider>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/checklist/viagem" className="w-full">
+                    <Button size="lg" className="w-full h-24 text-base">
+                        <ShieldCheck className="mr-4 h-6 w-6" /> Novo Checklist
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Preencha um novo checklist de pré ou pós-viagem.</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="lg" variant="secondary" className="w-full h-24 text-base">
+                    <AlertTriangle className="mr-4 h-6 w-6" /> Registrar Ocorrência
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Reporte incidentes, avarias ou qualquer evento inesperado.</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <Button size="lg" variant="secondary" className="w-full h-24 text-base">
+                    <FileText className="mr-4 h-6 w-6" /> Meus Documentos
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Acesse sua CNH, documentos do veículo e outros arquivos.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+        </TooltipProvider>
 
         <Card>
             <CardHeader>
