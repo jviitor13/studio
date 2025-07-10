@@ -7,7 +7,6 @@ import {
   Truck,
   Wrench,
   FileText,
-  Fuel,
   Users,
   Calendar,
   BarChart3,
@@ -47,7 +46,6 @@ const getMenuItems = (role: string) => {
     gestor: [
       { href: "/veiculos", label: "Veículos", icon: Truck },
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },
-      { href: "/abastecimentos", label: "Abastecimentos", icon: Fuel },
       { href: "/usuarios", label: "Usuários", icon: Users },
       { href: "/escalas", label: "Escalas", icon: Calendar },
       { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
@@ -57,6 +55,20 @@ const getMenuItems = (role: string) => {
       { href: "/veiculos", label: "Veículos", icon: Truck },
     ]
   };
+
+  // For now, let's create placeholder pages for items that don't exist yet
+  // to avoid 404 errors.
+  const allRoleItems = [
+    ...roleItems.motorista, 
+    ...roleItems.gestor, 
+    ...roleItems.mecanico
+  ];
+  const existingHrefs = new Set(getMenuItems(userRole).map(i => i.href));
+  const uniqueItems = allRoleItems.filter(item => {
+    if (existingHrefs.has(item.href)) return false;
+    existingHrefs.add(item.href);
+    return true;
+  });
 
   return [...baseItems, ...(roleItems[role] || [])];
 };
