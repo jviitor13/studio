@@ -1,6 +1,35 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Clock, AlertTriangle, UserX, PlusCircle } from "lucide-react";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartConfig,
+} from "@/components/ui/chart";
+import { Clock, AlertTriangle, UserX, PlusCircle } from "lucide-react";
+
+const chartData = [
+  { month: "Janeiro", emUso: 186, manutencao: 80 },
+  { month: "Fevereiro", emUso: 305, manutencao: 200 },
+  { month: "Março", emUso: 237, manutencao: 120 },
+  { month: "Abril", emUso: 273, manutencao: 190 },
+  { month: "Maio", emUso: 209, manutencao: 130 },
+  { month: "Junho", emUso: 214, manutencao: 140 },
+];
+
+const chartConfig = {
+  emUso: {
+    label: "Em Uso",
+    color: "hsl(var(--primary))",
+  },
+  manutencao: {
+    label: "Manutenção",
+    color: "hsl(var(--secondary-foreground))",
+  },
+} satisfies ChartConfig;
 
 export function ManagerDashboard() {
   return (
@@ -67,13 +96,24 @@ export function ManagerDashboard() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Uso da Frota</CardTitle>
+          <CardTitle className="font-headline">Uso da Frota nos Últimos 6 Meses</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px] bg-muted flex items-center justify-center rounded-md">
-            <BarChart3 className="h-16 w-16 text-muted-foreground" />
-            <p className="text-muted-foreground ml-4">Gráfico de uso de veículos será exibido aqui.</p>
-          </div>
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <BarChart accessibilityLayer data={chartData}>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                tickMargin={10}
+                axisLine={false}
+              />
+              <YAxis />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="emUso" fill="var(--color-emUso)" radius={4} />
+              <Bar dataKey="manutencao" fill="var(--color-manutencao)" radius={4} />
+            </BarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
     </div>
