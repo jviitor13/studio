@@ -2,16 +2,18 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from "recharts";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
   ChartConfig,
 } from "@/components/ui/chart";
 import { Clock, AlertTriangle, UserX, PlusCircle } from "lucide-react";
 
-const chartData = [
+const barChartData = [
   { month: "Janeiro", emUso: 186, manutencao: 80 },
   { month: "Fevereiro", emUso: 305, manutencao: 200 },
   { month: "Março", emUso: 237, manutencao: 120 },
@@ -20,16 +22,41 @@ const chartData = [
   { month: "Junho", emUso: 214, manutencao: 140 },
 ];
 
-const chartConfig = {
+const barChartConfig = {
   emUso: {
     label: "Em Uso",
     color: "hsl(var(--primary))",
   },
   manutencao: {
     label: "Manutenção",
-    color: "hsl(var(--secondary-foreground))",
+    color: "hsl(var(--destructive))",
   },
 } satisfies ChartConfig;
+
+const pieChartData = [
+  { name: 'Em Operação', value: 45, fill: 'var(--color-emOperacao)' },
+  { name: 'Em Manutenção', value: 3, fill: 'var(--color-emManutencao)' },
+  { name: 'Disponíveis', value: 2, fill: 'var(--color-disponiveis)' },
+];
+
+const pieChartConfig = {
+  value: {
+    label: 'Veículos',
+  },
+  emOperacao: {
+    label: 'Em Operação',
+    color: 'hsl(var(--primary))',
+  },
+  emManutencao: {
+    label: 'Em Manutenção',
+    color: 'hsl(var(--destructive))',
+  },
+  disponiveis: {
+    label: 'Disponíveis',
+    color: 'hsl(var(--secondary))',
+  },
+} satisfies ChartConfig;
+
 
 export function ManagerDashboard() {
   return (
@@ -94,28 +121,70 @@ export function ManagerDashboard() {
             <PlusCircle className="mr-2 h-4 w-4" /> Cadastrar Usuário
         </Button>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline">Uso da Frota nos Últimos 6 Meses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <BarChart accessibilityLayer data={chartData}>
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-              />
-              <YAxis />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="emUso" fill="var(--color-emUso)" radius={4} />
-              <Bar dataKey="manutencao" fill="var(--color-manutencao)" radius={4} />
-            </BarChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+         <Card>
+            <CardHeader>
+            <CardTitle className="font-headline">Uso da Frota nos Últimos 6 Meses</CardTitle>
+            </CardHeader>
+            <CardContent>
+            <ChartContainer config={barChartConfig} className="h-[300px] w-full">
+                <BarChart accessibilityLayer data={barChartData} margin={{ top: 20 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                />
+                <YAxis />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                <Bar dataKey="emUso" fill="var(--color-emUso)" radius={4} />
+                <Bar dataKey="manutencao" fill="var(--color-manutencao)" radius={4} />
+                </BarChart>
+            </ChartContainer>
+            </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Status Atual da Frota</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            <ChartContainer config={pieChartConfig} className="h-[300px] w-full">
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                <Pie data={pieChartData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={2} labelLine={false} label={({
+                      payload,
+                      ...props
+                    }) => {
+                      return (
+                        <text
+                          cx={props.cx}
+                          cy={props.cy}
+                          x={props.x}
+                          y={props.y}
+                          textAnchor={props.textAnchor}
+                          dominantBaseline={props.dominantBaseline}
+                          fill="hsl(var(--foreground))"
+                          className="text-sm"
+                        >
+                          {payload.value}
+                        </text>
+                      )
+                    }}>
+                   {pieChartData.map((entry) => (
+                      <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                    ))}
+                </Pie>
+                <ChartLegend
+                  content={<ChartLegendContent nameKey="name" />}
+                  verticalAlign="bottom"
+                  align="center"
+                />
+              </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
