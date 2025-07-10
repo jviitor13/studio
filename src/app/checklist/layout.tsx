@@ -25,7 +25,7 @@ export default function ChecklistLayout({
           >
             <Button variant="outline" size="sm" className="h-8 gap-1">
               <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              <span>
                 Voltar ao Painel
               </span>
             </Button>
