@@ -28,6 +28,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
+import { ClockWidget } from "@/components/clock-widget";
 
 // Mock role, in a real app this would come from session/auth context
 const userRole = "gestor"; // can be 'motorista', 'mecanico', 'gestor'
@@ -111,7 +112,7 @@ export default function DashboardLayout({
           <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
             <SidebarTrigger className="md:hidden" />
             <div className="w-full flex-1">
-              {/* Maybe a breadcrumb or search bar here later */}
+               <ClockWidget />
             </div>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Bell className="h-4 w-4" />
