@@ -12,10 +12,11 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart';
-import { Bar, BarChart, CartesianGrid, XAxis, Pie, PieChart, Cell } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TrendingUp, Wrench, AlertCircle, Clock, DollarSign } from 'lucide-react';
+import { ChartConfig } from '@/components/ui/chart';
 
 const fleetChartData = [
   { status: 'Em Viagem', value: 12, fill: 'var(--color-emViagem)' },
@@ -37,9 +38,9 @@ const fleetChartConfig = {
   },
   manutencao: {
     label: 'Em Manutenção',
-    color: 'hsl(var(--chart-3))',
+    color: 'hsl(var(--chart-5))',
   },
-};
+} satisfies ChartConfig;
 
 const checklistProblemsData = [
     { problem: 'Pneus', count: 15, fill: 'var(--color-pneus)' },
@@ -56,7 +57,7 @@ const checklistProblemsConfig = {
     motor: { label: 'Motor', color: 'hsl(var(--chart-3))' },
     eletrica: { label: 'Elétrica', color: 'hsl(var(--chart-4))' },
     outros: { label: 'Outros', color: 'hsl(var(--chart-5))' },
-};
+} satisfies ChartConfig;
 
 const maintenanceData = [
     { vehicle: 'RDO1A12', model: 'Scania R450', service: 'Troca de óleo', downSince: '2024-07-26', eta: '2024-07-29', days: 3 },
@@ -123,37 +124,22 @@ export function ManagerDashboard() {
             <CardTitle className="font-headline">Status da Frota</CardTitle>
             <CardDescription>Distribuição dos veículos por status atual.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <ChartContainer config={fleetChartConfig} className="h-[200px] w-full">
-                <BarChart accessibilityLayer data={fleetChartData} layout="vertical" margin={{ left: 10, right: 10 }}>
-                    <CartesianGrid horizontal={false} />
-                    <XAxis type="number" hide />
-                    <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                    />
-                    <Bar dataKey="value" layout="vertical" radius={5}>
-                    {fleetChartData.map((entry) => (
-                        <Cell key={`cell-${entry.status}`} fill={entry.fill} />
-                    ))}
-                    </Bar>
-                </BarChart>
-            </ChartContainer>
-            <ChartContainer config={fleetChartConfig} className="h-[200px] w-full">
+          <CardContent className="flex justify-center">
+            <ChartContainer config={fleetChartConfig} className="mx-auto aspect-square h-[250px]">
                 <PieChart>
                     <ChartTooltip
                         cursor={false}
                         content={<ChartTooltipContent hideLabel />}
                     />
                     <Pie
-                    data={fleetChartData}
-                    dataKey="value"
-                    nameKey="status"
-                    innerRadius={50}
-                    strokeWidth={5}
+                        data={fleetChartData}
+                        dataKey="value"
+                        nameKey="status"
+                        innerRadius={60}
+                        strokeWidth={5}
                     >
                     {fleetChartData.map((entry) => (
-                        <Cell key={`cell-${entry.status}`} fill={entry.fill} />
+                        <Cell key={`cell-${entry.status}`} fill={entry.fill} className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" />
                     ))}
                     </Pie>
                     <ChartLegend content={<ChartLegendContent nameKey="status" />} />
@@ -170,6 +156,7 @@ export function ManagerDashboard() {
              <ChartContainer config={checklistProblemsConfig} className="h-[250px] w-full">
                 <BarChart data={checklistProblemsData} layout="vertical" margin={{ left: 10, right: 10 }}>
                     <CartesianGrid horizontal={false} />
+                    <YAxis dataKey="problem" type="category" tickLine={false} axisLine={false} tickMargin={10} width={60}/>
                     <XAxis type="number" dataKey="count" hide />
                     <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
                     <Bar dataKey="count" radius={5}>
