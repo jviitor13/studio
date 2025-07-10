@@ -15,7 +15,7 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TrendingUp, Wrench, AlertCircle, Clock, DollarSign } from 'lucide-react';
+import { TrendingUp, Wrench, AlertCircle, Clock, DollarSign, Truck } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
 
 const fleetChartData = [
@@ -68,22 +68,20 @@ const maintenanceData = [
 export function ManagerDashboard() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-headline font-semibold">Painel do Gestor</h1>
-          <p className="text-muted-foreground">Visão geral da frota e operações.</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-headline font-semibold">Painel do Gestor</h1>
+        <p className="text-muted-foreground">Visão geral da frota e operações.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Veículos</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">+2.1% desde o último mês</p>
+            <p className="text-xs text-muted-foreground">+2 desde o último mês</p>
           </CardContent>
         </Card>
          <Card>
@@ -93,26 +91,26 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">98 horas</div>
-            <p className="text-xs text-muted-foreground">Total de veículos em manutenção</p>
+            <p className="text-xs text-muted-foreground">Total em manutenção</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Custo Médio/Dia (Parado)</CardTitle>
+            <CardTitle className="text-sm font-medium">Custo Manutenção (Mês)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 350,00</div>
-            <p className="text-xs text-muted-foreground">Média por veículo em manutenção</p>
+            <div className="text-2xl font-bold">R$ 12.450</div>
+            <p className="text-xs text-muted-foreground">+5.2% vs. mês anterior</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Alertas Ativos</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <AlertCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold text-destructive">5</div>
             <p className="text-xs text-muted-foreground">Requerem atenção imediata</p>
           </CardContent>
         </Card>
@@ -173,6 +171,7 @@ export function ManagerDashboard() {
        <Card>
         <CardHeader>
           <CardTitle className="font-headline">Veículos em Manutenção</CardTitle>
+           <CardDescription>Veículos que estão atualmente parados para reparos.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
