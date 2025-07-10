@@ -13,7 +13,8 @@ import {
   LogOut,
   ShieldCheck,
   ListChecks,
-  CircleDot
+  CircleDot,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
@@ -50,6 +51,7 @@ const getMenuItems = (role: string) => {
       { href: "/veiculos", label: "Veículos", icon: Truck },
       { href: "/pneus", label: "Gestão de Pneus", icon: CircleDot },
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },
+      { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck },
       { href: "/usuarios", label: "Usuários", icon: Users },
       { href: "/escalas", label: "Escalas", icon: Calendar },
       { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
@@ -57,6 +59,7 @@ const getMenuItems = (role: string) => {
     ],
     mecanico: [
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },
+      { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck },
       { href: "/veiculos", label: "Veículos", icon: Truck },
     ]
   };
