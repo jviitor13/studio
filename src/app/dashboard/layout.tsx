@@ -15,6 +15,7 @@ import {
   ListChecks,
   CircleDot,
   ClipboardCheck,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
@@ -56,6 +57,7 @@ const getMenuItems = (role: string) => {
       { href: "/escalas", label: "Escalas", icon: Calendar },
       { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
       { href: "/checklist-templates", label: "Modelos de Checklist", icon: ListChecks },
+      { href: "/consultas", label: "Consultas", icon: Search },
     ],
     mecanico: [
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },

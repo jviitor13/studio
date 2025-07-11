@@ -37,6 +37,11 @@ export const initialMaintenanceChecklist: ChecklistSection[] = [
       { id: "ext-5", text: "Faróis, setas e lanternas (lentes e funcionamento)", status: "N/A" },
       { id: "ext-6", text: "Pneus (calibragem e desgaste)", status: "N/A" },
       { id: "ext-7", text: "Placas de identificação", status: "N/A" },
+      { id: "ext-8", text: "Carroceria (estado geral)", status: "N/A" },
+      { id: "ext-9", text: "Luz do painel (se acesa)", status: "N/A" },
+      { id: "ext-10", text: "Vazamentos (motor, radiador, etc.)", status: "N/A" },
+      { id: "ext-11", text: "Odômetro (leitura do KM)", status: "N/A" },
+
     ],
     observations: "",
   },
@@ -48,6 +53,7 @@ export const initialMaintenanceChecklist: ChecklistSection[] = [
       { id: "equip-2", text: "Macaco e chave de roda", status: "N/A" },
       { id: "equip-3", text: "Triângulo de sinalização", status: "N/A" },
       { id: "equip-4", text: "Extintor de incêndio (validade e carga)", status: "N/A" },
+      { id: "equip-5", text: "Cones / calço de madeira / fita zebrada", status: "N/A" },
     ],
     observations: "",
   },
@@ -99,10 +105,16 @@ export const initialMaintenanceChecklist: ChecklistSection[] = [
 ];
 
 
-// List of item IDs where a photo is ALWAYS mandatory
+// List of item IDs where a photo is ALWAYS mandatory, regardless of status
 export const mandatoryPhotoItems: string[] = [
-    'ext-1', // Pintura e lataria (avarias)
+    'ext-1', // Pintura e lataria
     'ext-6', // Pneus (calibragem e desgaste)
     'ext-7', // Placas de identificação
+    'ext-8', // Carroceria
+    'ext-9', // Luz do painel (se acesa)
+    'ext-10', // Vazamentos
+    'ext-11', // Odômetro
+    'equip-4', // Extintor de incêndio
+    'equip-5', // Cones / calço de madeira / fita zebrada
     'sit-3', // Tacógrafo (disco e aferição)
 ];

@@ -90,7 +90,16 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
             <Label>Avaliação</Label>
             <RadioGroup
               value={status}
-              onValueChange={(value: "OK" | "Não OK" | "N/A") => setStatus(value)}
+              onValueChange={(value: "OK" | "Não OK" | "N/A") => {
+                setStatus(value);
+                // Clear error when status changes
+                if (error) {
+                    const stillRequiresPhoto = mandatoryPhotoItems.includes(item.id) || value === 'Não OK';
+                    if (!stillRequiresPhoto || photo) {
+                        setError(null);
+                    }
+                }
+              }}
               className="flex items-center gap-6"
             >
               <div className="flex items-center space-x-2">
@@ -129,7 +138,12 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                       variant="destructive"
                       size="icon"
                       className="absolute top-2 right-2 h-7 w-7"
-                      onClick={() => setPhoto(undefined)}
+                      onClick={() => {
+                        setPhoto(undefined);
+                        if (isPhotoRequired) {
+                            setError("Este item requer imagem para continuar.");
+                        }
+                      }}
                   >
                       <Trash2 className="h-4 w-4" />
                   </Button>
