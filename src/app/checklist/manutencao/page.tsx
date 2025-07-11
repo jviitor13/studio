@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
   CardFooter,
@@ -19,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Trash2, AlertTriangle, Paperclip } from "lucide-react";
+import { Trash2, AlertTriangle, Paperclip } from "lucide-react";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -50,24 +49,17 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
   sections: z.array(sectionSchema),
-}).refine(data => {
-    const externalSection = data.sections.find(s => s.id === 'external');
-    if (externalSection?.items.some(i => i.status === 'Não OK') && !externalSection.photo) {
-        return false;
-    }
-    return true;
-}, {
-    message: "Foto é obrigatória para a seção 'Estrutura Externa' se houver itens 'Não OK'.",
-    path: ['sections', initialMaintenanceChecklist.findIndex(s => s.id === 'external'), 'photo'],
-}).refine(data => {
-    const securitySection = data.sections.find(s => s.id === 'security');
-    if (securitySection?.items.some(i => i.status === 'Não OK') && !securitySection.photo) {
-        return false;
-    }
-    return true;
-}, {
-    message: "Foto é obrigatória para a seção 'Itens de Segurança' se houver itens 'Não OK'.",
-    path: ['sections', initialMaintenanceChecklist.findIndex(s => s.id === 'security'), 'photo'],
+}).superRefine((data, ctx) => {
+    data.sections.forEach((section, index) => {
+        const isPhotoMandatory = (section.id === 'external' || section.id === 'security') && section.items.some(i => i.status === 'Não OK');
+        if (isPhotoMandatory && !section.photo) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Foto é obrigatória para a seção '${section.title}' se houver itens 'Não OK'.`,
+                path: ['sections', index, 'photo'],
+            });
+        }
+    });
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -75,7 +67,7 @@ type ChecklistFormValues = z.infer<typeof checklistSchema>;
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
 
-  const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, setValue, watch, trigger } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -127,8 +119,8 @@ export default function MaintenanceChecklistPage() {
     if (hasIssues) {
       toast({
         variant: "destructive",
-        title: "Atenção!",
-        description: "Checklist salvo com pendências. Verifique os itens marcados como 'NÃO OK'.",
+        title: "Atenção: Checklist salvo com pendências",
+        description: "Verifique os itens marcados como 'NÃO OK' e as fotos obrigatórias.",
       });
     } else {
       toast({
@@ -199,6 +191,7 @@ export default function MaintenanceChecklistPage() {
         <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
           {sectionFields.map((section, sectionIndex) => {
             const isMandatory = (section.id === 'external' || section.id === 'security') && watchedSections[sectionIndex]?.items.some(i => i.status === 'Não OK');
+            const photoError = errors.sections?.[sectionIndex]?.photo?.message;
 
             return (
               <Card key={section.id}>
@@ -234,10 +227,7 @@ export default function MaintenanceChecklistPage() {
                                       <RadioGroup
                                         onValueChange={(value) => {
                                           itemField.onChange(value);
-                                          setValue(`sections.${sectionIndex}.items`, // trigger validation
-                                            watch(`sections.${sectionIndex}.items`),
-                                            { shouldValidate: true }
-                                          );
+                                          trigger(`sections.${sectionIndex}.photo`); // Trigger validation for the photo field
                                         }}
                                         defaultValue={itemField.value}
                                         className="flex items-center gap-6 mt-2"
@@ -294,7 +284,7 @@ export default function MaintenanceChecklistPage() {
                           ) : (
                               <Label htmlFor={`photo-${section.id}`} className={cn(
                                 "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
-                                errors.sections?.[sectionIndex]?.photo && "border-destructive"
+                                photoError && "border-destructive"
                               )}>
                                   <Paperclip className="h-4 w-4 text-muted-foreground" />
                                   <span className="text-sm text-muted-foreground">Anexar arquivo</span>
@@ -307,8 +297,7 @@ export default function MaintenanceChecklistPage() {
                                   />
                               </Label>
                           )}
-                          {errors.sections?.[sectionIndex]?.photo && <p className="text-sm text-destructive">{errors.sections?.[sectionIndex]?.photo?.message}</p>}
-                          {isMandatory && !watch(`sections.${sectionIndex}.photo`) && <p className="text-sm text-destructive">Foto é obrigatória se houver itens 'Não OK'.</p>}
+                          {photoError && <p className="text-sm text-destructive">{photoError}</p>}
                       </div>
                     </div>
                   </AccordionContent>
