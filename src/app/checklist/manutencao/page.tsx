@@ -80,7 +80,7 @@ export default function MaintenanceChecklistPage() {
     defaultValues: {
       vehicleId: "",
       responsibleName: "Pedro Mecânico", // Mock, could come from auth
-      mileage: 0,
+      mileage: undefined,
       sections: initialMaintenanceChecklist,
     },
     mode: 'onChange' // To show validation errors as user interacts
@@ -189,7 +189,7 @@ export default function MaintenanceChecklistPage() {
               <Controller
                 name="mileage"
                 control={control}
-                render={({ field }) => <Input id="mileage" type="number" {...field} onChange={e => field.onChange(e.target.valueAsNumber)} />}
+                render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} />}
               />
               {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
             </div>
