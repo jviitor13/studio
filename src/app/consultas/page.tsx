@@ -28,6 +28,25 @@ import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
 
 const mockChecklists: CompletedChecklist[] = [
+    { 
+        id: 'CHK-005',
+        date: '2024-07-30',
+        vehicle: 'RDO4D56', 
+        driver: 'Ana Costa', 
+        type: 'manutencao', 
+        status: 'Pendente', 
+        name: 'Checklist Técnico Cavalo Mecânico', 
+        category: 'cavalo_mecanico', 
+        questions: [
+            { id: 'ext-1', text: 'Pintura e lataria (avarias)', photoRequirement: 'if_not_ok', status: 'Não OK', photo: 'https://placehold.co/600x400.png', observation: 'Arranhão profundo na porta do passageiro.'},
+            { id: 'ext-5', text: 'Faróis, setas e lanternas', photoRequirement: 'if_not_ok', status: 'OK' },
+            { id: 'ext-6', text: 'Pneus (calibragem e desgaste)', photoRequirement: 'always', status: 'Não OK', photo: 'https://placehold.co/400x600.png', observation: 'Pneu dianteiro direito com baixo relevo, precisa de troca.' },
+            { id: 'ext-7', text: 'Placas de identificação', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/600x300.png' },
+            { id: 'equip-4', text: 'Extintor de incêndio (validade e carga)', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/300x400.png' },
+            { id: 'sec-1', text: 'Freios (de serviço e estacionário)', photoRequirement: 'if_not_ok', status: 'OK' },
+            { id: 'sit-3', text: 'Tacógrafo (disco e aferição)', photoRequirement: 'always', status: 'Não OK', photo: 'https://placehold.co/500x500.png', observation: 'Disco do tacógrafo vencido.' },
+        ] 
+    },
     { id: 'CHK-001', date: '2024-07-29', vehicle: 'RDO1A12', driver: 'João Silva', type: 'viagem', status: 'OK', name: 'Vistoria de Saída', category: 'cavalo_mecanico', questions: [{id: 'q1', text: 'Pneus', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/600x400.png'}] },
     { id: 'CHK-002', date: '2024-07-29', vehicle: 'RDO2C24', driver: 'Maria Oliveira', type: 'manutencao', status: 'Pendente', name: 'Checklist Técnico Cavalo Mecânico', category: 'cavalo_mecanico', questions: [{id: 'q2', text: 'Freios', photoRequirement: 'if_not_ok', status: 'Não OK', photo: 'https://placehold.co/600x400.png', observation: 'Pastilha gasta.'}] },
     { id: 'CHK-003', date: '2024-07-28', vehicle: 'RDO3B45', driver: 'Carlos Pereira', type: 'retorno', status: 'OK', name: 'Vistoria de Retorno', category: 'carreta', questions: [] },
