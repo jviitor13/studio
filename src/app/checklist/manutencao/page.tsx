@@ -50,6 +50,24 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
   sections: z.array(sectionSchema),
+}).refine(data => {
+    const externalSection = data.sections.find(s => s.id === 'external');
+    if (externalSection?.items.some(i => i.status === 'Não OK') && !externalSection.photo) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Foto é obrigatória para a seção 'Estrutura Externa' se houver itens 'Não OK'.",
+    path: ['sections', initialMaintenanceChecklist.findIndex(s => s.id === 'external'), 'photo'],
+}).refine(data => {
+    const securitySection = data.sections.find(s => s.id === 'security');
+    if (securitySection?.items.some(i => i.status === 'Não OK') && !securitySection.photo) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Foto é obrigatória para a seção 'Itens de Segurança' se houver itens 'Não OK'.",
+    path: ['sections', initialMaintenanceChecklist.findIndex(s => s.id === 'security'), 'photo'],
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -65,12 +83,15 @@ export default function MaintenanceChecklistPage() {
       mileage: 0,
       sections: initialMaintenanceChecklist,
     },
+    mode: 'onChange' // To show validation errors as user interacts
   });
 
-  const { fields: sectionFields, update: updateSection } = useFieldArray({
+  const { fields: sectionFields } = useFieldArray({
     control,
     name: "sections",
   });
+  
+  const watchedSections = watch("sections");
 
   const handleImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -176,108 +197,125 @@ export default function MaintenanceChecklistPage() {
         </Card>
 
         <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
-          {sectionFields.map((section, sectionIndex) => (
-            <Card key={section.id}>
-              <AccordionItem value={section.id} className="border-b-0">
-                <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
-                  {section.title}
-                </AccordionTrigger>
-                <AccordionContent className="p-6 pt-0">
-                  <div className="space-y-6">
-                    <Controller
-                      name={`sections.${sectionIndex}.items`}
-                      control={control}
-                      render={({ field }) => (
-                        <div className="space-y-4">
-                          {field.value.map((item, itemIndex) => {
-                            const currentStatus = watch(`sections.${sectionIndex}.items.${itemIndex}.status`);
-                            return (
-                              <div
-                                key={item.id}
-                                className={cn(
-                                    "p-4 border rounded-lg transition-colors",
-                                    currentStatus === "Não OK" ? "bg-destructive/10 border-destructive" : ""
-                                )}
-                              >
-                                <Label className="font-medium flex justify-between items-center">
-                                  <span>{item.text}</span>
-                                  {currentStatus === "Não OK" && <AlertTriangle className="h-5 w-5 text-destructive" />}
-                                </Label>
-                                <Controller
-                                  name={`sections.${sectionIndex}.items.${itemIndex}.status`}
-                                  control={control}
-                                  render={({ field: itemField }) => (
-                                    <RadioGroup
-                                      onValueChange={itemField.onChange}
-                                      defaultValue={itemField.value}
-                                      className="flex items-center gap-6 mt-2"
-                                    >
-                                      <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="OK" id={`${item.id}-ok`} />
-                                        <Label htmlFor={`${item.id}-ok`}>OK</Label>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="Não OK" id={`${item.id}-notok`} />
-                                        <Label htmlFor={`${item.id}-notok`}>Não OK</Label>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="N/A" id={`${item.id}-na`} />
-                                        <Label htmlFor={`${item.id}-na`}>N/A</Label>
-                                      </div>
-                                    </RadioGroup>
+          {sectionFields.map((section, sectionIndex) => {
+            const isMandatory = (section.id === 'external' || section.id === 'security') && watchedSections[sectionIndex]?.items.some(i => i.status === 'Não OK');
+
+            return (
+              <Card key={section.id}>
+                <AccordionItem value={section.id} className="border-b-0">
+                  <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
+                    {section.title}
+                  </AccordionTrigger>
+                  <AccordionContent className="p-6 pt-0">
+                    <div className="space-y-6">
+                      <Controller
+                        name={`sections.${sectionIndex}.items`}
+                        control={control}
+                        render={({ field }) => (
+                          <div className="space-y-4">
+                            {field.value.map((item, itemIndex) => {
+                              const currentStatus = watch(`sections.${sectionIndex}.items.${itemIndex}.status`);
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={cn(
+                                      "p-4 border rounded-lg transition-colors",
+                                      currentStatus === "Não OK" ? "bg-destructive/10 border-destructive" : ""
                                   )}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    />
-                    
-                    <div className="grid gap-2">
-                        <Label htmlFor={`obs-${section.id}`}>Observações</Label>
-                        <Controller 
-                            name={`sections.${sectionIndex}.observations`}
-                            control={control}
-                            render={({ field }) => (
-                                <Textarea id={`obs-${section.id}`} placeholder={`Observações sobre ${section.title.toLowerCase()}...`} {...field} />
-                            )}
-                        />
-                    </div>
-                    
-                    <div className="grid gap-2">
-                        <Label>Anexar Foto</Label>
-                        {watch(`sections.${sectionIndex}.photo`) ? (
-                            <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
-                                <Image src={watch(`sections.${sectionIndex}.photo`)!} alt={`Foto da seção ${section.title}`} layout="fill" className="object-cover" />
-                                <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-2 right-2 h-7 w-7"
-                                    onClick={() => setValue(`sections.${sectionIndex}.photo`, undefined)}
                                 >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <Label htmlFor={`photo-${section.id}`} className="flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit">
-                                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">Anexar arquivo</span>
-                                <Input
-                                    id={`photo-${section.id}`}
-                                    type="file"
-                                    className="hidden"
-                                    accept="image/png, image/jpeg"
-                                    onChange={(e) => handleImageUpload(e, sectionIndex)}
-                                />
-                            </Label>
+                                  <Label className="font-medium flex justify-between items-center">
+                                    <span>{item.text}</span>
+                                    {currentStatus === "Não OK" && <AlertTriangle className="h-5 w-5 text-destructive" />}
+                                  </Label>
+                                  <Controller
+                                    name={`sections.${sectionIndex}.items.${itemIndex}.status`}
+                                    control={control}
+                                    render={({ field: itemField }) => (
+                                      <RadioGroup
+                                        onValueChange={(value) => {
+                                          itemField.onChange(value);
+                                          setValue(`sections.${sectionIndex}.items`, // trigger validation
+                                            watch(`sections.${sectionIndex}.items`),
+                                            { shouldValidate: true }
+                                          );
+                                        }}
+                                        defaultValue={itemField.value}
+                                        className="flex items-center gap-6 mt-2"
+                                      >
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value="OK" id={`${item.id}-ok`} />
+                                          <Label htmlFor={`${item.id}-ok`}>OK</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value="Não OK" id={`${item.id}-notok`} />
+                                          <Label htmlFor={`${item.id}-notok`}>Não OK</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value="N/A" id={`${item.id}-na`} />
+                                          <Label htmlFor={`${item.id}-na`}>N/A</Label>
+                                        </div>
+                                      </RadioGroup>
+                                    )}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
+                      />
+                      
+                      <div className="grid gap-2">
+                          <Label htmlFor={`obs-${section.id}`}>Observações</Label>
+                          <Controller 
+                              name={`sections.${sectionIndex}.observations`}
+                              control={control}
+                              render={({ field }) => (
+                                  <Textarea id={`obs-${section.id}`} placeholder={`Observações sobre ${section.title.toLowerCase()}...`} {...field} />
+                              )}
+                          />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                          <Label>
+                            Anexar Foto {isMandatory && <span className="text-destructive ml-1">*</span>}
+                          </Label>
+                          {watch(`sections.${sectionIndex}.photo`) ? (
+                              <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
+                                  <Image src={watch(`sections.${sectionIndex}.photo`)!} alt={`Foto da seção ${section.title}`} layout="fill" className="object-cover" />
+                                  <Button
+                                      variant="destructive"
+                                      size="icon"
+                                      className="absolute top-2 right-2 h-7 w-7"
+                                      onClick={() => setValue(`sections.${sectionIndex}.photo`, undefined, { shouldValidate: true })}
+                                  >
+                                      <Trash2 className="h-4 w-4" />
+                                  </Button>
+                              </div>
+                          ) : (
+                              <Label htmlFor={`photo-${section.id}`} className={cn(
+                                "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
+                                errors.sections?.[sectionIndex]?.photo && "border-destructive"
+                              )}>
+                                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">Anexar arquivo</span>
+                                  <Input
+                                      id={`photo-${section.id}`}
+                                      type="file"
+                                      className="hidden"
+                                      accept="image/png, image/jpeg"
+                                      onChange={(e) => handleImageUpload(e, sectionIndex)}
+                                  />
+                              </Label>
+                          )}
+                          {errors.sections?.[sectionIndex]?.photo && <p className="text-sm text-destructive">{errors.sections?.[sectionIndex]?.photo?.message}</p>}
+                          {isMandatory && !watch(`sections.${sectionIndex}.photo`) && <p className="text-sm text-destructive">Foto é obrigatória se houver itens 'Não OK'.</p>}
+                      </div>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Card>
-          ))}
+                  </AccordionContent>
+                </AccordionItem>
+              </Card>
+            )
+          })}
         </Accordion>
 
         <Card className="mt-6">
