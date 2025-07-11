@@ -9,8 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, Paperclip, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { mandatoryPhotoItems, ChecklistItem } from "@/lib/maintenance-checklist-data";
+import { ChecklistItem as ChecklistItemData } from "@/lib/checklist-templates-data";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle } from "./ui/alert";
 
@@ -18,7 +17,7 @@ import { Alert, AlertTitle } from "./ui/alert";
 interface ItemChecklistDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  item: ChecklistItem | null;
+  item: ChecklistItemData | null;
   onSave: (data: { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string }) => void;
 }
 
@@ -41,9 +40,10 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
   }, [item]);
 
   if (!item) return null;
-
-  const isPhotoMandatory = mandatoryPhotoItems.includes(item.id);
-  const isPhotoRequired = isPhotoMandatory || status === "Não OK";
+  
+  const isPhotoRequired = 
+    item.photoRequirement === 'always' || 
+    (item.photoRequirement === 'if_not_ok' && status === 'Não OK');
 
   const handleSave = () => {
     if (isPhotoRequired && !photo) {
@@ -70,7 +70,9 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
       reader.onloadend = () => {
         const base64Image = reader.result as string;
         setPhoto(base64Image);
-        setError(null); // Clear error on successful upload
+        if (isPhotoRequired) {
+            setError(null);
+        }
       };
       e.target.value = "";
     }
@@ -78,7 +80,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{item.text}</DialogTitle>
@@ -92,12 +94,9 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
               value={status}
               onValueChange={(value: "OK" | "Não OK" | "N/A") => {
                 setStatus(value);
-                // Clear error when status changes
-                if (error) {
-                    const stillRequiresPhoto = mandatoryPhotoItems.includes(item.id) || value === 'Não OK';
-                    if (!stillRequiresPhoto || photo) {
-                        setError(null);
-                    }
+                const willRequirePhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && value === 'Não OK');
+                if (!willRequirePhoto) {
+                    setError(null);
                 }
               }}
               className="flex items-center gap-6"
@@ -138,12 +137,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                       variant="destructive"
                       size="icon"
                       className="absolute top-2 right-2 h-7 w-7"
-                      onClick={() => {
-                        setPhoto(undefined);
-                        if (isPhotoRequired) {
-                            setError("Este item requer imagem para continuar.");
-                        }
-                      }}
+                      onClick={() => setPhoto(undefined)}
                   >
                       <Trash2 className="h-4 w-4" />
                   </Button>

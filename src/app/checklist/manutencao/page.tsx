@@ -11,11 +11,12 @@ import {
   CardHeader,
   CardTitle,
   CardFooter,
+  CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertCircle, CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Accordion,
@@ -23,30 +24,37 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { initialMaintenanceChecklist, ChecklistItem as ItemData } from "@/lib/maintenance-checklist-data";
+import { ChecklistTemplate, defaultChecklistTemplates, ChecklistItem as ItemData } from "@/lib/checklist-templates-data";
 import { ItemChecklistDialog } from "@/components/item-checklist-dialog";
 import { Textarea } from "@/components/ui/textarea";
 
 const itemSchema = z.object({
   id: z.string(),
   text: z.string(),
+  photoRequirement: z.enum(["always", "if_not_ok", "never"]),
   status: z.enum(["OK", "Não OK", "N/A"]),
   photo: z.string().optional(),
   observation: z.string().optional(),
+}).refine(data => {
+    if (data.photoRequirement === 'always') {
+        return !!data.photo;
+    }
+    if (data.photoRequirement === 'if_not_ok' && data.status === 'Não OK') {
+        return !!data.photo;
+    }
+    return true;
+}, {
+    message: "Este item requer uma foto para a avaliação selecionada.",
+    path: ["photo"], // You can specify the path to show the error
 });
 
-const sectionSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  items: z.array(itemSchema),
-  observations: z.string().optional(),
-});
 
 const checklistSchema = z.object({
   vehicleId: z.string().min(1, "Selecione um veículo"),
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
-  sections: z.array(sectionSchema),
+  questions: z.array(itemSchema),
+  generalObservations: z.string().optional(),
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -57,36 +65,91 @@ const statusIcons = {
   "N/A": <FileQuestion className="h-5 w-5 text-muted-foreground" />,
 };
 
+function TemplateSelectionScreen({ onSelect }: { onSelect: (template: ChecklistTemplate) => void }) {
+  return (
+    <div className="mx-auto grid w-full max-w-4xl gap-6">
+      <div className="flex flex-col gap-2 text-center">
+        <ListChecks className="h-12 w-12 mx-auto text-primary" />
+        <h1 className="text-3xl font-semibold font-headline">
+          Checklist de Manutenção
+        </h1>
+        <p className="text-muted-foreground">
+          Primeiro, selecione o modelo de checklist que deseja utilizar para a inspeção.
+        </p>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Qual modelo de checklist deseja utilizar?</CardTitle>
+          <CardDescription>Os modelos contêm perguntas específicas para cada tipo de veículo ou inspeção.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {defaultChecklistTemplates.map(template => (
+             <Card key={template.id} className="p-4 flex justify-between items-center">
+              <div>
+                <h3 className="font-semibold">{template.name}</h3>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {template.type} - {template.category.replace(/_/g, ' ')}
+                </p>
+              </div>
+              <Button onClick={() => onSelect(template)}>Selecionar</Button>
+            </Card>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
-  const [selectedItem, setSelectedItem] = useState<{ sectionIndex: number; itemIndex: number; item: ItemData } | null>(null);
+  const [selectedItem, setSelectedItem] = useState<{ itemIndex: number; item: ItemData } | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
 
-  const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
       responsibleName: "Pedro Mecânico", // Mock, could come from auth
       mileage: undefined,
-      sections: initialMaintenanceChecklist,
+      questions: [],
+      generalObservations: "",
     },
     mode: 'onChange' 
   });
-
-  const { fields: sectionFields } = useFieldArray({
-    control,
-    name: "sections",
+  
+  const { fields: questionFields } = useFieldArray({
+      control,
+      name: "questions"
   });
 
-  const handleOpenDialog = (sectionIndex: number, itemIndex: number, item: any) => {
-    setSelectedItem({ sectionIndex, itemIndex, item: watch(`sections.${sectionIndex}.items.${itemIndex}`) as any });
+  const handleSelectTemplate = (template: ChecklistTemplate) => {
+    setSelectedTemplate(template);
+    const initialItems = template.questions.map(q => ({
+      ...q,
+      status: "N/A" as const,
+      photo: undefined,
+      observation: undefined,
+    }));
+    reset({
+        vehicleId: "",
+        responsibleName: "Pedro Mecânico",
+        mileage: undefined,
+        questions: initialItems,
+        generalObservations: "",
+    });
+  };
+
+  const handleOpenDialog = (itemIndex: number) => {
+    setSelectedItem({ itemIndex, item: watch(`questions.${itemIndex}`) as any });
   };
   
   const handleDialogSave = (data: { status: "OK" | "Não OK" | "N/A"; photo?: string; observation?: string }) => {
     if (selectedItem) {
-      const { sectionIndex, itemIndex } = selectedItem;
-      setValue(`sections.${sectionIndex}.items.${itemIndex}.status`, data.status, { shouldValidate: true });
-      setValue(`sections.${sectionIndex}.items.${itemIndex}.photo`, data.photo, { shouldValidate: true });
-      setValue(`sections.${sectionIndex}.items.${itemIndex}.observation`, data.observation, { shouldValidate: true });
+      const { itemIndex } = selectedItem;
+      setValue(`questions.${itemIndex}.status`, data.status, { shouldValidate: true });
+      setValue(`questions.${itemIndex}.photo`, data.photo, { shouldValidate: true });
+      setValue(`questions.${itemIndex}.observation`, data.observation, { shouldValidate: true });
       setSelectedItem(null);
     }
   };
@@ -94,9 +157,7 @@ export default function MaintenanceChecklistPage() {
   const onSubmit = (data: ChecklistFormValues) => {
     console.log("Checklist de Manutenção enviado:", JSON.stringify(data, null, 2));
 
-    const hasIssues = data.sections.some(section =>
-      section.items.some(item => item.status === "Não OK")
-    );
+    const hasIssues = data.questions.some(item => item.status === "Não OK");
     
     toast({
         title: "Checklist Enviado com Sucesso!",
@@ -104,7 +165,13 @@ export default function MaintenanceChecklistPage() {
             ? "O checklist foi registrado com pendências para acompanhamento."
             : "O checklist foi registrado sem pendências.",
     });
+    // Reset to selection screen
+    setSelectedTemplate(null);
   };
+  
+  if (!selectedTemplate) {
+    return <TemplateSelectionScreen onSelect={handleSelectTemplate} />;
+  }
 
   return (
     <>
@@ -113,14 +180,15 @@ export default function MaintenanceChecklistPage() {
         onClose={() => setSelectedItem(null)}
         item={selectedItem?.item as any}
         onSave={handleDialogSave}
+        key={selectedItem?.item.id}
       />
       <div className="mx-auto grid w-full max-w-4xl gap-6">
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold font-headline">
-            Checklist de Inspeção do Veículo
+            {selectedTemplate.name}
           </h1>
           <p className="text-muted-foreground">
-            Realize a inspeção completa do veículo, preenchendo todas as seções.
+            Realize a inspeção completa do veículo, preenchendo todos os itens.
           </p>
         </div>
 
@@ -170,63 +238,63 @@ export default function MaintenanceChecklistPage() {
               </div>
             </CardContent>
           </Card>
-
-          <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
-            {sectionFields.map((section, sectionIndex) => (
-                <Card key={section.id}>
-                  <AccordionItem value={section.id} className="border-b-0">
-                    <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
-                      {section.title}
-                    </AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
-                      <div className="space-y-6">
-                          <div className="space-y-2">
-                            {section.items.map((item, itemIndex) => {
-                              const currentItemState = watch(`sections.${sectionIndex}.items.${itemIndex}`);
-                              const isCompleted = currentItemState.status !== "N/A";
-                              
-                              return (
-                                <button
-                                  type="button"
-                                  key={item.id}
-                                  onClick={() => handleOpenDialog(sectionIndex, itemIndex, item)}
-                                  className="w-full text-left p-4 border rounded-lg transition-colors flex justify-between items-center hover:bg-muted/50"
-                                >
-                                  <span className="font-medium">{item.text}</span>
-                                  <div className="flex items-center gap-3">
-                                    {currentItemState.photo && <Paperclip className="h-4 w-4 text-muted-foreground" />}
-                                    {currentItemState.observation && <MessageSquare className="h-4 w-4 text-muted-foreground" />}
-                                    {isCompleted ? (
-                                      statusIcons[currentItemState.status]
-                                    ) : (
-                                      <CheckCircle className="h-5 w-5 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        
-                        <div className="grid gap-2">
-                            <Label htmlFor={`obs-${section.id}`}>Observações Gerais da Seção</Label>
-                            <Controller 
-                                name={`sections.${sectionIndex}.observations`}
-                                control={control}
-                                render={({ field }) => (
-                                    <Textarea id={`obs-${section.id}`} placeholder={`Observações sobre ${section.title.toLowerCase()}...`} {...field} value={field.value ?? ''} />
-                                )}
-                            />
-                        </div>
+          
+          <Card className="mt-6">
+            <CardHeader>
+                <CardTitle>Itens de Verificação</CardTitle>
+            </CardHeader>
+             <CardContent className="space-y-2">
+              {questionFields.map((item, itemIndex) => {
+                const currentItemState = watch(`questions.${itemIndex}`);
+                const isCompleted = currentItemState.status !== "N/A";
+                const errorForThisItem = errors.questions?.[itemIndex]?.photo?.message;
+                
+                return (
+                  <div key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDialog(itemIndex)}
+                      className="w-full text-left p-4 border rounded-lg transition-colors flex justify-between items-center hover:bg-muted/50 data-[error=true]:border-destructive"
+                      data-error={!!errorForThisItem}
+                    >
+                      <span className="font-medium">{item.text}</span>
+                      <div className="flex items-center gap-3">
+                        {currentItemState.photo && <Paperclip className="h-4 w-4 text-muted-foreground" />}
+                        {currentItemState.observation && <MessageSquare className="h-4 w-4 text-muted-foreground" />}
+                        {isCompleted ? (
+                          statusIcons[currentItemState.status]
+                        ) : (
+                          <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                        )}
                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Card>
-              ))}
-          </Accordion>
+                    </button>
+                    {errorForThisItem && <p className="text-sm text-destructive mt-1">{errorForThisItem}</p>}
+                  </div>
+                );
+              })}
+             </CardContent>
+          </Card>
+
 
           <Card className="mt-6">
-            <CardFooter className="border-t px-6 py-4">
+            <CardHeader>
+                <CardTitle>Observações Gerais</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <div className="grid gap-2">
+                    <Label htmlFor="generalObservations">Observações Gerais do Checklist</Label>
+                    <Controller 
+                        name="generalObservations"
+                        control={control}
+                        render={({ field }) => (
+                            <Textarea id="generalObservations" placeholder="Observações gerais sobre a inspeção..." {...field} value={field.value ?? ''} />
+                        )}
+                    />
+                </div>
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4 flex justify-between">
               <Button type="submit" size="lg">Finalizar Checklist</Button>
+              <Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)}>Cancelar e Voltar</Button>
             </CardFooter>
           </Card>
         </form>
