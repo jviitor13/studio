@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, Send, FileText } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText } from "lucide-react"
 import { format } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -30,9 +30,9 @@ const mockChecklists = [
     { id: 'CHK-004', date: '2024-07-27', vehicle: 'RDO1A12', driver: 'João Silva', type: 'Viagem', status: 'Pendente' },
 ];
 
-const statusVariant : {[key:string]: "default" | "destructive"} = {
+const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
-    'Pendente': 'destructive'
+    'Pendente': 'destructive',
 }
 
 const statusBadgeColor : {[key:string]: string} = {
