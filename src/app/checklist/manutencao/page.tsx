@@ -27,13 +27,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { initialMaintenanceChecklist } from "@/lib/maintenance-checklist-data";
+import { initialMaintenanceChecklist, mandatoryPhotoItems } from "@/lib/maintenance-checklist-data";
 import { cn } from "@/lib/utils";
 
 const itemSchema = z.object({
   id: z.string(),
   text: z.string(),
   status: z.enum(["OK", "Não OK", "N/A"]),
+  photo: z.string().optional(),
 });
 
 const sectionSchema = z.object({
@@ -41,7 +42,6 @@ const sectionSchema = z.object({
   title: z.string(),
   items: z.array(itemSchema),
   observations: z.string().optional(),
-  photo: z.string().optional(),
 });
 
 const checklistSchema = z.object({
@@ -50,15 +50,17 @@ const checklistSchema = z.object({
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
   sections: z.array(sectionSchema),
 }).superRefine((data, ctx) => {
-    data.sections.forEach((section, index) => {
-        const isPhotoMandatory = (section.id === 'external' || section.id === 'security') && section.items.some(i => i.status === 'Não OK');
-        if (isPhotoMandatory && !section.photo) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: `Foto é obrigatória para a seção '${section.title}' se houver itens 'Não OK'.`,
-                path: ['sections', index, 'photo'],
-            });
-        }
+    data.sections.forEach((section, sectionIndex) => {
+        section.items.forEach((item, itemIndex) => {
+            const isMandatory = mandatoryPhotoItems.includes(item.id);
+            if (isMandatory && item.status === 'Não OK' && !item.photo) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `Foto é obrigatória para este item quando 'Não OK'.`,
+                    path: ['sections', sectionIndex, 'items', itemIndex, 'photo'],
+                });
+            }
+        });
     });
 });
 
@@ -75,7 +77,7 @@ export default function MaintenanceChecklistPage() {
       mileage: undefined,
       sections: initialMaintenanceChecklist,
     },
-    mode: 'onChange' // To show validation errors as user interacts
+    mode: 'onChange' 
   });
 
   const { fields: sectionFields } = useFieldArray({
@@ -83,11 +85,10 @@ export default function MaintenanceChecklistPage() {
     name: "sections",
   });
   
-  const watchedSections = watch("sections");
-
   const handleImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>,
-    sectionIndex: number
+    sectionIndex: number,
+    itemIndex: number
   ) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -103,7 +104,7 @@ export default function MaintenanceChecklistPage() {
       reader.readAsDataURL(file);
       reader.onloadend = () => {
         const base64Image = reader.result as string;
-        setValue(`sections.${sectionIndex}.photo`, base64Image, { shouldValidate: true });
+        setValue(`sections.${sectionIndex}.items.${itemIndex}.photo`, base64Image, { shouldValidate: true });
       };
       e.target.value = "";
     }
@@ -184,9 +185,6 @@ export default function MaintenanceChecklistPage() {
 
         <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
           {sectionFields.map((section, sectionIndex) => {
-            const isPhotoMandatory = (section.id === 'external' || section.id === 'security') && watchedSections[sectionIndex]?.items.some(i => i.status === 'Não OK');
-            const photoError = errors.sections?.[sectionIndex]?.photo?.message;
-
             return (
               <Card key={section.id}>
                 <AccordionItem value={section.id} className="border-b-0">
@@ -195,61 +193,98 @@ export default function MaintenanceChecklistPage() {
                   </AccordionTrigger>
                   <AccordionContent className="p-6 pt-0">
                     <div className="space-y-6">
-                      <Controller
-                        name={`sections.${sectionIndex}.items`}
-                        control={control}
-                        render={({ field }) => (
-                          <div className="space-y-4">
-                            {field.value.map((item, itemIndex) => {
-                              const currentStatus = watch(`sections.${sectionIndex}.items.${itemIndex}.status`);
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={cn(
-                                      "p-4 border rounded-lg transition-colors",
-                                      currentStatus === "Não OK" ? "bg-destructive/10 border-destructive" : ""
-                                  )}
-                                >
-                                  <Label className="font-medium flex justify-between items-center">
-                                    <span>{item.text}</span>
+                        <div className="space-y-4">
+                          {section.items.map((item, itemIndex) => {
+                            const currentStatus = watch(`sections.${sectionIndex}.items.${itemIndex}.status`);
+                            const photoPath = `sections.${sectionIndex}.items.${itemIndex}.photo`;
+                            const photoError = errors.sections?.[sectionIndex]?.items?.[itemIndex]?.photo?.message;
+                            const isPhotoMandatory = mandatoryPhotoItems.includes(item.id) && currentStatus === 'Não OK';
+                            const photoValue = watch(photoPath as any);
+
+                            return (
+                              <div
+                                key={item.id}
+                                className={cn(
+                                    "p-4 border rounded-lg transition-colors space-y-4",
+                                    currentStatus === "Não OK" ? "bg-destructive/10 border-destructive" : ""
+                                )}
+                              >
+                                <div className="flex justify-between items-center">
+                                    <Label className="font-medium text-base">
+                                      {item.text}
+                                    </Label>
                                     {currentStatus === "Não OK" && <AlertTriangle className="h-5 w-5 text-destructive" />}
-                                  </Label>
-                                  <Controller
-                                    name={`sections.${sectionIndex}.items.${itemIndex}.status`}
-                                    control={control}
-                                    render={({ field: itemField }) => (
-                                      <RadioGroup
-                                        onValueChange={(value) => {
-                                          itemField.onChange(value);
-                                          trigger(`sections.${sectionIndex}.photo`); // Trigger validation for the photo field
-                                        }}
-                                        defaultValue={itemField.value}
-                                        className="flex items-center gap-6 mt-2"
-                                      >
-                                        <div className="flex items-center space-x-2">
-                                          <RadioGroupItem value="OK" id={`${item.id}-ok`} />
-                                          <Label htmlFor={`${item.id}-ok`}>OK</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                          <RadioGroupItem value="Não OK" id={`${item.id}-notok`} />
-                                          <Label htmlFor={`${item.id}-notok`}>Não OK</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                          <RadioGroupItem value="N/A" id={`${item.id}-na`} />
-                                          <Label htmlFor={`${item.id}-na`}>N/A</Label>
-                                        </div>
-                                      </RadioGroup>
-                                    )}
-                                  />
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      />
+                                <Controller
+                                  name={`sections.${sectionIndex}.items.${itemIndex}.status`}
+                                  control={control}
+                                  render={({ field: itemField }) => (
+                                    <RadioGroup
+                                      onValueChange={(value) => {
+                                        itemField.onChange(value);
+                                        trigger(`sections.${sectionIndex}.items.${itemIndex}.photo` as any);
+                                      }}
+                                      defaultValue={itemField.value}
+                                      className="flex items-center gap-6"
+                                    >
+                                      <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="OK" id={`${item.id}-ok`} />
+                                        <Label htmlFor={`${item.id}-ok`}>OK</Label>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="Não OK" id={`${item.id}-notok`} />
+                                        <Label htmlFor={`${item.id}-notok`}>Não OK</Label>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="N/A" id={`${item.id}-na`} />
+                                        <Label htmlFor={`${item.id}-na`}>N/A</Label>
+                                      </div>
+                                    </RadioGroup>
+                                  )}
+                                />
+                                {currentStatus === 'Não OK' && (
+                                   <div className="grid gap-2 pt-2 border-t border-dashed">
+                                      <Label>
+                                        Anexar Foto {isPhotoMandatory && <span className="text-destructive ml-1">*</span>}
+                                      </Label>
+                                      {photoValue ? (
+                                          <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
+                                              <Image src={photoValue} alt={`Foto do item ${item.text}`} layout="fill" className="object-cover" />
+                                              <Button
+                                                  variant="destructive"
+                                                  size="icon"
+                                                  className="absolute top-2 right-2 h-7 w-7"
+                                                  onClick={() => setValue(`sections.${sectionIndex}.items.${itemIndex}.photo`, undefined, { shouldValidate: true })}
+                                              >
+                                                  <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                          </div>
+                                      ) : (
+                                          <Label htmlFor={`photo-${item.id}`} className={cn(
+                                            "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
+                                            photoError && "border-destructive"
+                                          )}>
+                                              <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                              <span className="text-sm text-muted-foreground">Anexar arquivo</span>
+                                              <Input
+                                                  id={`photo-${item.id}`}
+                                                  type="file"
+                                                  className="hidden"
+                                                  accept="image/png, image/jpeg"
+                                                  onChange={(e) => handleImageUpload(e, sectionIndex, itemIndex)}
+                                              />
+                                          </Label>
+                                      )}
+                                      {photoError && <p className="text-sm text-destructive">{photoError}</p>}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       
                       <div className="grid gap-2">
-                          <Label htmlFor={`obs-${section.id}`}>Observações</Label>
+                          <Label htmlFor={`obs-${section.id}`}>Observações da Seção</Label>
                           <Controller 
                               name={`sections.${sectionIndex}.observations`}
                               control={control}
@@ -258,43 +293,6 @@ export default function MaintenanceChecklistPage() {
                               )}
                           />
                       </div>
-                      
-                      {(section.id === 'external' || section.id === 'security') && (
-                        <div className="grid gap-2">
-                            <Label>
-                              Anexar Foto {isPhotoMandatory && <span className="text-destructive ml-1">*</span>}
-                            </Label>
-                            {watch(`sections.${sectionIndex}.photo`) ? (
-                                <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
-                                    <Image src={watch(`sections.${sectionIndex}.photo`)!} alt={`Foto da seção ${section.title}`} layout="fill" className="object-cover" />
-                                    <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="absolute top-2 right-2 h-7 w-7"
-                                        onClick={() => setValue(`sections.${sectionIndex}.photo`, undefined, { shouldValidate: true })}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <Label htmlFor={`photo-${section.id}`} className={cn(
-                                  "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
-                                  photoError && "border-destructive"
-                                )}>
-                                    <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm text-muted-foreground">Anexar arquivo</span>
-                                    <Input
-                                        id={`photo-${section.id}`}
-                                        type="file"
-                                        className="hidden"
-                                        accept="image/png, image/jpeg"
-                                        onChange={(e) => handleImageUpload(e, sectionIndex)}
-                                    />
-                                </Label>
-                            )}
-                            {photoError && <p className="text-sm text-destructive">{photoError}</p>}
-                        </div>
-                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>

@@ -1,10 +1,12 @@
 
+
 export type ChecklistStatus = "OK" | "Não OK" | "N/A";
 
 export interface ChecklistItem {
   id: string;
   text: string;
   status: ChecklistStatus;
+  photo?: string;
 }
 
 export interface ChecklistSection {
@@ -12,7 +14,6 @@ export interface ChecklistSection {
   title: string;
   items: ChecklistItem[];
   observations: string;
-  photo?: string;
 }
 
 export const initialMaintenanceChecklist: ChecklistSection[] = [
@@ -95,4 +96,26 @@ export const initialMaintenanceChecklist: ChecklistSection[] = [
     ],
     observations: "",
   },
+];
+
+
+// List of item IDs where a photo is mandatory if status is "Não OK"
+export const mandatoryPhotoItems: string[] = [
+    // Estrutura Externa
+    'ext-1', // Pintura e lataria
+    'ext-2', // Para-choques
+    'ext-3', // Retrovisores
+    'ext-5', // Faróis, setas e lanternas
+    'ext-6', // Pneus
+    // Equipamentos Obrigatórios
+    'equip-4', // Extintor
+    // Itens de Segurança
+    'sec-1', // Freios
+    'sec-2', // Nível de fluído de freio
+    'sec-3', // Direção
+    'sec-4', // Suspensão
+    'sec-5', // Cintos de segurança
+    // Itens Situacionais
+    'sit-1', // Quinta roda
+    'sit-3', // Tacógrafo
 ];
