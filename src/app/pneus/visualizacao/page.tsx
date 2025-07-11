@@ -22,6 +22,14 @@ const vehicleTireData: Record<string, Record<string, any>> = {
     "T2EE": { id: "PNEU-022", brand: "Bridgestone", model: "R268", pressure: "109 psi", depth: "7mm" },
     "T2DI": { id: "PNEU-023", brand: "Bridgestone", model: "R268", pressure: "111 psi", depth: "8mm" },
     "T2DE": { id: "PNEU-024", brand: "Bridgestone", model: "R268", pressure: "111 psi", depth: "8mm" },
+  },
+  "RDO2C24": {
+    "DDE": { id: "PNEU-004", brand: "Michelin", model: "X Multi Z", pressure: "122 psi", depth: "12mm" },
+    "DDD": { id: "PNEU-008", brand: "Pirelli", model: "FR:01", pressure: "122 psi", depth: "12mm" },
+    "T1EI": { id: "PNEU-031", brand: "Goodyear", model: "KMax D", pressure: "115 psi", depth: "10mm" },
+    "T1EE": { id: "PNEU-032", brand: "Goodyear", model: "KMax D", pressure: "115 psi", depth: "10mm" },
+    "T1DI": { id: "PNEU-033", brand: "Goodyear", model: "KMax D", pressure: "114 psi", depth: "10mm" },
+    "T1DE": { id: "PNEU-034", brand: "Goodyear", model: "KMax D", pressure: "114 psi", depth: "10mm" },
   }
 };
 
