@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
+import Link from "next/link";
 
 const tires = [
   { id: "PNEU-001", brand: "Michelin", model: "X Multi Z", status: "Em Uso", vehicle: "RDO1A12", position: "Dianteiro Esquerdo" },
@@ -64,53 +65,61 @@ export default function PneusPage() {
         title="Gestão de Pneus"
         description="Gerencie os pneus da sua frota."
       >
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button>
-                    <PlusCircle className="mr-2" />
-                    Adicionar Pneu
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Adicionar Novo Pneu</DialogTitle>
-                    <DialogDescription>
-                        Preencha os dados para cadastrar um novo pneu.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="id" className="text-right">ID / Fogo</Label>
-                        <Input id="id" placeholder="Ex: PNEU-006" className="col-span-3" />
+        <div className="flex gap-2">
+           <Link href="/pneus/visualizacao">
+            <Button variant="outline">
+                <Eye className="mr-2" />
+                Visualizar por Veículo
+            </Button>
+           </Link>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button>
+                        <PlusCircle className="mr-2" />
+                        Adicionar Pneu
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Adicionar Novo Pneu</DialogTitle>
+                        <DialogDescription>
+                            Preencha os dados para cadastrar um novo pneu.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="id" className="text-right">ID / Fogo</Label>
+                            <Input id="id" placeholder="Ex: PNEU-006" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="brand" className="text-right">Marca</Label>
+                            <Input id="brand" placeholder="Ex: Michelin" className="col-span-3" />
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="model" className="text-right">Modelo</Label>
+                            <Input id="model" placeholder="Ex: X Multi Z" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="status" className="text-right">Status</Label>
+                            <Select>
+                                <SelectTrigger id="status" className="col-span-3">
+                                    <SelectValue placeholder="Selecione o status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="estoque">Em Estoque</SelectItem>
+                                    <SelectItem value="uso">Em Uso</SelectItem>
+                                    <SelectItem value="manutencao">Em Manutenção</SelectItem>
+                                    <SelectItem value="sucateado">Sucateado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="brand" className="text-right">Marca</Label>
-                        <Input id="brand" placeholder="Ex: Michelin" className="col-span-3" />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="model" className="text-right">Modelo</Label>
-                        <Input id="model" placeholder="Ex: X Multi Z" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="status" className="text-right">Status</Label>
-                        <Select>
-                            <SelectTrigger id="status" className="col-span-3">
-                                <SelectValue placeholder="Selecione o status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="estoque">Em Estoque</SelectItem>
-                                <SelectItem value="uso">Em Uso</SelectItem>
-                                <SelectItem value="manutencao">Em Manutenção</SelectItem>
-                                <SelectItem value="sucateado">Sucateado</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button type="submit" onClick={() => setOpen(false)}>Salvar Pneu</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                        <Button type="submit" onClick={() => setOpen(false)}>Salvar Pneu</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
       </PageHeader>
       <Card>
         <CardHeader>
