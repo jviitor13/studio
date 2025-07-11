@@ -1,5 +1,3 @@
-
-
 export type ChecklistStatus = "OK" | "Não OK" | "N/A";
 
 export interface ChecklistItem {
@@ -7,6 +5,7 @@ export interface ChecklistItem {
   text: string;
   status: ChecklistStatus;
   photo?: string;
+  observation?: string;
 }
 
 export interface ChecklistSection {
@@ -37,6 +36,7 @@ export const initialMaintenanceChecklist: ChecklistSection[] = [
       { id: "ext-4", text: "Limpadores e palhetas", status: "N/A" },
       { id: "ext-5", text: "Faróis, setas e lanternas (lentes e funcionamento)", status: "N/A" },
       { id: "ext-6", text: "Pneus (calibragem e desgaste)", status: "N/A" },
+      { id: "ext-7", text: "Placas de identificação", status: "N/A" },
     ],
     observations: "",
   },
@@ -99,23 +99,10 @@ export const initialMaintenanceChecklist: ChecklistSection[] = [
 ];
 
 
-// List of item IDs where a photo is mandatory if status is "Não OK"
+// List of item IDs where a photo is ALWAYS mandatory
 export const mandatoryPhotoItems: string[] = [
-    // Estrutura Externa
-    'ext-1', // Pintura e lataria
-    'ext-2', // Para-choques
-    'ext-3', // Retrovisores
-    'ext-5', // Faróis, setas e lanternas
-    'ext-6', // Pneus
-    // Equipamentos Obrigatórios
-    'equip-4', // Extintor
-    // Itens de Segurança
-    'sec-1', // Freios
-    'sec-2', // Nível de fluído de freio
-    'sec-3', // Direção
-    'sec-4', // Suspensão
-    'sec-5', // Cintos de segurança
-    // Itens Situacionais
-    'sit-1', // Quinta roda
-    'sit-3', // Tacógrafo
+    'ext-1', // Pintura e lataria (avarias)
+    'ext-6', // Pneus (calibragem e desgaste)
+    'ext-7', // Placas de identificação
+    'sit-3', // Tacógrafo (disco e aferição)
 ];

@@ -14,11 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, AlertTriangle, Paperclip } from "lucide-react";
-import Image from "next/image";
+import { AlertCircle, CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Accordion,
@@ -26,14 +23,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { initialMaintenanceChecklist, mandatoryPhotoItems } from "@/lib/maintenance-checklist-data";
-import { cn } from "@/lib/utils";
+import { initialMaintenanceChecklist, ChecklistItem as ItemData } from "@/lib/maintenance-checklist-data";
+import { ItemChecklistDialog } from "@/components/item-checklist-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 const itemSchema = z.object({
   id: z.string(),
   text: z.string(),
   status: z.enum(["OK", "Não OK", "N/A"]),
   photo: z.string().optional(),
+  observation: z.string().optional(),
 });
 
 const sectionSchema = z.object({
@@ -48,27 +47,21 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
   sections: z.array(sectionSchema),
-}).superRefine((data, ctx) => {
-    data.sections.forEach((section, sectionIndex) => {
-        section.items.forEach((item, itemIndex) => {
-            const isMandatory = mandatoryPhotoItems.includes(item.id);
-            if (isMandatory && item.status === 'Não OK' && !item.photo) {
-                ctx.addIssue({
-                    code: z.ZodIssueCode.custom,
-                    message: `Foto é obrigatória para este item quando 'Não OK'.`,
-                    path: ['sections', sectionIndex, 'items', itemIndex, 'photo'],
-                });
-            }
-        });
-    });
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 
+const statusIcons = {
+  "OK": <ThumbsUp className="h-5 w-5 text-green-600" />,
+  "Não OK": <ThumbsDown className="h-5 w-5 text-destructive" />,
+  "N/A": <FileQuestion className="h-5 w-5 text-muted-foreground" />,
+};
+
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
+  const [selectedItem, setSelectedItem] = useState<{ sectionIndex: number; itemIndex: number; item: ItemData } | null>(null);
 
-  const { control, handleSubmit, formState: { errors }, setValue, watch, trigger } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -83,29 +76,18 @@ export default function MaintenanceChecklistPage() {
     control,
     name: "sections",
   });
+
+  const handleOpenDialog = (sectionIndex: number, itemIndex: number, item: any) => {
+    setSelectedItem({ sectionIndex, itemIndex, item: watch(`sections.${sectionIndex}.items.${itemIndex}`) as any });
+  };
   
-  const handleImageUpload = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    sectionIndex: number,
-    itemIndex: number
-  ) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      if (file.size > 4 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "A imagem não pode ter mais que 4MB.",
-        });
-        return;
-      }
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = () => {
-        const base64Image = reader.result as string;
-        setValue(`sections.${sectionIndex}.items.${itemIndex}.photo`, base64Image, { shouldValidate: true });
-      };
-      e.target.value = "";
+  const handleDialogSave = (data: { status: "OK" | "Não OK" | "N/A"; photo?: string; observation?: string }) => {
+    if (selectedItem) {
+      const { sectionIndex, itemIndex } = selectedItem;
+      setValue(`sections.${sectionIndex}.items.${itemIndex}.status`, data.status, { shouldValidate: true });
+      setValue(`sections.${sectionIndex}.items.${itemIndex}.photo`, data.photo, { shouldValidate: true });
+      setValue(`sections.${sectionIndex}.items.${itemIndex}.observation`, data.observation, { shouldValidate: true });
+      setSelectedItem(null);
     }
   };
 
@@ -125,187 +107,130 @@ export default function MaintenanceChecklistPage() {
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-4xl gap-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold font-headline">
-          Checklist de Inspeção do Veículo
-        </h1>
-        <p className="text-muted-foreground">
-          Realize a inspeção completa do veículo, preenchendo todas as seções.
-        </p>
-      </div>
+    <>
+      <ItemChecklistDialog
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        item={selectedItem?.item as any}
+        onSave={handleDialogSave}
+      />
+      <div className="mx-auto grid w-full max-w-4xl gap-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold font-headline">
+            Checklist de Inspeção do Veículo
+          </h1>
+          <p className="text-muted-foreground">
+            Realize a inspeção completa do veículo, preenchendo todas as seções.
+          </p>
+        </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações Gerais</CardTitle>
-          </CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-6">
-            <div className="grid gap-2">
-              <Label htmlFor="vehicleId">Veículo</Label>
-              <Controller
-                name="vehicleId"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <SelectTrigger id="vehicleId">
-                      <SelectValue placeholder="Selecione a placa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
-                      <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
-                      <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="responsibleName">Nome do Responsável</Label>
-              <Controller
-                name="responsibleName"
-                control={control}
-                render={({ field }) => <Input id="responsibleName" {...field} />}
-              />
-              {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="mileage">Quilometragem Atual</Label>
-              <Controller
-                name="mileage"
-                control={control}
-                render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} />}
-              />
-              {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
-            </div>
-          </CardContent>
-        </Card>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações Gerais</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="vehicleId">Veículo</Label>
+                <Controller
+                  name="vehicleId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger id="vehicleId">
+                        <SelectValue placeholder="Selecione a placa" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
+                        <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
+                        <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="responsibleName">Nome do Responsável</Label>
+                <Controller
+                  name="responsibleName"
+                  control={control}
+                  render={({ field }) => <Input id="responsibleName" {...field} />}
+                />
+                {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mileage">Quilometragem Atual</Label>
+                <Controller
+                  name="mileage"
+                  control={control}
+                  render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} />}
+                />
+                {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
-          {sectionFields.map((section, sectionIndex) => {
-            return (
-              <Card key={section.id}>
-                <AccordionItem value={section.id} className="border-b-0">
-                  <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
-                    {section.title}
-                  </AccordionTrigger>
-                  <AccordionContent className="p-6 pt-0">
-                    <div className="space-y-6">
-                        <div className="space-y-4">
-                          {section.items.map((item, itemIndex) => {
-                            const currentStatus = watch(`sections.${sectionIndex}.items.${itemIndex}.status`);
-                            const photoPath = `sections.${sectionIndex}.items.${itemIndex}.photo`;
-                            const photoError = errors.sections?.[sectionIndex]?.items?.[itemIndex]?.photo?.message;
-                            const isPhotoMandatory = mandatoryPhotoItems.includes(item.id) && currentStatus === 'Não OK';
-                            const photoValue = watch(photoPath as any);
-
-                            return (
-                              <div
-                                key={item.id}
-                                className={cn(
-                                    "p-4 border rounded-lg transition-colors space-y-4",
-                                    currentStatus === "Não OK" ? "bg-destructive/10 border-destructive" : ""
-                                )}
-                              >
-                                <div className="flex justify-between items-center">
-                                    <Label className="font-medium text-base">
-                                      {item.text}
-                                    </Label>
-                                    {currentStatus === "Não OK" && <AlertTriangle className="h-5 w-5 text-destructive" />}
-                                </div>
-                                <Controller
-                                  name={`sections.${sectionIndex}.items.${itemIndex}.status`}
-                                  control={control}
-                                  render={({ field: itemField }) => (
-                                    <RadioGroup
-                                      onValueChange={(value) => {
-                                        itemField.onChange(value);
-                                        trigger(`sections.${sectionIndex}.items.${itemIndex}.photo` as any);
-                                      }}
-                                      defaultValue={itemField.value}
-                                      className="flex items-center gap-6"
-                                    >
-                                      <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="OK" id={`${item.id}-ok`} />
-                                        <Label htmlFor={`${item.id}-ok`}>OK</Label>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="Não OK" id={`${item.id}-notok`} />
-                                        <Label htmlFor={`${item.id}-notok`}>Não OK</Label>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="N/A" id={`${item.id}-na`} />
-                                        <Label htmlFor={`${item.id}-na`}>N/A</Label>
-                                      </div>
-                                    </RadioGroup>
-                                  )}
-                                />
-                                {currentStatus === 'Não OK' && (
-                                   <div className="grid gap-2 pt-2 border-t border-dashed">
-                                      <Label>
-                                        Anexar Foto {isPhotoMandatory && <span className="text-destructive ml-1">*</span>}
-                                      </Label>
-                                      {photoValue ? (
-                                          <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
-                                              <Image src={photoValue} alt={`Foto do item ${item.text}`} layout="fill" className="object-cover" />
-                                              <Button
-                                                  variant="destructive"
-                                                  size="icon"
-                                                  className="absolute top-2 right-2 h-7 w-7"
-                                                  onClick={() => setValue(`sections.${sectionIndex}.items.${itemIndex}.photo`, undefined, { shouldValidate: true })}
-                                              >
-                                                  <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                          </div>
-                                      ) : (
-                                          <Label htmlFor={`photo-${item.id}`} className={cn(
-                                            "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
-                                            photoError && "border-destructive"
-                                          )}>
-                                              <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                              <span className="text-sm text-muted-foreground">Anexar arquivo</span>
-                                              <Input
-                                                  id={`photo-${item.id}`}
-                                                  type="file"
-                                                  className="hidden"
-                                                  accept="image/png, image/jpeg"
-                                                  onChange={(e) => handleImageUpload(e, sectionIndex, itemIndex)}
-                                              />
-                                          </Label>
-                                      )}
-                                      {photoError && <p className="text-sm text-destructive">{photoError}</p>}
+          <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
+            {sectionFields.map((section, sectionIndex) => (
+                <Card key={section.id}>
+                  <AccordionItem value={section.id} className="border-b-0">
+                    <AccordionTrigger className="p-6 text-lg font-semibold hover:no-underline">
+                      {section.title}
+                    </AccordionTrigger>
+                    <AccordionContent className="p-6 pt-0">
+                      <div className="space-y-6">
+                          <div className="space-y-2">
+                            {section.items.map((item, itemIndex) => {
+                              const currentItemState = watch(`sections.${sectionIndex}.items.${itemIndex}`);
+                              const isCompleted = currentItemState.status !== "N/A";
+                              
+                              return (
+                                <button
+                                  type="button"
+                                  key={item.id}
+                                  onClick={() => handleOpenDialog(sectionIndex, itemIndex, item)}
+                                  className="w-full text-left p-4 border rounded-lg transition-colors flex justify-between items-center hover:bg-muted/50"
+                                >
+                                  <span className="font-medium">{item.text}</span>
+                                  <div className="flex items-center gap-3">
+                                    {currentItemState.photo && <Paperclip className="h-4 w-4 text-muted-foreground" />}
+                                    {currentItemState.observation && <MessageSquare className="h-4 w-4 text-muted-foreground" />}
+                                    {isCompleted ? (
+                                      statusIcons[currentItemState.status]
+                                    ) : (
+                                      <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                                    )}
                                   </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        
+                        <div className="grid gap-2">
+                            <Label htmlFor={`obs-${section.id}`}>Observações Gerais da Seção</Label>
+                            <Controller 
+                                name={`sections.${sectionIndex}.observations`}
+                                control={control}
+                                render={({ field }) => (
+                                    <Textarea id={`obs-${section.id}`} placeholder={`Observações sobre ${section.title.toLowerCase()}...`} {...field} value={field.value ?? ''} />
                                 )}
-                              </div>
-                            );
-                          })}
+                            />
                         </div>
-                      
-                      <div className="grid gap-2">
-                          <Label htmlFor={`obs-${section.id}`}>Observações da Seção</Label>
-                          <Controller 
-                              name={`sections.${sectionIndex}.observations`}
-                              control={control}
-                              render={({ field }) => (
-                                  <Textarea id={`obs-${section.id}`} placeholder={`Observações sobre ${section.title.toLowerCase()}...`} {...field} />
-                              )}
-                          />
                       </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Card>
-            )
-          })}
-        </Accordion>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Card>
+              ))}
+          </Accordion>
 
-        <Card className="mt-6">
-          <CardFooter className="border-t px-6 py-4">
-            <Button type="submit" size="lg">Finalizar Checklist</Button>
-          </CardFooter>
-        </Card>
-      </form>
-    </div>
+          <Card className="mt-6">
+            <CardFooter className="border-t px-6 py-4">
+              <Button type="submit" size="lg">Finalizar Checklist</Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </div>
+    </>
   );
 }
