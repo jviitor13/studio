@@ -6,16 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Badge } from "./ui/badge";
 import { Paperclip, MessageSquare, ThumbsUp, ThumbsDown, FileQuestion } from "lucide-react";
-import type { ChecklistTemplate, ChecklistItem } from "@/lib/checklist-templates-data";
+import { CompletedChecklist } from "@/lib/types";
 
-type CompletedChecklist = Omit<ChecklistTemplate, 'questions'> & {
-    id: string;
-    date: string;
-    vehicle: string;
-    driver: string;
-    status: 'OK' | 'Pendente';
-    questions: (ChecklistItem & { status: 'OK' | 'Não OK' | 'N/A', observation?: string, photo?: string })[];
-};
 
 interface ChecklistDetailsDialogProps {
   isOpen: boolean;

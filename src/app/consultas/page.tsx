@@ -24,15 +24,10 @@ import { Badge } from "@/components/ui/badge"
 import { ChecklistDetailsDialog } from "@/components/checklist-details-dialog"
 import type { ChecklistTemplate } from "@/lib/checklist-templates-data"
 import { useToast } from "@/hooks/use-toast"
+import { generateChecklistPdf } from "@/lib/pdf-generator"
+import { CompletedChecklist } from "@/lib/types"
 
-const mockChecklists: (Omit<ChecklistTemplate, 'questions'> & { 
-    id: string; 
-    date: string; 
-    vehicle: string; 
-    driver: string; 
-    status: 'OK' | 'Pendente';
-    questions: (ChecklistTemplate['questions'][0] & { status: 'OK' | 'Não OK' | 'N/A', observation?: string, photo?: string })[]
-})[] = [
+const mockChecklists: CompletedChecklist[] = [
     { id: 'CHK-001', date: '2024-07-29', vehicle: 'RDO1A12', driver: 'João Silva', type: 'viagem', status: 'OK', name: 'Vistoria de Saída', category: 'cavalo_mecanico', questions: [{id: 'q1', text: 'Pneus', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/600x400.png'}] },
     { id: 'CHK-002', date: '2024-07-29', vehicle: 'RDO2C24', driver: 'Maria Oliveira', type: 'manutencao', status: 'Pendente', name: 'Checklist Técnico Cavalo Mecânico', category: 'cavalo_mecanico', questions: [{id: 'q2', text: 'Freios', photoRequirement: 'if_not_ok', status: 'Não OK', photo: 'https://placehold.co/600x400.png', observation: 'Pastilha gasta.'}] },
     { id: 'CHK-003', date: '2024-07-28', vehicle: 'RDO3B45', driver: 'Carlos Pereira', type: 'retorno', status: 'OK', name: 'Vistoria de Retorno', category: 'carreta', questions: [] },
@@ -52,20 +47,21 @@ const statusBadgeColor : {[key:string]: string} = {
 
 export default function ConsultasPage() {
     const [date, setDate] = React.useState<DateRange | undefined>()
-    const [selectedChecklist, setSelectedChecklist] = React.useState<typeof mockChecklists[0] | null>(null)
+    const [selectedChecklist, setSelectedChecklist] = React.useState<CompletedChecklist | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const { toast } = useToast()
 
-    const handleViewDetails = (checklist: typeof mockChecklists[0]) => {
+    const handleViewDetails = (checklist: CompletedChecklist) => {
         setSelectedChecklist(checklist)
         setIsDetailsOpen(true)
     }
 
-    const handleExport = (checklistId: string) => {
+    const handleExport = (checklist: CompletedChecklist) => {
         toast({
             title: "Exportação Iniciada",
-            description: `O checklist ${checklistId} está sendo preparado para exportação.`,
+            description: `O checklist ${checklist.id} está sendo preparado.`,
         });
+        generateChecklistPdf(checklist);
     }
 
     return (
@@ -197,7 +193,7 @@ export default function ConsultasPage() {
                                         </TableCell>
                                         <TableCell className="text-right space-x-2">
                                             <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}><FileText className="mr-2 h-4 w-4"/>Ver Detalhes</Button>
-                                            <Button variant="secondary" size="sm" onClick={() => handleExport(item.id)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>
+                                            <Button variant="secondary" size="sm" onClick={() => handleExport(item)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
