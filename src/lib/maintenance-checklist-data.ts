@@ -1,16 +1,98 @@
-export const initialMaintenanceQuestions = [
-    { id: "maint_q1", text: "Nível e condição do óleo do motor", type: "text" as const },
-    { id: "maint_q2", text: "Nível do fluído de arrefecimento", type: "text" as const },
-    { id: "maint_q3", text: "Condição e tensão das correias", type: "boolean" as const },
-    { id: "maint_q4", text: "Verificação de vazamentos (óleo, água, combustível)", type: "boolean" as const },
-    { id: "maint_q5", text: "Inspeção do sistema de freios (pastilhas, lonas, discos)", type: "text" as const },
-    { id: "maint_q6", text: "Foto do estado das pastilhas de freio dianteiras", type: "photo" as const },
-    { id: "maint_q7", text: "Pressão e condição geral dos pneus (incluindo estepe)", type: "text" as const },
-    { id: "maint_q8", text: "Funcionamento do sistema elétrico (faróis, setas, lanternas)", type: "boolean" as const },
-    { id: "maint_q9", text: "Leitura de códigos de falha da ECU (Scanner)", type: "text" as const },
-    { id: "maint_q10", text: "Condição da suspensão (molas, amortecedores)", type: "boolean" as const },
-    { id: "maint_q11", text: "Foto do terminal da bateria", type: "photo" as const },
-    { id: "maint_q12", text: "Inspeção do sistema de escape (furos, corrosão)", type: "boolean" as const },
-];
 
-export type MaintenanceQuestion = typeof initialMaintenanceQuestions[0];
+export type ChecklistStatus = "OK" | "Não OK" | "N/A";
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  status: ChecklistStatus;
+}
+
+export interface ChecklistSection {
+  id: string;
+  title: string;
+  items: ChecklistItem[];
+  observations: string;
+  photo?: string;
+}
+
+export const initialMaintenanceChecklist: ChecklistSection[] = [
+  {
+    id: "docs",
+    title: "Documentos do Veículo",
+    items: [
+      { id: "docs-1", text: "CRLV", status: "N/A" },
+      { id: "docs-2", text: "ANTT", status: "N/A" },
+      { id: "docs-3", text: "Manual do veículo", status: "N/A" },
+    ],
+    observations: "",
+  },
+  {
+    id: "external",
+    title: "Estrutura Externa",
+    items: [
+      { id: "ext-1", text: "Pintura e lataria (avarias)", status: "N/A" },
+      { id: "ext-2", text: "Para-choques (dianteiro e traseiro)", status: "N/A" },
+      { id: "ext-3", text: "Retrovisores (vidros e carcaças)", status: "N/A" },
+      { id: "ext-4", text: "Limpadores e palhetas", status: "N/A" },
+      { id: "ext-5", text: "Faróis, setas e lanternas (lentes e funcionamento)", status: "N/A" },
+      { id: "ext-6", text: "Pneus (calibragem e desgaste)", status: "N/A" },
+    ],
+    observations: "",
+  },
+  {
+    id: "equipment",
+    title: "Equipamentos Obrigatórios",
+    items: [
+      { id: "equip-1", text: "Estepe", status: "N/A" },
+      { id: "equip-2", text: "Macaco e chave de roda", status: "N/A" },
+      { id: "equip-3", text: "Triângulo de sinalização", status: "N/A" },
+      { id: "equip-4", text: "Extintor de incêndio (validade e carga)", status: "N/A" },
+    ],
+    observations: "",
+  },
+  {
+    id: "security",
+    title: "Itens de Segurança",
+    items: [
+      { id: "sec-1", text: "Freios (de serviço e estacionário)", status: "N/A" },
+      { id: "sec-2", text: "Nível de fluído de freio", status: "N/A" },
+      { id: "sec-3", text: "Direção (folgas e ruídos)", status: "N/A" },
+      { id: "sec-4", text: "Suspensão (molas e amortecedores)", status: "N/A" },
+      { id: "sec-5", text: "Cintos de segurança", status: "N/A" },
+    ],
+    observations: "",
+  },
+  {
+    id: "cabin",
+    title: "Interior da Cabine",
+    items: [
+      { id: "cabin-1", text: "Bancos e estofados (estado de conservação)", status: "N/A" },
+      { id: "cabin-2", text: "Painel de instrumentos (luzes de alerta)", status: "N/A" },
+      { id: "cabin-3", text: "Ar condicionado e ventilação", status: "N/A" },
+      { id: "cabin-4", text: "Buzina", status: "N/A" },
+      { id: "cabin-5", text: "Limpeza e organização geral", status: "N/A" },
+    ],
+    observations: "",
+  },
+  {
+    id: "epi",
+    title: "EPIs do Motorista",
+    items: [
+      { id: "epi-1", text: "Capacete de segurança", status: "N/A" },
+      { id: "epi-2", text: "Luvas de proteção", status: "N/A" },
+      { id: "epi-3", text: "Óculos de segurança", status: "N/A" },
+      { id: "epi-4", text: "Botas de segurança", status: "N/A" },
+    ],
+    observations: "",
+  },
+  {
+    id: "situational",
+    title: "Itens Situacionais",
+    items: [
+      { id: "sit-1", text: "Quinta roda (limpeza e lubrificação)", status: "N/A" },
+      { id: "sit-2", text: "Sistema de rastreamento (funcionamento)", status: "N/A" },
+      { id: "sit-3", text: "Tacógrafo (disco e aferição)", status: "N/A" },
+    ],
+    observations: "",
+  },
+];
