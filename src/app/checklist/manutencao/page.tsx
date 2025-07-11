@@ -115,19 +115,13 @@ export default function MaintenanceChecklistPage() {
     const hasIssues = data.sections.some(section =>
       section.items.some(item => item.status === "Não OK")
     );
-
-    if (hasIssues) {
-      toast({
-        variant: "destructive",
-        title: "Atenção: Checklist salvo com pendências",
-        description: "Verifique os itens marcados como 'NÃO OK' e as fotos obrigatórias.",
-      });
-    } else {
-      toast({
-        title: "Checklist de Manutenção Enviado!",
-        description: "O checklist foi registrado com sucesso.",
-      });
-    }
+    
+    toast({
+        title: "Checklist Enviado com Sucesso!",
+        description: hasIssues 
+            ? "O checklist foi registrado com pendências para acompanhamento."
+            : "O checklist foi registrado sem pendências.",
+    });
   };
 
   return (
@@ -190,7 +184,7 @@ export default function MaintenanceChecklistPage() {
 
         <Accordion type="multiple" className="w-full space-y-4 mt-6" defaultValue={initialMaintenanceChecklist.map(s => s.id)}>
           {sectionFields.map((section, sectionIndex) => {
-            const isMandatory = (section.id === 'external' || section.id === 'security') && watchedSections[sectionIndex]?.items.some(i => i.status === 'Não OK');
+            const isPhotoMandatory = (section.id === 'external' || section.id === 'security') && watchedSections[sectionIndex]?.items.some(i => i.status === 'Não OK');
             const photoError = errors.sections?.[sectionIndex]?.photo?.message;
 
             return (
@@ -265,40 +259,42 @@ export default function MaintenanceChecklistPage() {
                           />
                       </div>
                       
-                      <div className="grid gap-2">
-                          <Label>
-                            Anexar Foto {isMandatory && <span className="text-destructive ml-1">*</span>}
-                          </Label>
-                          {watch(`sections.${sectionIndex}.photo`) ? (
-                              <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
-                                  <Image src={watch(`sections.${sectionIndex}.photo`)!} alt={`Foto da seção ${section.title}`} layout="fill" className="object-cover" />
-                                  <Button
-                                      variant="destructive"
-                                      size="icon"
-                                      className="absolute top-2 right-2 h-7 w-7"
-                                      onClick={() => setValue(`sections.${sectionIndex}.photo`, undefined, { shouldValidate: true })}
-                                  >
-                                      <Trash2 className="h-4 w-4" />
-                                  </Button>
-                              </div>
-                          ) : (
-                              <Label htmlFor={`photo-${section.id}`} className={cn(
-                                "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
-                                photoError && "border-destructive"
-                              )}>
-                                  <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm text-muted-foreground">Anexar arquivo</span>
-                                  <Input
-                                      id={`photo-${section.id}`}
-                                      type="file"
-                                      className="hidden"
-                                      accept="image/png, image/jpeg"
-                                      onChange={(e) => handleImageUpload(e, sectionIndex)}
-                                  />
-                              </Label>
-                          )}
-                          {photoError && <p className="text-sm text-destructive">{photoError}</p>}
-                      </div>
+                      {(section.id === 'external' || section.id === 'security') && (
+                        <div className="grid gap-2">
+                            <Label>
+                              Anexar Foto {isPhotoMandatory && <span className="text-destructive ml-1">*</span>}
+                            </Label>
+                            {watch(`sections.${sectionIndex}.photo`) ? (
+                                <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
+                                    <Image src={watch(`sections.${sectionIndex}.photo`)!} alt={`Foto da seção ${section.title}`} layout="fill" className="object-cover" />
+                                    <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-2 right-2 h-7 w-7"
+                                        onClick={() => setValue(`sections.${sectionIndex}.photo`, undefined, { shouldValidate: true })}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Label htmlFor={`photo-${section.id}`} className={cn(
+                                  "flex items-center gap-2 p-2 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80 w-fit",
+                                  photoError && "border-destructive"
+                                )}>
+                                    <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">Anexar arquivo</span>
+                                    <Input
+                                        id={`photo-${section.id}`}
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/png, image/jpeg"
+                                        onChange={(e) => handleImageUpload(e, sectionIndex)}
+                                    />
+                                </Label>
+                            )}
+                            {photoError && <p className="text-sm text-destructive">{photoError}</p>}
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
