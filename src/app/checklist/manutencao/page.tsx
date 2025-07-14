@@ -27,6 +27,7 @@ import { collection, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SignaturePad } from "@/components/signature-pad";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useRouter } from "next/navigation";
 
 
 type ItemData = ChecklistTemplate['questions'][0] & { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string };
@@ -122,6 +123,7 @@ function TemplateSelectionScreen({ onSelect, templates, isLoading }: { onSelect:
 
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<{ itemIndex: number; item: ItemData } | null>(null);
@@ -136,7 +138,7 @@ export default function MaintenanceChecklistPage() {
     return () => unsubscribe();
   }, []);
 
-  const { control, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset, trigger } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -227,16 +229,9 @@ export default function MaintenanceChecklistPage() {
         assinaturaMotorista: data.assinaturaMotorista,
       };
 
-      await addDoc(collection(db, 'completed-checklists'), submissionData);
+      const docRef = await addDoc(collection(db, 'completed-checklists'), submissionData);
+      router.push(`/checklist/completed/${docRef.id}`);
 
-      toast({
-          title: "Checklist Enviado com Sucesso!",
-          description: hasIssues 
-              ? "O checklist foi registrado com pendências para acompanhamento."
-              : "O checklist foi registrado sem pendências.",
-      });
-      setSelectedTemplate(null);
-      reset();
     } catch (error) {
        console.error("Checklist submission error:", error);
        toast({

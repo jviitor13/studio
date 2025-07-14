@@ -65,7 +65,7 @@ export default function PreTripChecklistPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [damageInfo, setDamageInfo] = useState("");
   
-  const { control, handleSubmit, formState: { errors }, watch, reset } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors, isSubmitting }, watch, reset, update: updateAnswer } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -147,10 +147,10 @@ export default function PreTripChecklistPage() {
     const questionsForFirestore = data.answers.map(a => ({
         id: a.questionId,
         text: a.questionText,
-        status: a.answer === true ? 'OK' : (a.answer ? 'OK' : 'Não OK'), // Simplified logic
+        photoRequirement: 'never' as const, // Simplified
+        status: a.answer === true ? 'OK' : a.answer === false ? 'Não OK' : 'OK', // Simplified logic, text/photo are OK
         observation: a.questionType === 'text' ? a.answer : '',
         photo: a.questionType === 'photo' ? a.answer : '',
-        photoRequirement: 'never' as const, // Simplified
     }));
 
     try {
@@ -168,14 +168,8 @@ export default function PreTripChecklistPage() {
           generalObservations: data.observations,
         };
 
-        await addDoc(collection(db, 'completed-checklists'), submissionData);
-
-        toast({
-            title: "Checklist Enviado com Sucesso!",
-            description: "Seu checklist de viagem foi registrado.",
-        });
-        reset();
-        router.push("/dashboard");
+        const docRef = await addDoc(collection(db, 'completed-checklists'), submissionData);
+        router.push(`/checklist/completed/${docRef.id}`);
 
     } catch (error) {
         console.error("Checklist submission error:", error);
@@ -331,7 +325,9 @@ export default function PreTripChecklistPage() {
           </Card>
           <Card className="mt-6">
             <CardFooter className="border-t px-6 py-4">
-              <Button type="submit">Enviar Checklist</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Enviando...' : 'Enviar Checklist'}
+              </Button>
             </CardFooter>
           </Card>
         </form>
@@ -339,5 +335,3 @@ export default function PreTripChecklistPage() {
     </>
   );
 }
-
-    
