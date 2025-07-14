@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -16,8 +17,8 @@ import {
   CircleDot,
   ClipboardCheck,
   Search,
+  LayoutDashboard,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { Logo } from "@/components/icons";
 import {
@@ -27,12 +28,12 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarTrigger,
   SidebarProvider,
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
-import { ClockWidget } from "@/components/clock-widget";
+import { AppHeader } from "@/components/app-header";
+import { BottomNav } from "@/components/bottom-nav";
 
 // Mock role, in a real app this would come from session/auth context
 const userRole = "gestor"; // can be 'motorista', 'mecanico', 'gestor'
@@ -69,6 +70,33 @@ const getMenuItems = (role: string) => {
   return [...baseItems, ...(roleItems[role] || [])];
 };
 
+
+const getBottomNavItems = (role: string) => {
+    const commonItems = [
+        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/checklist/viagem", label: "Checklists", icon: ShieldCheck },
+    ];
+
+    const gestorItems = [
+        { href: "/veiculos", label: "Frota", icon: Truck },
+        { href: "/consultas", label: "Dashboards", icon: LayoutDashboard },
+        { href: "/usuarios", label: "Perfil", icon: Users },
+    ];
+    
+    // Example for other roles, can be customized
+    const motoristaItems = [
+        { href: "/veiculos", label: "Veículo", icon: Truck },
+        { href: "/ocorrencias", label: "Ocorrências", icon: Bell },
+        { href: "/usuarios", label: "Perfil", icon: Users },
+    ];
+
+    if (role === 'gestor') return gestorItems;
+    if (role === 'motorista') return motoristaItems;
+    
+    return commonItems;
+};
+
+
 export default function DashboardLayout({
   children,
 }: {
@@ -76,11 +104,13 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const menuItems = getMenuItems(userRole);
+  const bottomNavItems = getBottomNavItems(userRole);
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <Sidebar className="border-r" side="left">
+      <div className="flex min-h-screen w-full bg-background flex-col md:flex-row">
+        {/* -- Desktop Sidebar -- */}
+        <Sidebar className="border-r hidden md:flex" side="left">
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
               <Logo className="h-8 w-8 text-primary" />
@@ -117,23 +147,13 @@ export default function DashboardLayout({
              </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
+
         <div className="flex flex-1 flex-col">
-          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
-            <SidebarTrigger className="md:hidden" />
-            <div className="flex-1">
-               <ClockWidget />
-            </div>
-            <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="rounded-full">
-                <Bell className="h-4 w-4" />
-                <span className="sr-only">Toggle notifications</span>
-                </Button>
-                <UserNav />
-            </div>
-          </header>
-          <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
+          <AppHeader />
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
             {children}
           </main>
+          <BottomNav items={bottomNavItems} />
         </div>
       </div>
     </SidebarProvider>

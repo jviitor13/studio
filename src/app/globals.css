@@ -4,32 +4,32 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96.1%; /* #F5F5F5 */
+    --background: 0 0% 100%; /* #FFFFFF */
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 235 63% 30%; /* #1A237E */
+    --primary: 208 68% 22%; /* #123A5E */
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 92%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 0 0% 92%;
+    --secondary: 35 91% 60%; /* #F5A623 */
+    --secondary-foreground: 240 10% 3.9%;
+    --muted: 0 0% 95%; /* #F2F2F2 */
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 187 100% 42%; /* #00BCD4 */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84.2% 60.2%;
+    --accent: 0 0% 95%; /* #F2F2F2 - Can be same as muted */
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 354 98% 41%; /* #D0021B */
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 235 63% 30%;
+    --ring: 208 68% 22%;
     --radius: 0.5rem;
 
-    --chart-1: 220 70% 50%;
-    --chart-2: 187 80% 45%;
-    --chart-3: 40 90% 55%;
+    --chart-1: 208 70% 50%;
+    --chart-2: 35 80% 55%;
+    --chart-3: 0 90% 55%;
     --chart-4: 260 60% 65%;
-    --chart-5: 0 75% 60%;
+    --chart-5: 180 75% 60%;
   }
 
   .dark {
@@ -39,25 +39,25 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 235 63% 45%; /* Slightly lighter blue for dark mode */
+    --primary: 208 68% 32%; /* Lighter blue for dark mode */
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 35 91% 50%; /* Darker orange for dark mode */
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 187 100% 42%;
-    --accent-foreground: 240 10% 3.9%;
-    --destructive: 0 62.8% 30.6%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 354 98% 51%; /* Brighter red for dark mode */
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 235 63% 45%;
+    --ring: 208 68% 32%;
 
-    --chart-1: 220 70% 60%;
-    --chart-2: 187 80% 55%;
-    --chart-3: 40 90% 65%;
+    --chart-1: 208 70% 60%;
+    --chart-2: 35 80% 55%;
+    --chart-3: 0 90% 65%;
     --chart-4: 260 60% 75%;
-    --chart-5: 0 75% 70%;
+    --chart-5: 180 75% 70%;
   }
 }
 

@@ -1,7 +1,7 @@
+
 "use client"
 
 import * as React from "react"
-import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -95,10 +95,6 @@ export default function ConsultasPage() {
                 checklist={selectedChecklist}
             />
             <div className="flex flex-col gap-6">
-                <PageHeader
-                    title="Consultar Checklists"
-                    description="Filtre e visualize os checklists realizados."
-                />
                 <Card>
                     <CardHeader>
                         <CardTitle>Filtros de Busca</CardTitle>
