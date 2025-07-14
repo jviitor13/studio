@@ -6,11 +6,14 @@ import { format } from 'date-fns';
 export async function generateChecklistPdf(checklist: CompletedChecklist) {
   const doc = new jsPDF();
   const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy HH:mm") : 'N/A';
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const pageWidth = doc.internal.pageSize.getWidth();
 
   // Header
   doc.setFontSize(20);
   doc.text('RodoCheck - Relatório de Checklist', 14, 22);
-  doc.setFontSize(12);
+  doc.setFontSize(10);
+  doc.setTextColor(51, 51, 51); // #333
   doc.text(`Checklist ID: ${checklist.id}`, 14, 30);
   
   autoTable(doc, {
@@ -27,21 +30,21 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
 
   for (const item of checklist.questions) {
     // Add a check to ensure we don't go off the page
-    if (currentY > 260) {
+    if (currentY > 250) {
       doc.addPage();
       currentY = 20;
     }
     
     doc.setFontSize(11);
     doc.setTextColor(40);
-    doc.text(`${item.text}`, 14, currentY);
+    doc.text(`${item.text}`, 14, currentY, { maxWidth: 180 });
     
     doc.setFontSize(10);
     doc.setTextColor(100);
     const statusText = `Avaliação: ${item.status}`;
     const obsText = `Observação: ${item.observation || 'N/A'}`;
     doc.text(statusText, 16, currentY + 5);
-    doc.text(obsText, 16, currentY + 10);
+    doc.text(obsText, 16, currentY + 10, { maxWidth: 180 });
     
     currentY += 15;
 
@@ -63,6 +66,18 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     
     doc.line(14, currentY - 5, 196, currentY - 5); // separator line
   }
+
+  // Add footer to all pages
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  const generationDate = format(new Date(), "dd/MM/yyyy 'às' HH:mm");
+  for(let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100); // Dark gray
+    const footerText = `Checklist ID: ${checklist.id} | Gerado por RodoCheck em ${generationDate}`;
+    doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  }
+
 
   // Save the PDF
   const safeDate = formattedDate.replace(/[^0-9]/g, '_');
