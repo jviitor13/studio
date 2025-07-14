@@ -81,7 +81,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{item.text}</DialogTitle>
@@ -179,5 +179,3 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
     </Dialog>
   );
 }
-
-    

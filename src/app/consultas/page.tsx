@@ -102,6 +102,7 @@ export default function ConsultasPage() {
                 isOpen={isDetailsOpen}
                 onClose={() => setIsDetailsOpen(false)}
                 checklist={selectedChecklist}
+                onExport={handleExport}
             />
             <div className="flex flex-col gap-6">
                 <Card>

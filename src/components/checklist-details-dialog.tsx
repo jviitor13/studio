@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Badge } from "./ui/badge";
-import { Paperclip, MessageSquare, ThumbsUp, ThumbsDown, FileQuestion } from "lucide-react";
+import { Paperclip, MessageSquare, ThumbsUp, ThumbsDown, FileQuestion, Download } from "lucide-react";
 import { CompletedChecklist } from "@/lib/types";
 import { format } from "date-fns";
 
@@ -15,6 +15,7 @@ interface ChecklistDetailsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   checklist: CompletedChecklist | null;
+  onExport?: (checklist: CompletedChecklist) => void;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -33,10 +34,16 @@ const statusBadgeColor : {[key:string]: string} = {
     'Pendente': ''
 }
 
-export function ChecklistDetailsDialog({ isOpen, onClose, checklist }: ChecklistDetailsDialogProps) {
+export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }: ChecklistDetailsDialogProps) {
   if (!checklist) return null;
 
   const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy 'às' HH:mm") : 'Data não disponível';
+
+  const handleExportClick = () => {
+    if(onExport && checklist) {
+        onExport(checklist);
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -97,9 +104,17 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist }: Checklist
              {checklist.questions.length === 0 && <p className="text-center text-muted-foreground">Nenhum item de checklist para exibir.</p>}
           </div>
         </ScrollArea>
-        <DialogClose asChild>
-          <Button type="button" className="mt-4">Fechar</Button>
-        </DialogClose>
+        <div className="flex justify-end gap-2 mt-4">
+            {onExport && (
+                 <Button type="button" variant="secondary" onClick={handleExportClick}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Gerar PDF
+                </Button>
+            )}
+            <DialogClose asChild>
+                <Button type="button">Fechar</Button>
+            </DialogClose>
+        </div>
       </DialogContent>
     </Dialog>
   );
