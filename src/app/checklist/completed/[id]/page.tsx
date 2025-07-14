@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { CheckCircle, Download, Home, Printer, Share2 } from 'lucide-react';
-import { ChecklistDetailsDialog } from '@/components/checklist-details-dialog';
 import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
 
@@ -191,11 +190,6 @@ export default function ChecklistCompletedPage() {
                 </CardContent>
             </Card>
 
-            {/* Re-using the details dialog component for consistent view */}
-            <div className="hidden">
-                 <ChecklistDetailsDialog isOpen={true} checklist={checklist} onClose={() => {}} />
-            </div>
-
             <Card>
                 <CardHeader>
                     <CardTitle>Detalhes Completos</CardTitle>
@@ -203,8 +197,6 @@ export default function ChecklistCompletedPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg p-4">
-                        <ChecklistDetailsDialog isOpen={false} checklist={checklist} onClose={() => {}} />
-                        {/* Manually render the content of the dialog */}
                          <div className="space-y-4">
                             {checklist.questions.map((item) => (
                             <div key={item.id} className="p-3 border rounded-lg bg-muted/30">
@@ -245,4 +237,3 @@ export default function ChecklistCompletedPage() {
         </div>
     );
 }
-
