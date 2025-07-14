@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
-interface BottomNavItem {
+export interface BottomNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
@@ -20,7 +20,7 @@ export function BottomNav({ items }: BottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t z-40">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]">
       <div className="flex justify-around items-center h-full">
         {items.map((item) => {
           const isActive = pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard');

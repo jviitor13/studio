@@ -3,7 +3,6 @@
 
 import Link from "next/link";
 import {
-  Bell,
   Home,
   Truck,
   Wrench,
@@ -19,7 +18,6 @@ import {
   Search,
   LayoutDashboard,
 } from "lucide-react";
-import { UserNav } from "@/components/user-nav";
 import { Logo } from "@/components/icons";
 import {
   Sidebar,
@@ -67,7 +65,11 @@ const getMenuItems = (role: string) => {
     ]
   };
 
-  return [...baseItems, ...(roleItems[role] || [])];
+  const combined = [...baseItems, ...(roleItems[role] || [])];
+  // Remove duplicates just in case
+  return combined.filter((item, index, self) => 
+    index === self.findIndex((t) => t.href === item.href)
+  );
 };
 
 
@@ -78,13 +80,17 @@ const getBottomNavItems = (role: string) => {
     ];
 
     const gestorItems = [
+        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
         { href: "/veiculos", label: "Frota", icon: Truck },
-        { href: "/consultas", label: "Dashboards", icon: LayoutDashboard },
+        { href: "/consultas", label: "Busca", icon: Search },
         { href: "/usuarios", label: "Perfil", icon: Users },
     ];
     
     // Example for other roles, can be customized
     const motoristaItems = [
+        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
         { href: "/veiculos", label: "Veículo", icon: Truck },
         { href: "/ocorrencias", label: "Ocorrências", icon: Bell },
         { href: "/usuarios", label: "Perfil", icon: Users },
@@ -108,14 +114,14 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background flex-col md:flex-row">
-        {/* -- Desktop Sidebar -- */}
+      <div className="flex min-h-screen w-full bg-muted/40 flex-col md:flex-row">
+        
         <Sidebar className="border-r hidden md:flex" side="left">
           <SidebarHeader>
-            <div className="flex items-center gap-2 p-2">
+            <Link href="/dashboard" className="flex items-center gap-2 p-2">
               <Logo className="h-8 w-8 text-primary" />
               <h2 className="text-xl font-headline font-semibold">RodoCheck</h2>
-            </div>
+            </Link>
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -149,7 +155,7 @@ export default function DashboardLayout({
         </Sidebar>
 
         <div className="flex flex-1 flex-col">
-          <AppHeader />
+          <AppHeader menuItems={menuItems} />
           <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6">
             {children}
           </main>
