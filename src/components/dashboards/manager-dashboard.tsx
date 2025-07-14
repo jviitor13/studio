@@ -1,3 +1,7 @@
+
+"use client";
+
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -17,28 +21,36 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, Truck, Clock, AlertCircle } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { CompletedChecklist } from '@/lib/types';
 
-const fleetChartData: { status: string, value: number, fill: string }[] = [];
+// Mock data, in a real scenario this would come from Firestore.
+interface Vehicle {
+  id: string;
+  model: string;
+  driver: string;
+  status: 'Em Viagem' | 'Disponível' | 'Em Manutenção';
+  nextMaintenance: string;
+}
 
 const fleetChartConfig = {
   value: {
     label: 'Veículos',
   },
-  emViagem: {
+  'Em Viagem': {
     label: 'Em Viagem',
     color: 'hsl(var(--chart-1))',
   },
-  disponivel: {
+  'Disponível': {
     label: 'Disponível',
     color: 'hsl(var(--chart-2))',
   },
-  manutencao: {
+  'Em Manutenção': {
     label: 'Em Manutenção',
     color: 'hsl(var(--chart-5))',
   },
 } satisfies ChartConfig;
-
-const checklistProblemsData: { problem: string, count: number, fill: string }[] = [];
 
 const checklistProblemsConfig = {
     count: { label: 'Ocorrências' },
@@ -49,10 +61,77 @@ const checklistProblemsConfig = {
     outros: { label: 'Outros', color: 'hsl(var(--chart-5))' },
 } satisfies ChartConfig;
 
-const maintenanceData: { vehicle: string, model: string, service: string, downSince: string, eta: string, days: number }[] = [];
-
 
 export function ManagerDashboard() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [checklists, setChecklists] = useState<CompletedChecklist[]>([]);
+  const [fleetStatus, setFleetStatus] = useState<{ status: string, value: number, fill: string }[]>([]);
+  const [maintenanceVehicles, setMaintenanceVehicles] = useState<Vehicle[]>([]);
+  const [problematicItems, setProblematicItems] = useState<{ problem: string, count: number, fill: string }[]>([]);
+  const [activeAlerts, setActiveAlerts] = useState(0);
+
+  useEffect(() => {
+    const unsubscribeVehicles = onSnapshot(collection(db, "vehicles"), (snapshot) => {
+        const vehiclesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
+        setVehicles(vehiclesData);
+        
+        // Process fleet status
+        const statusCounts = vehiclesData.reduce((acc, vehicle) => {
+            acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const chartData = Object.entries(statusCounts).map(([status, value]) => ({
+            status,
+            value,
+            fill: fleetChartConfig[status as keyof typeof fleetChartConfig]?.color || 'hsl(var(--chart-3))'
+        }));
+        setFleetStatus(chartData);
+
+        // Filter maintenance vehicles
+        setMaintenanceVehicles(vehiclesData.filter(v => v.status === 'Em Manutenção'));
+    });
+
+    const unsubscribeChecklists = onSnapshot(collection(db, "completed-checklists"), (snapshot) => {
+        const checklistsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              ...data,
+              id: doc.id,
+              createdAt: data.createdAt.toDate().toISOString(),
+            } as CompletedChecklist
+        });
+        setChecklists(checklistsData);
+        setActiveAlerts(checklistsData.filter(c => c.status === 'Pendente').length);
+
+        // Process problematic items
+        const problemCounts = checklistsData
+            .filter(c => c.status === 'Pendente')
+            .flatMap(c => c.questions)
+            .filter(q => q.status === 'Não OK')
+            .reduce((acc, q) => {
+                acc[q.text] = (acc[q.text] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+        
+        const sortedProblems = Object.entries(problemCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 5) // Top 5 problems
+            .map(([problem, count], index) => ({
+                problem: problem.length > 20 ? problem.substring(0, 18) + '...' : problem,
+                count,
+                fill: `hsl(var(--chart-${index + 1}))`
+            }));
+        setProblematicItems(sortedProblems);
+    });
+
+    return () => {
+        unsubscribeVehicles();
+        unsubscribeChecklists();
+    };
+  }, []);
+
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -67,8 +146,8 @@ export function ManagerDashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Nenhum veículo cadastrado</p>
+            <div className="text-2xl font-bold">{vehicles.length}</div>
+            <p className="text-xs text-muted-foreground">{vehicles.length > 0 ? `${vehicles.length} veículos na frota` : 'Nenhum veículo cadastrado'}</p>
           </CardContent>
         </Card>
          <Card>
@@ -97,8 +176,8 @@ export function ManagerDashboard() {
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Nenhum alerta no momento</p>
+            <div className="text-2xl font-bold">{activeAlerts}</div>
+            <p className="text-xs text-muted-foreground">{activeAlerts > 0 ? 'Checklists com pendências' : 'Nenhum alerta no momento'}</p>
           </CardContent>
         </Card>
       </div>
@@ -110,7 +189,7 @@ export function ManagerDashboard() {
             <CardDescription>Distribuição dos veículos por status atual.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center items-center h-[250px]">
-            {fleetChartData.length > 0 ? (
+            {fleetStatus.length > 0 ? (
                 <ChartContainer config={fleetChartConfig} className="mx-auto aspect-square h-full">
                     <PieChart>
                         <ChartTooltip
@@ -118,13 +197,13 @@ export function ManagerDashboard() {
                             content={<ChartTooltipContent hideLabel />}
                         />
                         <Pie
-                            data={fleetChartData}
+                            data={fleetStatus}
                             dataKey="value"
                             nameKey="status"
                             innerRadius={60}
                             strokeWidth={5}
                         >
-                        {fleetChartData.map((entry) => (
+                        {fleetStatus.map((entry) => (
                             <Cell key={`cell-${entry.status}`} fill={entry.fill} className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" />
                         ))}
                         </Pie>
@@ -142,15 +221,15 @@ export function ManagerDashboard() {
             <CardDescription>Ocorrências mais comuns nos últimos 30 dias.</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center items-center h-[250px]">
-             {checklistProblemsData.length > 0 ? (
+             {problematicItems.length > 0 ? (
                 <ChartContainer config={checklistProblemsConfig} className="h-full w-full">
-                    <BarChart data={checklistProblemsData} layout="vertical" margin={{ left: 10, right: 10 }}>
+                    <BarChart data={problematicItems} layout="vertical" margin={{ left: 10, right: 10, bottom: 5, top: 5 }}>
                         <CartesianGrid horizontal={false} />
-                        <YAxis dataKey="problem" type="category" tickLine={false} axisLine={false} tickMargin={10} width={60}/>
+                        <YAxis dataKey="problem" type="category" tickLine={false} axisLine={false} tickMargin={10} width={120} tick={{fontSize: 12}} />
                         <XAxis type="number" dataKey="count" hide />
                         <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
                         <Bar dataKey="count" radius={5}>
-                            {checklistProblemsData.map((entry) => (
+                            {problematicItems.map((entry) => (
                                 <Cell key={`cell-${entry.problem}`} fill={entry.fill} />
                             ))}
                         </Bar>
@@ -174,29 +253,27 @@ export function ManagerDashboard() {
               <TableRow>
                 <TableHead>Veículo</TableHead>
                 <TableHead>Modelo</TableHead>
-                <TableHead>Serviço</TableHead>
-                <TableHead>Parado Desde</TableHead>
-                <TableHead>Dias Parado</TableHead>
-                <TableHead>Previsão de Retorno</TableHead>
+                <TableHead>Motorista</TableHead>
+                <TableHead>Próxima Manutenção</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {maintenanceData.length > 0 ? (
-                maintenanceData.map((item) => (
-                    <TableRow key={item.vehicle}>
-                    <TableCell className="font-medium">{item.vehicle}</TableCell>
+              {maintenanceVehicles.length > 0 ? (
+                maintenanceVehicles.map((item) => (
+                    <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.id}</TableCell>
                     <TableCell>{item.model}</TableCell>
-                    <TableCell>{item.service}</TableCell>
-                    <TableCell>{item.downSince}</TableCell>
+                    <TableCell>{item.driver}</TableCell>
+                    <TableCell>{item.nextMaintenance}</TableCell>
                     <TableCell>
-                        <Badge variant="destructive">{item.days} dias</Badge>
+                        <Badge variant="destructive">{item.status}</Badge>
                     </TableCell>
-                    <TableCell>{item.eta}</TableCell>
                     </TableRow>
                 ))
               ) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                         Nenhum veículo em manutenção.
                     </TableCell>
                 </TableRow>
@@ -207,4 +284,5 @@ export function ManagerDashboard() {
       </Card>
     </div>
   );
-}
+
+    
