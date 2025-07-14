@@ -28,6 +28,7 @@ import { initialQuestions } from "@/lib/checklist-data";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { compressImage } from "@/lib/image-compressor";
 
 
 const answerSchema = z.object({
@@ -88,51 +89,47 @@ export default function PreTripChecklistPage() {
   const handleVehicleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      if (file.size > 4 * 1024 * 1024) {
-          toast({ variant: "destructive", title: "Erro", description: "A imagem não pode ter mais que 4MB." });
-          return;
-      }
-
+      
       setIsProcessing(true);
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string;
-        setVehicleImages(prev => [...prev, base64Image]);
+      
+      try {
+        const compressedImage = await compressImage(file);
+        setVehicleImages(prev => [...prev, compressedImage]);
 
-        try {
-          const result = await handleDamageAssessment({
-            vehicleImageUri: base64Image,
-            checklistId: `checklist-${Date.now()}`,
-            vehicleId: watch("vehicleId") || "RDO-GEN"
-          });
-          
-          if(result.success && result.data?.damageDetected) {
-            setDamageInfo(result.data.damageDescription || "Nenhuma descrição fornecida.");
-            setDialogOpen(true);
-          } else if (!result.success) {
-            toast({ variant: "destructive", title: "Erro na Análise", description: result.error });
-          }
-
-        } catch (error) {
-          toast({ variant: "destructive", title: "Erro", description: "Falha ao processar a imagem." });
-        } finally {
-          setIsProcessing(false);
+        const result = await handleDamageAssessment({
+          vehicleImageUri: compressedImage,
+          checklistId: `checklist-${Date.now()}`,
+          vehicleId: watch("vehicleId") || "RDO-GEN"
+        });
+        
+        if(result.success && result.data?.damageDetected) {
+          setDamageInfo(result.data.damageDescription || "Nenhuma descrição fornecida.");
+          setDialogOpen(true);
+        } else if (!result.success) {
+          toast({ variant: "destructive", title: "Erro na Análise", description: result.error });
         }
-      };
+
+      } catch (error) {
+        console.error("Error processing image:", error);
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao processar a imagem." });
+      } finally {
+        setIsProcessing(false);
+      }
+      
       e.target.value = '';
     }
   };
 
-  const handleQuestionImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleQuestionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
      if (e.target.files && e.target.files.length > 0) {
         const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = () => {
-            const base64Image = reader.result as string;
-            update(index, { ...fields[index], answer: base64Image });
-        };
+        try {
+            const compressedImage = await compressImage(file);
+            update(index, { ...fields[index], answer: compressedImage });
+        } catch (error) {
+            console.error("Error compressing image:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Falha ao comprimir a imagem." });
+        }
      }
   };
 

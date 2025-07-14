@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, Paperclip, Trash2 } from "lucide-react";
+import { AlertTriangle, Paperclip, Trash2, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { ChecklistItem as ChecklistItemData } from "@/lib/checklist-templates-data";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle } from "./ui/alert";
+import { compressImage } from "@/lib/image-compressor";
 
 
 interface ItemChecklistDialogProps {
@@ -28,6 +29,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
   const [observation, setObservation] = useState("");
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,26 +57,26 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
     onSave({ status, photo, observation });
   };
   
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      if (file.size > 4 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "A imagem não pode ter mais que 4MB.",
-        });
-        return;
-      }
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onloadend = () => {
-        const base64Image = reader.result as string;
-        setPhoto(base64Image);
+      setIsCompressing(true);
+      try {
+        const compressedImage = await compressImage(file);
+        setPhoto(compressedImage);
         if (isPhotoRequired) {
             setError(null);
         }
-      };
+      } catch (err) {
+        console.error("Image compression error:", err);
+        toast({
+          variant: "destructive",
+          title: "Erro ao comprimir imagem",
+          description: "Não foi possível processar a imagem. Tente novamente.",
+        });
+      } finally {
+        setIsCompressing(false);
+      }
       e.target.value = "";
     }
   };
@@ -139,6 +141,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                       size="icon"
                       className="absolute top-2 right-2 h-7 w-7"
                       onClick={() => setPhoto(undefined)}
+                      disabled={isCompressing}
                   >
                       <Trash2 className="h-4 w-4" />
                   </Button>
@@ -153,10 +156,15 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                     capture="environment"
                     onChange={handleImageUpload}
                     ref={photoInputRef}
+                    disabled={isCompressing}
                 />
-                <Button variant="outline" onClick={() => photoInputRef.current?.click()}>
-                    <Paperclip className="mr-2 h-4 w-4" />
-                    Anexar arquivo
+                <Button variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isCompressing}>
+                    {isCompressing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Paperclip className="mr-2 h-4 w-4" />
+                    )}
+                    {isCompressing ? 'Processando...' : 'Anexar arquivo'}
                 </Button>
                 </>
             )}
@@ -173,7 +181,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
           <DialogClose asChild>
             <Button type="button" variant="secondary">Cancelar</Button>
           </DialogClose>
-          <Button type="button" onClick={handleSave}>Salvar</Button>
+          <Button type="button" onClick={handleSave} disabled={isCompressing}>Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

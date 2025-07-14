@@ -90,7 +90,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onEnd, width = 400, 
         onEnd('');
         return;
       }
-      const dataUrl = canvas.toDataURL('image/png');
+      // Export as JPEG with quality 0.9 for smaller size
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       onEnd(dataUrl);
       setIsSigned(true);
     }
