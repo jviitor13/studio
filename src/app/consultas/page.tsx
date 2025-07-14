@@ -22,36 +22,12 @@ import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ChecklistDetailsDialog } from "@/components/checklist-details-dialog"
-import type { ChecklistTemplate } from "@/lib/checklist-templates-data"
 import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
-
-const mockChecklists: CompletedChecklist[] = [
-    { 
-        id: 'CHK-005',
-        date: '2024-07-30',
-        vehicle: 'RDO4D56', 
-        driver: 'Ana Costa', 
-        type: 'manutencao', 
-        status: 'Pendente', 
-        name: 'Checklist Técnico Cavalo Mecânico', 
-        category: 'cavalo_mecanico', 
-        questions: [
-            { id: 'ext-1', text: 'Pintura e lataria (avarias)', photoRequirement: 'if_not_ok', status: 'Não OK', photo: 'https://placehold.co/600x400.png', observation: 'Arranhão profundo na porta do passageiro.'},
-            { id: 'ext-5', text: 'Faróis, setas e lanternas', photoRequirement: 'if_not_ok', status: 'OK' },
-            { id: 'ext-6', text: 'Pneus (calibragem e desgaste)', photoRequirement: 'always', status: 'Não OK', photo: 'https://placehold.co/400x600.png', observation: 'Pneu dianteiro direito com baixo relevo, precisa de troca.' },
-            { id: 'ext-7', text: 'Placas de identificação', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/600x300.png' },
-            { id: 'equip-4', text: 'Extintor de incêndio (validade e carga)', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/300x400.png' },
-            { id: 'sec-1', text: 'Freios (de serviço e estacionário)', photoRequirement: 'if_not_ok', status: 'OK' },
-            { id: 'sit-3', text: 'Tacógrafo (disco e aferição)', photoRequirement: 'always', status: 'Não OK', photo: 'https://placehold.co/500x500.png', observation: 'Disco do tacógrafo vencido.' },
-        ] 
-    },
-    { id: 'CHK-001', date: '2024-07-29', vehicle: 'RDO1A12', driver: 'João Silva', type: 'viagem', status: 'OK', name: 'Vistoria de Saída', category: 'cavalo_mecanico', questions: [{id: 'q1', text: 'Pneus', photoRequirement: 'always', status: 'OK', photo: 'https://placehold.co/600x400.png'}] },
-    { id: 'CHK-002', date: '2024-07-29', vehicle: 'RDO2C24', driver: 'Maria Oliveira', type: 'manutencao', status: 'Pendente', name: 'Checklist Técnico Cavalo Mecânico', category: 'cavalo_mecanico', questions: [{id: 'q2', text: 'Freios', photoRequirement: 'if_not_ok', status: 'Não OK', photo: 'https://placehold.co/600x400.png', observation: 'Pastilha gasta.'}] },
-    { id: 'CHK-003', date: '2024-07-28', vehicle: 'RDO3B45', driver: 'Carlos Pereira', type: 'retorno', status: 'OK', name: 'Vistoria de Retorno', category: 'carreta', questions: [] },
-    { id: 'CHK-004', date: '2024-07-27', vehicle: 'RDO1A12', driver: 'João Silva', type: 'viagem', status: 'Pendente', name: 'Vistoria de Saída', category: 'cavalo_mecanico', questions: [] },
-];
+import { db } from "@/lib/firebase"
+import { collection, onSnapshot, query } from "firebase/firestore"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
@@ -66,9 +42,31 @@ const statusBadgeColor : {[key:string]: string} = {
 
 export default function ConsultasPage() {
     const [date, setDate] = React.useState<DateRange | undefined>()
+    const [checklists, setChecklists] = React.useState<CompletedChecklist[]>([])
+    const [isLoading, setIsLoading] = React.useState(true);
     const [selectedChecklist, setSelectedChecklist] = React.useState<CompletedChecklist | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const { toast } = useToast()
+
+    React.useEffect(() => {
+        const q = query(collection(db, "completed-checklists"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+          const checklistsData: CompletedChecklist[] = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            checklistsData.push({
+              ...data,
+              id: doc.id,
+              // Convert timestamp to a serializable format (string)
+              createdAt: data.createdAt.toDate().toISOString(),
+            } as CompletedChecklist);
+          });
+          setChecklists(checklistsData);
+          setIsLoading(false);
+        });
+    
+        return () => unsubscribe();
+      }, []);
 
     const handleViewDetails = (checklist: CompletedChecklist) => {
         setSelectedChecklist(checklist)
@@ -82,6 +80,12 @@ export default function ConsultasPage() {
         });
         generateChecklistPdf(checklist);
     }
+    
+    const formatDate = (date: string | Date) => {
+        if (!date) return 'N/A';
+        const d = typeof date === 'string' ? new Date(date) : date;
+        return format(d, "dd/MM/yyyy");
+    };
 
     return (
         <>
@@ -183,7 +187,7 @@ export default function ConsultasPage() {
                     <CardHeader>
                         <CardTitle>Resultados</CardTitle>
                         <CardDescription>
-                            Foram encontrados {mockChecklists.length} checklists.
+                            Foram encontrados {checklists.length} checklists.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -199,23 +203,38 @@ export default function ConsultasPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {mockChecklists.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>{item.date}</TableCell>
-                                        <TableCell className="font-medium">{item.vehicle}</TableCell>
-                                        <TableCell>{item.driver}</TableCell>
-                                        <TableCell>{item.type}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusVariant[item.status]} className={cn(statusBadgeColor[item.status])}>
-                                                {item.status === 'OK' ? 'Concluído' : 'Com Pendências'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}><FileText className="mr-2 h-4 w-4"/>Ver Detalhes</Button>
-                                            <Button variant="secondary" size="sm" onClick={() => handleExport(item)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6}>
+                                            <Skeleton className="h-24 w-full" />
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    checklists.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>{formatDate(item.createdAt)}</TableCell>
+                                            <TableCell className="font-medium">{item.vehicle}</TableCell>
+                                            <TableCell>{item.driver}</TableCell>
+                                            <TableCell>{item.type}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={statusVariant[item.status]} className={cn(statusBadgeColor[item.status])}>
+                                                    {item.status === 'OK' ? 'Concluído' : 'Com Pendências'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}><FileText className="mr-2 h-4 w-4"/>Ver Detalhes</Button>
+                                                <Button variant="secondary" size="sm" onClick={() => handleExport(item)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                                 {!isLoading && checklists.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center h-24">
+                                            Nenhum checklist encontrado.
+                                        </TableCell>
+                                    </TableRow>
+                                 )}
                             </TableBody>
                         </Table>
                     </CardContent>

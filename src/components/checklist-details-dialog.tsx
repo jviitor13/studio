@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Badge } from "./ui/badge";
 import { Paperclip, MessageSquare, ThumbsUp, ThumbsDown, FileQuestion } from "lucide-react";
 import { CompletedChecklist } from "@/lib/types";
+import { format } from "date-fns";
 
 
 interface ChecklistDetailsDialogProps {
@@ -34,13 +35,15 @@ const statusBadgeColor : {[key:string]: string} = {
 export function ChecklistDetailsDialog({ isOpen, onClose, checklist }: ChecklistDetailsDialogProps) {
   if (!checklist) return null;
 
+  const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy 'às' HH:mm") : 'Data não disponível';
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Detalhes do Checklist: {checklist.id}</DialogTitle>
           <DialogDescription>
-            Visualização completa do checklist realizado em {checklist.date} por {checklist.driver}.
+            Visualização completa do checklist realizado em {formattedDate} por {checklist.driver}.
           </DialogDescription>
         </DialogHeader>
 

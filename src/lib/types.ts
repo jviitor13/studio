@@ -2,7 +2,7 @@ import type { ChecklistTemplate, ChecklistItem } from "@/lib/checklist-templates
 
 export type CompletedChecklist = Omit<ChecklistTemplate, 'questions'> & { 
     id: string; 
-    date: string; 
+    createdAt: string; // Changed from 'date' to 'createdAt' and type to string for serializability
     vehicle: string; 
     driver: string; 
     status: 'OK' | 'Pendente';

@@ -1,9 +1,11 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { CompletedChecklist } from '@/lib/types';
+import { format } from 'date-fns';
 
 export function generateChecklistPdf(checklist: CompletedChecklist) {
   const doc = new jsPDF();
+  const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy HH:mm") : 'N/A';
 
   // Cabeçalho
   doc.setFontSize(20);
@@ -14,7 +16,7 @@ export function generateChecklistPdf(checklist: CompletedChecklist) {
   autoTable(doc, {
     startY: 35,
     head: [['Data', 'Veículo', 'Responsável', 'Tipo', 'Status']],
-    body: [[checklist.date, checklist.vehicle, checklist.driver, checklist.type, checklist.status]],
+    body: [[formattedDate, checklist.vehicle, checklist.driver, checklist.type, checklist.status]],
     theme: 'striped'
   });
 
@@ -32,10 +34,10 @@ export function generateChecklistPdf(checklist: CompletedChecklist) {
     theme: 'grid',
     didDrawCell: (data) => {
         // Lógica para adicionar imagens pode ser inserida aqui
-        // Por enquanto, focamos na estrutura textual
     }
   });
 
   // Salvar o PDF
-  doc.save(`checklist_${checklist.vehicle}_${checklist.date}.pdf`);
+  const safeDate = formattedDate.replace(/[^0-9]/g, '_');
+  doc.save(`checklist_${checklist.vehicle}_${safeDate}.pdf`);
 }

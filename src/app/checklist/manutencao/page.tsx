@@ -22,7 +22,7 @@ import { ChecklistTemplate } from "@/lib/checklist-templates-data";
 import { ItemChecklistDialog } from "@/components/item-checklist-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, addDoc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type ItemData = ChecklistTemplate['questions'][0] & { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string };
@@ -35,7 +35,7 @@ const itemSchema = z.object({
   photo: z.string().optional(),
   observation: z.string().optional(),
 }).refine(data => {
-    if (data.status === 'N/A') return true; // Se for N/A, não valida nada
+    if (data.status === 'N/A') return true;
     if (data.photoRequirement === 'always') {
         return !!data.photo;
     }
@@ -123,7 +123,7 @@ export default function MaintenanceChecklistPage() {
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'checklist-templates'), (snapshot) => {
         const templatesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
-        setTemplates(templatesData.filter(t => t.type === 'manutencao')); // Only maintenance templates
+        setTemplates(templatesData.filter(t => t.type === 'manutencao'));
         setIsTemplatesLoading(false);
     });
     return () => unsubscribe();
@@ -158,7 +158,7 @@ export default function MaintenanceChecklistPage() {
         templateId: template.id,
         templateName: template.name,
         vehicleId: "",
-        responsibleName: "Pedro Mecânico",
+        responsibleName: "Pedro Mecânico", // Mock
         mileage: undefined,
         questions: initialItems,
         generalObservations: "",
@@ -184,8 +184,13 @@ export default function MaintenanceChecklistPage() {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       const submissionData = {
         ...data,
-        createdAt: new Date(),
+        createdAt: Timestamp.now(),
         status: hasIssues ? "Pendente" : "OK",
+        type: selectedTemplate?.type,
+        category: selectedTemplate?.category,
+        name: selectedTemplate?.name,
+        driver: data.responsibleName,
+        vehicle: data.vehicleId
       };
 
       await addDoc(collection(db, 'completed-checklists'), submissionData);
@@ -196,7 +201,6 @@ export default function MaintenanceChecklistPage() {
               ? "O checklist foi registrado com pendências para acompanhamento."
               : "O checklist foi registrado sem pendências.",
       });
-      // Reset to selection screen
       setSelectedTemplate(null);
       reset();
     } catch (error) {
