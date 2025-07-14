@@ -34,19 +34,17 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
   };
   
-  const addSignatures = (startY: number) => {
-    let currentY = startY;
-    if (currentY > pageHeight - 60) { // Check if space is enough for signatures
-        doc.addPage();
-        addHeader();
-        currentY = 45;
-    }
+  const addSignatures = () => {
+    // Adiciona uma nova página dedicada para as assinaturas
+    doc.addPage();
+    addHeader();
+    let currentY = 45;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(34, 34, 34);
     doc.text('Assinaturas', margin, currentY);
-    currentY += 10;
+    currentY += 15;
     
     const signatureWidth = 70;
     const signatureHeight = 35;
@@ -71,14 +69,12 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
         doc.text(checklist.driver || 'Motorista', motoristaX + signatureWidth / 2, signatureY + signatureHeight + 7, { align: 'center' });
     }
     
-    currentY += signatureHeight + 15;
+    currentY += signatureHeight + 25;
 
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);
     doc.setTextColor(120,120,120);
     doc.text("Checklist validado digitalmente no local da inspeção.", pageWidth / 2, currentY, { align: 'center' });
-
-    return currentY;
   };
 
 
@@ -166,7 +162,9 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     }
   }
   
-  currentY = addSignatures(currentY);
+  if (checklist.assinaturaResponsavel || checklist.assinaturaMotorista) {
+      addSignatures();
+  }
 
   const pageCount = (doc.internal as any).pages.length;
   for (let i = 1; i <= pageCount; i++) {
