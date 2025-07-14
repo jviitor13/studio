@@ -14,8 +14,7 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
   const addHeader = () => {
     // Logotipo (caminhos SVG do componente Logo)
     doc.saveGraphicsState();
-    doc.setDrawColor(0);
-    doc.setStrokeColor('hsl(var(--primary))');
+    doc.setDrawColor('#1A237E'); // Cor primária do tema
     doc.setLineWidth(0.5);
     doc.translate(margin, 12);
     doc.scale(0.5);
@@ -65,7 +64,7 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     body: [[formattedDate, checklist.vehicle, checklist.driver, checklist.type, checklist.status]],
     theme: 'grid',
     headStyles: {
-      fillColor: '#24527a', // Azul escuro
+      fillColor: '#1A237E', // Azul escuro
       textColor: '#ffffff',
       fontStyle: 'bold',
     },
