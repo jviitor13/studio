@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -258,7 +259,7 @@ export default function PreTripChecklistPage() {
                                     <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Clique para enviar</span></p>
                                     <p className="text-xs text-gray-500">PNG, JPG (MAX. 4MB)</p>
                                 </div>
-                                <Input id="photo-upload" type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleVehicleImageUpload} disabled={isProcessing} />
+                                <Input id="photo-upload" type="file" className="hidden" accept="image/*" capture="environment" onChange={handleVehicleImageUpload} disabled={isProcessing} />
                             </Label>
                         )}
                     </div>
@@ -306,7 +307,7 @@ export default function PreTripChecklistPage() {
                                                         <Camera className="w-8 h-8 mb-2 text-gray-500" />
                                                         <p className="text-sm text-gray-500">Enviar Foto</p>
                                                     </div>
-                                                    <Input id={`photo-${item.id}`} type="file" className="hidden" accept="image/png, image/jpeg" onChange={(e) => handleQuestionImageUpload(e, index)} />
+                                                    <Input id={`photo-${item.id}`} type="file" className="hidden" accept="image/*" capture="environment" onChange={(e) => handleQuestionImageUpload(e, index)} />
                                                 </Label>
                                             )}
                                         </div>
@@ -338,3 +339,5 @@ export default function PreTripChecklistPage() {
     </>
   );
 }
+
+    

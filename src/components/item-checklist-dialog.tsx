@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -148,7 +149,8 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                     id={`photo-${item.id}`}
                     type="file"
                     className="hidden"
-                    accept="image/png, image/jpeg"
+                    accept="image/*"
+                    capture="environment"
                     onChange={handleImageUpload}
                     ref={photoInputRef}
                 />
@@ -177,3 +179,5 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
     </Dialog>
   );
 }
+
+    
