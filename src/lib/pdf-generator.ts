@@ -5,81 +5,158 @@ import { format } from 'date-fns';
 
 export async function generateChecklistPdf(checklist: CompletedChecklist) {
   const doc = new jsPDF();
-  const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy HH:mm") : 'N/A';
   const pageHeight = doc.internal.pageSize.getHeight();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
 
-  // Header
-  doc.setFontSize(20);
-  doc.text('RodoCheck - Relatório de Checklist', 14, 22);
-  doc.setFontSize(10);
-  doc.setTextColor(51, 51, 51); // #333
-  doc.text(`Checklist ID: ${checklist.id}`, 14, 30);
-  
+  // --- Funções Auxiliares de Desenho ---
+
+  const addHeader = () => {
+    // Logotipo (caminhos SVG do componente Logo)
+    doc.saveGraphicsState();
+    doc.setDrawColor(0);
+    doc.setStrokeColor('hsl(var(--primary))');
+    doc.setLineWidth(0.5);
+    doc.translate(margin, 12);
+    doc.scale(0.5);
+    doc.stroke('M10 18h4');
+    doc.stroke('M12 18v-3.33c0-.47.24-.9.64-1.15l1.63-.94c.2-.12.44-.12.64 0l1.63.94c.4.25.64.68.64 1.15V18');
+    doc.stroke('M8 18V9.5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2V18');
+    doc.stroke('M8 18h-2c-1.1 0-2-.9-2-2v-3.5c0-1.1.9-2 2-2h1.5');
+    doc.stroke('m22 7-9 9L9 12');
+    doc.circle(8, 18, 2);
+    doc.circle(16, 18, 2);
+    doc.restoreGraphicsState();
+
+    // Título Principal
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(34, 34, 34); // Quase preto
+    doc.text('Relatório de Checklist', pageWidth / 2, 20, { align: 'center' });
+    
+    // Subtítulo com ID
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(102, 102, 102); // Cinza escuro
+    doc.text(`Checklist ID: ${checklist.id}`, pageWidth / 2, 26, { align: 'center' });
+
+    // Linha de separação
+    doc.setDrawColor(221, 221, 221); // Cinza claro
+    doc.line(margin, 32, pageWidth - margin, 32);
+  };
+
+  const addFooter = (pageNumber: number, pageCount: number) => {
+    const generationDate = format(new Date(), "dd/MM/yyyy 'às' HH:mm");
+    const footerText = `Gerado por RodoCheck | ID: ${checklist.id} | Página ${pageNumber} de ${pageCount}`;
+    
+    doc.setFontSize(8);
+    doc.setTextColor(153, 153, 153); // Cinza médio
+    doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  };
+
+  // --- Início do Documento ---
+  addHeader();
+
+  // Tabela de Informações Principais
+  const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy HH:mm") : 'N/A';
   autoTable(doc, {
-    startY: 35,
+    startY: 38,
     head: [['Data', 'Veículo', 'Responsável', 'Tipo', 'Status']],
     body: [[formattedDate, checklist.vehicle, checklist.driver, checklist.type, checklist.status]],
-    theme: 'striped'
+    theme: 'grid',
+    headStyles: {
+      fillColor: '#24527a', // Azul escuro
+      textColor: '#ffffff',
+      fontStyle: 'bold',
+    },
+    styles: {
+      font: 'helvetica',
+      fontSize: 10,
+    },
+    margin: { left: margin, right: margin }
   });
 
-  let currentY = (doc as any).lastAutoTable.finalY + 10;
+  // Seção de Itens
+  let currentY = (doc as any).lastAutoTable.finalY + 15;
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('Itens de Verificação', 14, currentY);
-  currentY += 6;
+  doc.setTextColor(34, 34, 34);
+  doc.text('Itens Verificados', margin, currentY);
+  currentY += 8;
 
   for (const item of checklist.questions) {
-    // Add a check to ensure we don't go off the page
-    if (currentY > 250) {
+    const itemCardHeight = calculateItemHeight(doc, item);
+    if (currentY + itemCardHeight > pageHeight - 20) {
+      addFooter(doc.internal.pages.length, doc.internal.pages.length);
       doc.addPage();
-      currentY = 20;
+      addHeader();
+      currentY = 45; // Posição inicial em nova página
     }
-    
+
     doc.setFontSize(11);
-    doc.setTextColor(40);
-    doc.text(`${item.text}`, 14, currentY, { maxWidth: 180 });
-    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(51, 51, 51);
+    doc.text(item.text, margin, currentY, { maxWidth: pageWidth - (margin * 2) });
+    currentY += 6;
+
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    const statusText = `Avaliação: ${item.status}`;
-    const obsText = `Observação: ${item.observation || 'N/A'}`;
-    doc.text(statusText, 16, currentY + 5);
-    doc.text(obsText, 16, currentY + 10, { maxWidth: 180 });
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(85, 85, 85);
     
-    currentY += 15;
+    const statusText = `Avaliação: ${item.status}`;
+    doc.text(statusText, margin, currentY);
+    currentY += 5;
+
+    const obsText = `Observação: ${item.observation || 'Nenhuma'}`;
+    const splitObs = doc.splitTextToSize(obsText, pageWidth - (margin * 2));
+    doc.text(splitObs, margin, currentY);
+    currentY += (splitObs.length * 4) + 2;
 
     if (item.photo) {
-        try {
-            // Check if there is enough space for the image
-            if (currentY + 50 > 280) {
-                doc.addPage();
-                currentY = 20;
-            }
-            doc.addImage(item.photo, 'JPEG', 16, currentY, 60, 45); // Adjust size as needed
-            currentY += 55;
-        } catch (e) {
-            console.error("Error adding image to PDF:", e);
-            doc.text("Erro ao carregar imagem.", 16, currentY);
-            currentY += 10;
-        }
+      try {
+        const imgWidth = 60;
+        const imgHeight = 45;
+        doc.setDrawColor(204, 204, 204); // Borda da imagem
+        doc.rect(margin, currentY, imgWidth, imgHeight);
+        doc.addImage(item.photo, 'JPEG', margin, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 5;
+      } catch (e) {
+        console.error("Error adding image to PDF:", e);
+        doc.text("Erro ao carregar imagem.", margin, currentY);
+        currentY += 5;
+      }
     }
     
-    doc.line(14, currentY - 5, 196, currentY - 5); // separator line
+    // Separador entre itens
+    doc.setDrawColor(238, 238, 238);
+    doc.line(margin, currentY, pageWidth - margin, currentY);
+    currentY += 8;
   }
 
-  // Add footer to all pages
-  const pageCount = (doc as any).internal.getNumberOfPages();
-  const generationDate = format(new Date(), "dd/MM/yyyy 'às' HH:mm");
-  for(let i = 1; i <= pageCount; i++) {
+  // Adicionar rodapé em todas as páginas
+  const pageCount = doc.internal.pages.length;
+  for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100); // Dark gray
-    const footerText = `Checklist ID: ${checklist.id} | Gerado por RodoCheck em ${generationDate}`;
-    doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    addFooter(i, pageCount);
   }
 
-
-  // Save the PDF
+  // Salvar o PDF
   const safeDate = formattedDate.replace(/[^0-9]/g, '_');
   doc.save(`checklist_${checklist.vehicle}_${safeDate}.pdf`);
+}
+
+function calculateItemHeight(doc: jsPDF, item: any): number {
+    let height = 20; // Espaço inicial (título, status)
+    
+    // Altura da observação
+    const obsText = `Observação: ${item.observation || 'Nenhuma'}`;
+    const splitObs = doc.splitTextToSize(obsText, doc.internal.pageSize.getWidth() - 30);
+    height += splitObs.length * 4;
+
+    // Altura da imagem
+    if (item.photo) {
+        height += 50; // Altura da imagem + margem
+    }
+
+    return height + 10; // Margem final
 }
