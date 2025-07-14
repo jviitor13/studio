@@ -6,5 +6,7 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions'> & {
     vehicle: string; 
     driver: string; 
     status: 'OK' | 'Pendente';
-    questions: (ChecklistTemplate['questions'][0] & { status: 'OK' | 'Não OK' | 'N/A', observation?: string, photo?: string })[]
+    questions: (ChecklistTemplate['questions'][0] & { status: 'OK' | 'Não OK' | 'N/A', observation?: string, photo?: string })[];
+    assinaturaResponsavel?: string;
+    assinaturaMotorista?: string;
 };

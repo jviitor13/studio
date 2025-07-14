@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks } from "lucide-react";
+import { CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChecklistTemplate } from "@/lib/checklist-templates-data";
 import { ItemChecklistDialog } from "@/components/item-checklist-dialog";
@@ -25,6 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SignaturePad } from "@/components/signature-pad";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+
 
 type ItemData = ChecklistTemplate['questions'][0] & { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string };
 
@@ -55,9 +58,12 @@ const checklistSchema = z.object({
   templateName: z.string(),
   vehicleId: z.string().min(1, "Selecione um veículo"),
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
+  driverName: z.string().min(1, "Nome do motorista é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
   questions: z.array(itemSchema),
   generalObservations: z.string().optional(),
+  assinaturaResponsavel: z.string().min(1, "Assinatura do responsável é obrigatória."),
+  assinaturaMotorista: z.string().min(1, "Assinatura do motorista é obrigatória."),
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -130,22 +136,30 @@ export default function MaintenanceChecklistPage() {
     return () => unsubscribe();
   }, []);
 
-  const { control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, setValue, watch, reset, trigger } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
       responsibleName: "Pedro Mecânico", // Mock, could come from auth
+      driverName: "João Motorista",
       mileage: undefined,
       questions: [],
       generalObservations: "",
+      assinaturaResponsavel: "",
+      assinaturaMotorista: "",
     },
-    mode: 'onChange' 
+    mode: 'onBlur' 
   });
   
   const { fields: questionFields } = useFieldArray({
       control,
       name: "questions"
   });
+
+  const watchResponsibleName = watch("responsibleName");
+  const watchDriverName = watch("driverName");
+  const showSignatureError = !!(errors.assinaturaResponsavel || errors.assinaturaMotorista) && !watch('assinaturaResponsavel') && !watch('assinaturaMotorista');
+
 
   const handleSelectTemplate = (template: ChecklistTemplate) => {
     setSelectedTemplate(template);
@@ -160,9 +174,12 @@ export default function MaintenanceChecklistPage() {
         templateName: template.name,
         vehicleId: "",
         responsibleName: "Pedro Mecânico", // Mock
+        driverName: "João Motorista",
         mileage: undefined,
         questions: initialItems,
         generalObservations: "",
+        assinaturaResponsavel: "",
+        assinaturaMotorista: "",
     });
   };
 
@@ -203,8 +220,10 @@ export default function MaintenanceChecklistPage() {
         type: selectedTemplate?.type,
         category: selectedTemplate?.category,
         name: selectedTemplate?.name,
-        driver: data.responsibleName,
-        vehicle: data.vehicleId
+        driver: data.driverName ?? '',
+        vehicle: data.vehicleId,
+        assinaturaResponsavel: data.assinaturaResponsavel,
+        assinaturaMotorista: data.assinaturaMotorista,
       };
 
       await addDoc(collection(db, 'completed-checklists'), submissionData);
@@ -255,7 +274,7 @@ export default function MaintenanceChecklistPage() {
             <CardHeader>
               <CardTitle>Informações Gerais</CardTitle>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-3 gap-6">
+            <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="vehicleId">Veículo</Label>
                 <Controller
@@ -284,6 +303,15 @@ export default function MaintenanceChecklistPage() {
                   render={({ field }) => <Input id="responsibleName" {...field} />}
                 />
                 {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
+              </div>
+              <div className="grid gap-2">
+                  <Label htmlFor="driverName">Nome do Motorista</Label>
+                  <Controller
+                      name="driverName"
+                      control={control}
+                      render={({field}) => <Input id="driverName" {...field} />}
+                  />
+                  {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="mileage">Quilometragem Atual</Label>
@@ -333,7 +361,6 @@ export default function MaintenanceChecklistPage() {
              </CardContent>
           </Card>
 
-
           <Card className="mt-6">
             <CardHeader>
                 <CardTitle>Observações Gerais</CardTitle>
@@ -350,6 +377,45 @@ export default function MaintenanceChecklistPage() {
                     />
                 </div>
             </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+                <CardTitle>Assinaturas</CardTitle>
+                <CardDescription>O responsável técnico e o motorista devem assinar para validar o checklist.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-8">
+                <div className="grid gap-2">
+                    <Label className="font-semibold">Assinatura do Responsável Técnico</Label>
+                    <SignaturePad
+                        onEnd={(signature) => {
+                          setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true });
+                          trigger('assinaturaResponsavel');
+                        }}
+                    />
+                    <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
+                    {errors.assinaturaResponsavel && <p className="text-sm text-destructive">{errors.assinaturaResponsavel.message}</p>}
+                </div>
+                 <div className="grid gap-2">
+                    <Label className="font-semibold">Assinatura do Motorista</Label>
+                    <SignaturePad
+                        onEnd={(signature) => {
+                          setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true });
+                          trigger('assinaturaMotorista');
+                        }}
+                    />
+                    <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
+                    {errors.assinaturaMotorista && <p className="text-sm text-destructive">{errors.assinaturaMotorista.message}</p>}
+                </div>
+            </CardContent>
+             {showSignatureError && (
+                <CardContent>
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Assinaturas Obrigatórias</AlertTitle>
+                    </Alert>
+                </CardContent>
+            )}
             <CardFooter className="border-t px-6 py-4 flex justify-between">
               <Button type="submit" size="lg">Finalizar Checklist</Button>
               <Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)}>Cancelar e Voltar</Button>
