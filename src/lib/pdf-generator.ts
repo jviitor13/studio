@@ -3,11 +3,11 @@ import autoTable from 'jspdf-autotable';
 import { CompletedChecklist } from '@/lib/types';
 import { format } from 'date-fns';
 
-export function generateChecklistPdf(checklist: CompletedChecklist) {
+export async function generateChecklistPdf(checklist: CompletedChecklist) {
   const doc = new jsPDF();
   const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy HH:mm") : 'N/A';
 
-  // Cabeçalho
+  // Header
   doc.setFontSize(20);
   doc.text('RodoCheck - Relatório de Checklist', 14, 22);
   doc.setFontSize(12);
@@ -20,24 +20,51 @@ export function generateChecklistPdf(checklist: CompletedChecklist) {
     theme: 'striped'
   });
 
-  // Itens do Checklist
-  const tableBody = checklist.questions.map(q => [
-    q.text,
-    q.status,
-    q.observation || 'N/A'
-  ]);
+  let currentY = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(14);
+  doc.text('Itens de Verificação', 14, currentY);
+  currentY += 6;
 
-  autoTable(doc, {
-    startY: (doc as any).lastAutoTable.finalY + 10,
-    head: [['Item', 'Avaliação', 'Observação']],
-    body: tableBody,
-    theme: 'grid',
-    didDrawCell: (data) => {
-        // Lógica para adicionar imagens pode ser inserida aqui
+  for (const item of checklist.questions) {
+    // Add a check to ensure we don't go off the page
+    if (currentY > 260) {
+      doc.addPage();
+      currentY = 20;
     }
-  });
+    
+    doc.setFontSize(11);
+    doc.setTextColor(40);
+    doc.text(`${item.text}`, 14, currentY);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const statusText = `Avaliação: ${item.status}`;
+    const obsText = `Observação: ${item.observation || 'N/A'}`;
+    doc.text(statusText, 16, currentY + 5);
+    doc.text(obsText, 16, currentY + 10);
+    
+    currentY += 15;
 
-  // Salvar o PDF
+    if (item.photo) {
+        try {
+            // Check if there is enough space for the image
+            if (currentY + 50 > 280) {
+                doc.addPage();
+                currentY = 20;
+            }
+            doc.addImage(item.photo, 'JPEG', 16, currentY, 60, 45); // Adjust size as needed
+            currentY += 55;
+        } catch (e) {
+            console.error("Error adding image to PDF:", e);
+            doc.text("Erro ao carregar imagem.", 16, currentY);
+            currentY += 10;
+        }
+    }
+    
+    doc.line(14, currentY - 5, 196, currentY - 5); // separator line
+  }
+
+  // Save the PDF
   const safeDate = formattedDate.replace(/[^0-9]/g, '_');
   doc.save(`checklist_${checklist.vehicle}_${safeDate}.pdf`);
 }

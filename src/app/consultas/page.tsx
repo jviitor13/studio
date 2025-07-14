@@ -73,12 +73,21 @@ export default function ConsultasPage() {
         setIsDetailsOpen(true)
     }
 
-    const handleExport = (checklist: CompletedChecklist) => {
+    const handleExport = async (checklist: CompletedChecklist) => {
         toast({
             title: "Exportação Iniciada",
             description: `O checklist ${checklist.id} está sendo preparado.`,
         });
-        generateChecklistPdf(checklist);
+        try {
+            await generateChecklistPdf(checklist);
+        } catch (error) {
+            console.error("PDF generation error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Gerar PDF",
+                description: "Não foi possível gerar o arquivo. Tente novamente."
+            })
+        }
     }
     
     const formatDate = (date: string | Date) => {
