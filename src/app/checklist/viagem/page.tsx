@@ -16,15 +16,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, Loader2, Camera, Trash2, GripVertical, Image as ImageIcon } from "lucide-react";
+import { UploadCloud, Loader2, Camera, Trash2, Image as ImageIcon } from "lucide-react";
 import Image from 'next/image';
 import { handleDamageAssessment } from "@/lib/actions";
 import { DamageAssessmentDialog } from "@/components/damage-assessment-dialog";
 import { initialQuestions } from "@/lib/checklist-data";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 
 const answerSchema = z.object({
@@ -56,12 +58,13 @@ type ChecklistFormValues = z.infer<typeof checklistSchema>;
 
 export default function PreTripChecklistPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const [vehicleImages, setVehicleImages] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [damageInfo, setDamageInfo] = useState("");
   
-  const { control, handleSubmit, formState: { errors }, watch } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, watch, reset } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -133,13 +136,54 @@ export default function PreTripChecklistPage() {
   };
 
 
-  const onSubmit = (data: ChecklistFormValues) => {
+  const onSubmit = async (data: ChecklistFormValues) => {
     if(vehicleImages.length === 0) {
         toast({ variant: "destructive", title: "Erro", description: "É obrigatório o envio de pelo menos uma foto do veículo." });
         return;
     }
-    console.log(JSON.stringify(data, null, 2));
-    toast({ title: "Checklist Enviado!", description: "Seu checklist de viagem foi enviado com sucesso." });
+    
+    // This is a simplified transformation. A real-world scenario might be more complex.
+    const questionsForFirestore = data.answers.map(a => ({
+        id: a.questionId,
+        text: a.questionText,
+        status: a.answer === true ? 'OK' : (a.answer ? 'OK' : 'Não OK'), // Simplified logic
+        observation: a.questionType === 'text' ? a.answer : '',
+        photo: a.questionType === 'photo' ? a.answer : '',
+        photoRequirement: 'never' as const, // Simplified
+    }));
+
+    try {
+        const hasIssues = questionsForFirestore.some(item => item.status === "Não OK");
+        const submissionData = {
+          createdAt: Timestamp.now(),
+          status: hasIssues ? "Pendente" : "OK",
+          type: "viagem",
+          category: 'nao_aplicavel',
+          name: 'Checklist de Viagem',
+          driver: 'Motorista Padrão', // Should come from auth
+          vehicle: data.vehicleId,
+          mileage: data.initialKm,
+          questions: questionsForFirestore,
+          generalObservations: data.observations,
+        };
+
+        await addDoc(collection(db, 'completed-checklists'), submissionData);
+
+        toast({
+            title: "Checklist Enviado com Sucesso!",
+            description: "Seu checklist de viagem foi registrado.",
+        });
+        reset();
+        router.push("/dashboard");
+
+    } catch (error) {
+        console.error("Checklist submission error:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro no Envio",
+            description: "Não foi possível enviar o checklist de viagem.",
+        });
+    }
   };
   
   return (
