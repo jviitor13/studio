@@ -178,7 +178,7 @@ export default function ChecklistCompletedPage() {
                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Button onClick={handleExport} size="lg" className="h-auto py-4">
                         <Download className="mr-3 h-5 w-5" />
-                        Baixar PDF
+                        Gerar PDF
                     </Button>
                      <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4">
                         <Printer className="mr-3 h-5 w-5" />
