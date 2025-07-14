@@ -120,14 +120,16 @@ export default function DashboardLayout({
         <div className="flex flex-1 flex-col">
           <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
             <SidebarTrigger className="md:hidden" />
-            <div className="w-full flex-1">
+            <div className="flex-1">
                <ClockWidget />
             </div>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Bell className="h-4 w-4" />
-              <span className="sr-only">Toggle notifications</span>
-            </Button>
-            <UserNav />
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="rounded-full">
+                <Bell className="h-4 w-4" />
+                <span className="sr-only">Toggle notifications</span>
+                </Button>
+                <UserNav />
+            </div>
           </header>
           <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
             {children}
