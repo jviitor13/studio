@@ -12,21 +12,6 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
   // --- Funções Auxiliares de Desenho ---
 
   const addHeader = () => {
-    // Logotipo (caminhos SVG do componente Logo)
-    doc.saveGraphicsState();
-    doc.setDrawColor('#1A237E'); // Cor primária do tema
-    doc.setLineWidth(0.5);
-    doc.translate(margin, 12);
-    doc.scale(0.5);
-    doc.stroke('M10 18h4');
-    doc.stroke('M12 18v-3.33c0-.47.24-.9.64-1.15l1.63-.94c.2-.12.44-.12.64 0l1.63.94c.4.25.64.68.64 1.15V18');
-    doc.stroke('M8 18V9.5c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2V18');
-    doc.stroke('M8 18h-2c-1.1 0-2-.9-2-2v-3.5c0-1.1.9-2 2-2h1.5');
-    doc.stroke('m22 7-9 9L9 12');
-    doc.circle(8, 18, 2);
-    doc.circle(16, 18, 2);
-    doc.restoreGraphicsState();
-
     // Título Principal
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
@@ -133,7 +118,7 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
   }
 
   // Adicionar rodapé em todas as páginas
-  const pageCount = doc.internal.pages.length;
+  const pageCount = (doc.internal as any).pages.length;
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     addFooter(i, pageCount);
