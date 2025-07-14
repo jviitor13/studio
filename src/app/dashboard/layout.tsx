@@ -75,11 +75,6 @@ const getMenuItems = (role: string) => {
 
 
 const getBottomNavItems = (role: string) => {
-    const commonItems = [
-        { href: "/dashboard", label: "Home", icon: Home },
-        { href: "/checklist/viagem", label: "Checklists", icon: ShieldCheck },
-    ];
-
     const gestorItems = [
         { href: "/dashboard", label: "Home", icon: Home },
         { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
@@ -100,7 +95,13 @@ const getBottomNavItems = (role: string) => {
     if (role === 'gestor') return gestorItems;
     if (role === 'motorista') return motoristaItems;
     
-    return commonItems;
+    // Fallback for mechanic or other roles
+    return [
+        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
+        { href: "/manutencoes", label: "Manutenções", icon: Wrench },
+        { href: "/usuarios", label: "Perfil", icon: Users },
+    ];
 };
 
 

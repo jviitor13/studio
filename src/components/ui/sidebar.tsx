@@ -25,7 +25,7 @@ import { Logo } from "../icons"
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem" // approx 280dp
+const SIDEBAR_WIDTH_MOBILE = "85%"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
@@ -201,24 +201,24 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[var(--sidebar-width-mobile)] bg-background p-0 text-foreground shadow-lg"
             style={
               {
-                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+                "--sidebar-width-mobile": SIDEBAR_WIDTH_MOBILE,
               } as React.CSSProperties
             }
             side={side}
           >
-             <SheetHeader className="p-2 border-b flex flex-row items-center justify-between">
-                <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}>
-                    <Logo className="h-8 w-8 text-primary" />
-                    <SheetTitle className="text-xl font-headline font-semibold">RodoCheck</SheetTitle>
-                </Link>
-                <SheetClose className="relative right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-                    <X className="h-5 w-5" />
-                    <span className="sr-only">Close</span>
-                </SheetClose>
-             </SheetHeader>
+            <SheetHeader className="p-4 flex flex-row items-center justify-between border-b">
+              <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}>
+                  <Logo className="h-8 w-8 text-primary" />
+                  <SheetTitle className="text-xl font-headline font-semibold text-foreground">RodoCheck</SheetTitle>
+              </Link>
+              <SheetClose className="relative right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
+                  <X className="h-5 w-5" />
+                  <span className="sr-only">Close</span>
+              </SheetClose>
+            </SheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
@@ -275,7 +275,7 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile } = useSidebar()
 
   return (
     <Button
@@ -283,7 +283,7 @@ const SidebarTrigger = React.forwardRef<
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-8 w-8", className)}
+      className={cn("h-8 w-8 md:flex", { 'hidden': !isMobile }, className)}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
