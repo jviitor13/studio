@@ -9,11 +9,7 @@ import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function DriverDashboard() {
-  const lastChecklists = [
-    { id: "CHK-001", date: "2024-07-28", type: "Viagem", status: "Aprovado" },
-    { id: "CHK-002", date: "2024-07-27", type: "Retorno", status: "Aprovado" },
-    { id: "CHK-003", date: "2024-07-26", type: "Viagem", status: "Reprovado" },
-  ];
+  const lastChecklists: { id: string; date: string; type: string; status: string; }[] = [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,12 +17,11 @@ export function DriverDashboard() {
             <Card className="flex-1">
                 <CardHeader>
                     <CardTitle className="font-headline">Status do Veículo</CardTitle>
-                    <CardDescription>Mercedes-Benz Actros - Placa: RDO2C24</CardDescription>
+                    <CardDescription>Nenhum veículo atribuído</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-2">
-                        <Badge className="bg-green-500 hover:bg-green-600">Disponível</Badge>
-                        <p className="text-sm text-muted-foreground">Próxima revisão em 1.200km</p>
+                        <Badge variant="secondary">Indisponível</Badge>
                     </div>
                 </CardContent>
             </Card>
@@ -37,7 +32,7 @@ export function DriverDashboard() {
                 </CardHeader>
                 <CardContent className="flex gap-4">
                      <Button className="w-full">Iniciar Jornada</Button>
-                     <Button variant="outline" className="w-full">Finalizar Jornada</Button>
+                     <Button variant="outline" className="w-full" disabled>Finalizar Jornada</Button>
                 </CardContent>
             </Card>
         </div>
@@ -62,9 +57,11 @@ export function DriverDashboard() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="lg" variant="secondary" className="w-full h-24 text-base">
-                    <AlertTriangle className="mr-4 h-6 w-6" /> Registrar Ocorrência
-                  </Button>
+                   <Link href="/ocorrencias" className="w-full">
+                    <Button size="lg" variant="secondary" className="w-full h-24 text-base">
+                        <AlertTriangle className="mr-4 h-6 w-6" /> Registrar Ocorrência
+                    </Button>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Reporte incidentes, avarias ou qualquer evento inesperado.</p>
@@ -72,9 +69,11 @@ export function DriverDashboard() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                   <Button size="lg" variant="secondary" className="w-full h-24 text-base">
-                    <FileText className="mr-4 h-6 w-6" /> Meus Documentos
-                  </Button>
+                    <Link href="/documentos" className="w-full">
+                        <Button size="lg" variant="secondary" className="w-full h-24 text-base">
+                            <FileText className="mr-4 h-6 w-6" /> Meus Documentos
+                        </Button>
+                    </Link>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Acesse sua CNH, documentos do veículo e outros arquivos.</p>
@@ -98,18 +97,26 @@ export function DriverDashboard() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {lastChecklists.map((checklist) => (
-                        <TableRow key={checklist.id}>
-                            <TableCell className="font-medium">{checklist.id}</TableCell>
-                            <TableCell>{checklist.date}</TableCell>
-                            <TableCell>{checklist.type}</TableCell>
-                            <TableCell className="text-right">
-                            <Badge variant={checklist.status === "Aprovado" ? "default" : "destructive"} className={checklist.status === "Aprovado" ? "bg-green-500 hover:bg-green-600" : ""}>
-                                {checklist.status}
-                            </Badge>
-                            </TableCell>
-                        </TableRow>
-                        ))}
+                        {lastChecklists.length > 0 ? (
+                            lastChecklists.map((checklist) => (
+                                <TableRow key={checklist.id}>
+                                    <TableCell className="font-medium">{checklist.id}</TableCell>
+                                    <TableCell>{checklist.date}</TableCell>
+                                    <TableCell>{checklist.type}</TableCell>
+                                    <TableCell className="text-right">
+                                    <Badge variant={checklist.status === "Aprovado" ? "default" : "destructive"} className={checklist.status === "Aprovado" ? "bg-green-500 hover:bg-green-600" : ""}>
+                                        {checklist.status}
+                                    </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    Nenhum checklist realizado ainda.
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>

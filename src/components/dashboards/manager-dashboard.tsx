@@ -15,14 +15,10 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { TrendingUp, Wrench, AlertCircle, Clock, DollarSign, Truck } from 'lucide-react';
+import { DollarSign, Truck, Clock, AlertCircle } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
 
-const fleetChartData = [
-  { status: 'Em Viagem', value: 12, fill: 'var(--color-emViagem)' },
-  { status: 'Disponível', value: 8, fill: 'var(--color-disponivel)' },
-  { status: 'Em Manutenção', value: 3, fill: 'var(--color-manutencao)' },
-];
+const fleetChartData: { status: string, value: number, fill: string }[] = [];
 
 const fleetChartConfig = {
   value: {
@@ -42,13 +38,7 @@ const fleetChartConfig = {
   },
 } satisfies ChartConfig;
 
-const checklistProblemsData = [
-    { problem: 'Pneus', count: 15, fill: 'var(--color-pneus)' },
-    { problem: 'Freios', count: 8, fill: 'var(--color-freios)' },
-    { problem: 'Motor', count: 5, fill: 'var(--color-motor)' },
-    { problem: 'Elétrica', count: 12, fill: 'var(--color-eletrica)' },
-    { problem: 'Outros', count: 3, fill: 'var(--color-outros)' },
-];
+const checklistProblemsData: { problem: string, count: number, fill: string }[] = [];
 
 const checklistProblemsConfig = {
     count: { label: 'Ocorrências' },
@@ -59,10 +49,7 @@ const checklistProblemsConfig = {
     outros: { label: 'Outros', color: 'hsl(var(--chart-5))' },
 } satisfies ChartConfig;
 
-const maintenanceData = [
-    { vehicle: 'RDO1A12', model: 'Scania R450', service: 'Troca de óleo', downSince: '2024-07-26', eta: '2024-07-29', days: 3 },
-    { vehicle: 'RDO3B45', model: 'Volvo FH 540', service: 'Reparo no freio', downSince: '2024-07-28', eta: '2024-07-30', days: 1 },
-];
+const maintenanceData: { vehicle: string, model: string, service: string, downSince: string, eta: string, days: number }[] = [];
 
 
 export function ManagerDashboard() {
@@ -80,8 +67,8 @@ export function ManagerDashboard() {
             <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">+2 desde o último mês</p>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Nenhum veículo cadastrado</p>
           </CardContent>
         </Card>
          <Card>
@@ -90,7 +77,7 @@ export function ManagerDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">98 horas</div>
+            <div className="text-2xl font-bold">0 horas</div>
             <p className="text-xs text-muted-foreground">Total em manutenção</p>
           </CardContent>
         </Card>
@@ -100,18 +87,18 @@ export function ManagerDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 12.450</div>
-            <p className="text-xs text-muted-foreground">+5.2% vs. mês anterior</p>
+            <div className="text-2xl font-bold">R$ 0,00</div>
+            <p className="text-xs text-muted-foreground">Nenhum custo registrado</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Alertas Ativos</CardTitle>
-            <AlertCircle className="h-4 w-4 text-destructive" />
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">5</div>
-            <p className="text-xs text-muted-foreground">Requerem atenção imediata</p>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Nenhum alerta no momento</p>
           </CardContent>
         </Card>
       </div>
@@ -122,27 +109,31 @@ export function ManagerDashboard() {
             <CardTitle className="font-headline">Status da Frota</CardTitle>
             <CardDescription>Distribuição dos veículos por status atual.</CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <ChartContainer config={fleetChartConfig} className="mx-auto aspect-square h-[250px]">
-                <PieChart>
-                    <ChartTooltip
-                        cursor={false}
-                        content={<ChartTooltipContent hideLabel />}
-                    />
-                    <Pie
-                        data={fleetChartData}
-                        dataKey="value"
-                        nameKey="status"
-                        innerRadius={60}
-                        strokeWidth={5}
-                    >
-                    {fleetChartData.map((entry) => (
-                        <Cell key={`cell-${entry.status}`} fill={entry.fill} className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" />
-                    ))}
-                    </Pie>
-                    <ChartLegend content={<ChartLegendContent nameKey="status" />} />
-                </PieChart>
-            </ChartContainer>
+          <CardContent className="flex justify-center items-center h-[250px]">
+            {fleetChartData.length > 0 ? (
+                <ChartContainer config={fleetChartConfig} className="mx-auto aspect-square h-full">
+                    <PieChart>
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Pie
+                            data={fleetChartData}
+                            dataKey="value"
+                            nameKey="status"
+                            innerRadius={60}
+                            strokeWidth={5}
+                        >
+                        {fleetChartData.map((entry) => (
+                            <Cell key={`cell-${entry.status}`} fill={entry.fill} className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" />
+                        ))}
+                        </Pie>
+                        <ChartLegend content={<ChartLegendContent nameKey="status" />} />
+                    </PieChart>
+                </ChartContainer>
+            ) : (
+                <p className="text-muted-foreground">Nenhum dado de frota para exibir.</p>
+            )}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
@@ -150,20 +141,24 @@ export function ManagerDashboard() {
             <CardTitle className="font-headline">Principais Problemas (Checklists)</CardTitle>
             <CardDescription>Ocorrências mais comuns nos últimos 30 dias.</CardDescription>
           </CardHeader>
-          <CardContent>
-             <ChartContainer config={checklistProblemsConfig} className="h-[250px] w-full">
-                <BarChart data={checklistProblemsData} layout="vertical" margin={{ left: 10, right: 10 }}>
-                    <CartesianGrid horizontal={false} />
-                    <YAxis dataKey="problem" type="category" tickLine={false} axisLine={false} tickMargin={10} width={60}/>
-                    <XAxis type="number" dataKey="count" hide />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                    <Bar dataKey="count" radius={5}>
-                         {checklistProblemsData.map((entry) => (
-                            <Cell key={`cell-${entry.problem}`} fill={entry.fill} />
-                        ))}
-                    </Bar>
-                </BarChart>
-             </ChartContainer>
+          <CardContent className="flex justify-center items-center h-[250px]">
+             {checklistProblemsData.length > 0 ? (
+                <ChartContainer config={checklistProblemsConfig} className="h-full w-full">
+                    <BarChart data={checklistProblemsData} layout="vertical" margin={{ left: 10, right: 10 }}>
+                        <CartesianGrid horizontal={false} />
+                        <YAxis dataKey="problem" type="category" tickLine={false} axisLine={false} tickMargin={10} width={60}/>
+                        <XAxis type="number" dataKey="count" hide />
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                        <Bar dataKey="count" radius={5}>
+                            {checklistProblemsData.map((entry) => (
+                                <Cell key={`cell-${entry.problem}`} fill={entry.fill} />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ChartContainer>
+             ) : (
+                <p className="text-muted-foreground">Nenhuma ocorrência registrada.</p>
+             )}
           </CardContent>
         </Card>
       </div>
@@ -186,18 +181,26 @@ export function ManagerDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {maintenanceData.map((item) => (
-                <TableRow key={item.vehicle}>
-                  <TableCell className="font-medium">{item.vehicle}</TableCell>
-                  <TableCell>{item.model}</TableCell>
-                  <TableCell>{item.service}</TableCell>
-                  <TableCell>{item.downSince}</TableCell>
-                  <TableCell>
-                    <Badge variant="destructive">{item.days} dias</Badge>
-                  </TableCell>
-                   <TableCell>{item.eta}</TableCell>
+              {maintenanceData.length > 0 ? (
+                maintenanceData.map((item) => (
+                    <TableRow key={item.vehicle}>
+                    <TableCell className="font-medium">{item.vehicle}</TableCell>
+                    <TableCell>{item.model}</TableCell>
+                    <TableCell>{item.service}</TableCell>
+                    <TableCell>{item.downSince}</TableCell>
+                    <TableCell>
+                        <Badge variant="destructive">{item.days} dias</Badge>
+                    </TableCell>
+                    <TableCell>{item.eta}</TableCell>
+                    </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                        Nenhum veículo em manutenção.
+                    </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
