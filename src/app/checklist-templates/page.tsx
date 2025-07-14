@@ -57,6 +57,7 @@ export default function ChecklistTemplatePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+    const [isEditingNew, setIsEditingNew] = useState(false);
 
 
     const { control, register, handleSubmit, formState: { errors }, watch, reset, setValue } = useForm<TemplateFormValues>({
@@ -74,12 +75,6 @@ export default function ChecklistTemplatePage() {
         const unsubscribe = onSnapshot(collection(db, 'checklist-templates'), (snapshot) => {
             const templatesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
             setTemplates(templatesData);
-            if (selectedTemplate) {
-              const freshTemplate = templatesData.find(t => t.id === selectedTemplate.id);
-              if (freshTemplate) {
-                setSelectedTemplate(freshTemplate);
-              }
-            }
             setIsLoading(false);
         }, (error) => {
             console.error("Firebase snapshot error:", error);
@@ -91,11 +86,13 @@ export default function ChecklistTemplatePage() {
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [toast, selectedTemplate]);
+    }, [toast]);
     
     useEffect(() => {
-      reset(selectedTemplate ?? { name: "", type: "manutencao", category: "cavalo_mecanico", questions: [] });
-    }, [selectedTemplate, reset]);
+        if (!isEditingNew) {
+            reset(selectedTemplate ?? { name: "", type: "manutencao", category: "cavalo_mecanico", questions: [] });
+        }
+    }, [selectedTemplate, reset, isEditingNew]);
 
 
     const { fields, append, remove, move } = useFieldArray({
@@ -106,12 +103,14 @@ export default function ChecklistTemplatePage() {
     const handleTemplateChange = (templateId: string) => {
       const template = templates.find(t => t.id === templateId);
       if (template) {
+        setIsEditingNew(false);
         setSelectedTemplate(template);
       }
     };
 
     const handleNewTemplate = () => {
       setSelectedTemplate(null);
+      setIsEditingNew(true);
       reset({
         name: "Novo Modelo",
         type: "manutencao",
@@ -123,9 +122,9 @@ export default function ChecklistTemplatePage() {
     const onSubmit = async (data: TemplateFormValues) => {
         try {
             const dataToSave = { ...data };
-            delete dataToSave.id; // Don't save the ID inside the document
+            delete dataToSave.id;
 
-            if (selectedTemplate?.id) {
+            if (selectedTemplate?.id && !isEditingNew) {
                 const docRef = doc(db, 'checklist-templates', selectedTemplate.id);
                 await setDoc(docRef, dataToSave, { merge: true });
                 toast({
@@ -136,6 +135,7 @@ export default function ChecklistTemplatePage() {
                 const docRef = await addDoc(collection(db, 'checklist-templates'), dataToSave);
                 const newTemplate = { ...data, id: docRef.id };
                 setSelectedTemplate(newTemplate);
+                setIsEditingNew(false);
                 setShowSuccessDialog(true);
             }
         } catch (error) {
@@ -157,6 +157,7 @@ export default function ChecklistTemplatePage() {
                 description: "O modelo foi excluído com sucesso.",
             });
             setSelectedTemplate(null);
+            setIsEditingNew(false);
             reset();
         } catch (error) {
              toast({
@@ -223,11 +224,11 @@ export default function ChecklistTemplatePage() {
                     </CardContent>
                 </Card>
 
-                {(selectedTemplate || watch("name") === "Novo Modelo") && (
+                {(selectedTemplate || isEditingNew) && (
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Card>
                         <CardHeader>
-                            <CardTitle>{selectedTemplate ? `Editando: ${watch("name")}`: "Criando Novo Modelo"}</CardTitle>
+                            <CardTitle>{isEditingNew ? "Criando Novo Modelo": `Editando: ${watch("name")}`}</CardTitle>
                             <CardDescription>
                                 Adicione, remova ou reordene as perguntas abaixo. As alterações serão refletidas nos novos checklists.
                             </CardDescription>
