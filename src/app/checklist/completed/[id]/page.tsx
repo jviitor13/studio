@@ -139,7 +139,7 @@ export default function ChecklistCompletedPage() {
                         Resumo do Envio
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div className="flex flex-col gap-1">
                         <span className="font-semibold">ID do Checklist:</span>
                         <span className="text-muted-foreground break-all">{checklist.id}</span>
@@ -203,13 +203,13 @@ export default function ChecklistCompletedPage() {
                                 <p className="font-medium">{item.text}</p>
                                 <p className="text-sm text-muted-foreground">Status: {item.status}</p>
                                 {item.observation && <p className="text-sm text-muted-foreground">Observação: {item.observation}</p>}
-                                {item.photo && <div className="mt-2"><img src={item.photo} alt="foto" className="rounded-md max-w-xs"/></div>}
+                                {item.photo && <div className="mt-2"><img src={item.photo} alt="foto" className="rounded-md w-full max-w-xs"/></div>}
                             </div>
                             ))}
                             {(checklist.assinaturaResponsavel || checklist.assinaturaMotorista) && (
                                 <div className="p-3 border rounded-lg bg-muted/30">
                                     <p className="font-medium">Assinaturas</p>
-                                     <div className="flex gap-8 mt-2">
+                                     <div className="flex flex-col md:flex-row gap-8 mt-2">
                                         {checklist.assinaturaResponsavel && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Responsável: {checklist.responsibleName}</p>
