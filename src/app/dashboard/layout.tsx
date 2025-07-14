@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
   Search,
   LayoutDashboard,
+  Bell,
 } from "lucide-react";
 import { Logo } from "@/components/icons";
 import {
