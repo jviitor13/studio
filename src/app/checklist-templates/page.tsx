@@ -57,20 +57,26 @@ export default function ChecklistTemplatePage() {
     });
 
     useEffect(() => {
+        setIsLoading(true);
         const unsubscribe = onSnapshot(collection(db, 'checklist-templates'), (snapshot) => {
             const templatesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
             setTemplates(templatesData);
-            if (!selectedTemplate && templatesData.length > 0) {
-              handleTemplateChange(templatesData[0].id);
-            } else if(selectedTemplate) {
-              // Reselect to get fresh data
+            if (selectedTemplate) {
               const freshTemplate = templatesData.find(t => t.id === selectedTemplate.id);
               setSelectedTemplate(freshTemplate ?? null);
             }
             setIsLoading(false);
+        }, (error) => {
+            console.error("Firebase snapshot error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Carregar Modelos",
+                description: "Não foi possível buscar os dados do Firestore. Verifique suas credenciais do Firebase.",
+            });
+            setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedTemplate]);
+    }, []);
     
     useEffect(() => {
       reset(selectedTemplate ?? { name: "", type: "manutencao", category: "cavalo_mecanico", questions: [] });
@@ -102,9 +108,11 @@ export default function ChecklistTemplatePage() {
     const onSubmit = async (data: TemplateFormValues) => {
         try {
             const dataToSave = { ...data };
+            delete dataToSave.id; // Don't save the ID inside the document
+
             if (selectedTemplate?.id) {
                 const docRef = doc(db, 'checklist-templates', selectedTemplate.id);
-                await setDoc(docRef, dataToSave);
+                await setDoc(docRef, dataToSave, { merge: true });
                 toast({
                     title: "Modelo Atualizado!",
                     description: "O modelo de checklist foi atualizado com sucesso.",
@@ -115,14 +123,17 @@ export default function ChecklistTemplatePage() {
                     title: "Modelo Criado!",
                     description: "O novo modelo de checklist foi salvo com sucesso.",
                 });
-                setSelectedTemplate({ ...data, id: docRef.id });
+                // Select the newly created template
+                const newTemplate = { ...data, id: docRef.id };
+                setSelectedTemplate(newTemplate);
+                setTemplates(prev => [...prev, newTemplate]);
             }
         } catch (error) {
             console.error("Error saving template:", error);
             toast({
                 variant: "destructive",
                 title: "Erro ao Salvar",
-                description: "Não foi possível salvar o modelo de checklist.",
+                description: "Não foi possível salvar o modelo. Verifique as credenciais do Firebase e a conexão com a internet.",
             });
         }
     };
@@ -182,7 +193,7 @@ export default function ChecklistTemplatePage() {
                 </CardContent>
             </Card>
 
-            {(selectedTemplate || watch("name")) && (
+            {(selectedTemplate || watch("name") === "Novo Modelo") && (
               <form onSubmit={handleSubmit(onSubmit)}>
                   <Card>
                       <CardHeader>
