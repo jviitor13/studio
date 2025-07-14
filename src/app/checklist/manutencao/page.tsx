@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -183,7 +184,20 @@ export default function MaintenanceChecklistPage() {
     try {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       const submissionData = {
-        ...data,
+        templateId: data.templateId,
+        templateName: data.templateName,
+        vehicleId: data.vehicleId,
+        mileage: data.mileage,
+        questions: data.questions.map(q => ({
+            id: q.id,
+            text: q.text,
+            photoRequirement: q.photoRequirement,
+            status: q.status,
+            photo: q.photo ?? '',
+            observation: q.observation ?? ''
+        })),
+        generalObservations: data.generalObservations ?? '',
+        responsibleName: data.responsibleName ?? '',
         createdAt: Timestamp.now(),
         status: hasIssues ? "Pendente" : "OK",
         type: selectedTemplate?.type,
@@ -208,7 +222,7 @@ export default function MaintenanceChecklistPage() {
        toast({
         variant: "destructive",
         title: "Erro no Envio",
-        description: "Não foi possível enviar o checklist.",
+        description: "Não foi possível enviar o checklist. Verifique os campos e tente novamente.",
       });
     }
   };
