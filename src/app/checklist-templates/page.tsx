@@ -76,7 +76,7 @@ export default function ChecklistTemplatePage() {
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [toast, selectedTemplate]);
     
     useEffect(() => {
       reset(selectedTemplate ?? { name: "", type: "manutencao", category: "cavalo_mecanico", questions: [] });
@@ -126,7 +126,6 @@ export default function ChecklistTemplatePage() {
                 // Select the newly created template
                 const newTemplate = { ...data, id: docRef.id };
                 setSelectedTemplate(newTemplate);
-                setTemplates(prev => [...prev, newTemplate]);
             }
         } catch (error) {
             console.error("Error saving template:", error);
