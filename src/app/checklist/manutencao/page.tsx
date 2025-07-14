@@ -26,7 +26,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SignaturePad } from "@/components/signature-pad";
-import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 type ItemData = ChecklistTemplate['questions'][0] & { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string };
@@ -136,7 +136,7 @@ export default function MaintenanceChecklistPage() {
     return () => unsubscribe();
   }, []);
 
-  const { control, handleSubmit, formState: { errors }, setValue, watch, reset, trigger } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset, trigger } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -158,7 +158,8 @@ export default function MaintenanceChecklistPage() {
 
   const watchResponsibleName = watch("responsibleName");
   const watchDriverName = watch("driverName");
-  const showSignatureError = !!(errors.assinaturaResponsavel || errors.assinaturaMotorista) && !watch('assinaturaResponsavel') && !watch('assinaturaMotorista');
+  const watchAllErrors = errors;
+  const showSignatureError = !!(watchAllErrors.assinaturaResponsavel || watchAllErrors.assinaturaMotorista) && (!watch('assinaturaResponsavel') || !watch('assinaturaMotorista'));
 
 
   const handleSelectTemplate = (template: ChecklistTemplate) => {
@@ -390,7 +391,6 @@ export default function MaintenanceChecklistPage() {
                     <SignaturePad
                         onEnd={(signature) => {
                           setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true });
-                          trigger('assinaturaResponsavel');
                         }}
                     />
                     <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
@@ -401,7 +401,6 @@ export default function MaintenanceChecklistPage() {
                     <SignaturePad
                         onEnd={(signature) => {
                           setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true });
-                          trigger('assinaturaMotorista');
                         }}
                     />
                     <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
@@ -413,11 +412,12 @@ export default function MaintenanceChecklistPage() {
                     <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>Assinaturas Obrigatórias</AlertTitle>
+                        <AlertDescription>Ambas as assinaturas são necessárias para finalizar o checklist.</AlertDescription>
                     </Alert>
                 </CardContent>
             )}
             <CardFooter className="border-t px-6 py-4 flex justify-between">
-              <Button type="submit" size="lg">Finalizar Checklist</Button>
+              <Button type="submit" size="lg" disabled={isSubmitting}>{isSubmitting ? 'Enviando...' : 'Finalizar Checklist'}</Button>
               <Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)}>Cancelar e Voltar</Button>
             </CardFooter>
           </Card>

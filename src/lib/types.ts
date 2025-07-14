@@ -5,6 +5,7 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions'> & {
     createdAt: string; // Changed from 'date' to 'createdAt' and type to string for serializability
     vehicle: string; 
     driver: string; 
+    responsibleName?: string;
     status: 'OK' | 'Pendente';
     questions: (ChecklistTemplate['questions'][0] & { status: 'OK' | 'Não OK' | 'N/A', observation?: string, photo?: string })[];
     assinaturaResponsavel?: string;
