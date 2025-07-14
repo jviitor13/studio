@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,17 +16,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks } from "lucide-react";
+import { CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { ChecklistTemplate, defaultChecklistTemplates, ChecklistItem as ItemData } from "@/lib/checklist-templates-data";
+import { ChecklistTemplate } from "@/lib/checklist-templates-data";
 import { ItemChecklistDialog } from "@/components/item-checklist-dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, addDoc } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
+
+type ItemData = ChecklistTemplate['questions'][0] & { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string };
 
 const itemSchema = z.object({
   id: z.string(),
@@ -36,6 +35,7 @@ const itemSchema = z.object({
   photo: z.string().optional(),
   observation: z.string().optional(),
 }).refine(data => {
+    if (data.status === 'N/A') return true; // Se for N/A, não valida nada
     if (data.photoRequirement === 'always') {
         return !!data.photo;
     }
@@ -44,12 +44,14 @@ const itemSchema = z.object({
     }
     return true;
 }, {
-    message: "Este item requer uma foto para a avaliação selecionada.",
-    path: ["photo"], // You can specify the path to show the error
+    message: "Foto é obrigatória para esta avaliação.",
+    path: ["photo"],
 });
 
 
 const checklistSchema = z.object({
+  templateId: z.string(),
+  templateName: z.string(),
   vehicleId: z.string().min(1, "Selecione um veículo"),
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
@@ -65,7 +67,7 @@ const statusIcons = {
   "N/A": <FileQuestion className="h-5 w-5 text-muted-foreground" />,
 };
 
-function TemplateSelectionScreen({ onSelect }: { onSelect: (template: ChecklistTemplate) => void }) {
+function TemplateSelectionScreen({ onSelect, templates, isLoading }: { onSelect: (template: ChecklistTemplate) => void, templates: ChecklistTemplate[], isLoading: boolean }) {
   return (
     <div className="mx-auto grid w-full max-w-4xl gap-6">
       <div className="flex flex-col gap-2 text-center">
@@ -83,7 +85,13 @@ function TemplateSelectionScreen({ onSelect }: { onSelect: (template: ChecklistT
           <CardDescription>Os modelos contêm perguntas específicas para cada tipo de veículo ou inspeção.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {defaultChecklistTemplates.map(template => (
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : (
+            templates.map(template => (
              <Card key={template.id} className="p-4 flex justify-between items-center">
               <div>
                 <h3 className="font-semibold">{template.name}</h3>
@@ -93,7 +101,11 @@ function TemplateSelectionScreen({ onSelect }: { onSelect: (template: ChecklistT
               </div>
               <Button onClick={() => onSelect(template)}>Selecionar</Button>
             </Card>
-          ))}
+            ))
+          )}
+           {!isLoading && templates.length === 0 && (
+              <p className="text-center text-muted-foreground">Nenhum modelo de checklist encontrado. Crie um na tela de "Modelos de Checklist".</p>
+           )}
         </CardContent>
       </Card>
     </div>
@@ -103,8 +115,19 @@ function TemplateSelectionScreen({ onSelect }: { onSelect: (template: ChecklistT
 
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<{ itemIndex: number; item: ItemData } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'checklist-templates'), (snapshot) => {
+        const templatesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
+        setTemplates(templatesData.filter(t => t.type === 'manutencao')); // Only maintenance templates
+        setIsTemplatesLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const { control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
@@ -132,6 +155,8 @@ export default function MaintenanceChecklistPage() {
       observation: undefined,
     }));
     reset({
+        templateId: template.id,
+        templateName: template.name,
         vehicleId: "",
         responsibleName: "Pedro Mecânico",
         mileage: undefined,
@@ -154,23 +179,38 @@ export default function MaintenanceChecklistPage() {
     }
   };
 
-  const onSubmit = (data: ChecklistFormValues) => {
-    console.log("Checklist de Manutenção enviado:", JSON.stringify(data, null, 2));
+  const onSubmit = async (data: ChecklistFormValues) => {
+    try {
+      const hasIssues = data.questions.some(item => item.status === "Não OK");
+      const submissionData = {
+        ...data,
+        createdAt: new Date(),
+        status: hasIssues ? "Pendente" : "OK",
+      };
 
-    const hasIssues = data.questions.some(item => item.status === "Não OK");
-    
-    toast({
-        title: "Checklist Enviado com Sucesso!",
-        description: hasIssues 
-            ? "O checklist foi registrado com pendências para acompanhamento."
-            : "O checklist foi registrado sem pendências.",
-    });
-    // Reset to selection screen
-    setSelectedTemplate(null);
+      await addDoc(collection(db, 'completed-checklists'), submissionData);
+
+      toast({
+          title: "Checklist Enviado com Sucesso!",
+          description: hasIssues 
+              ? "O checklist foi registrado com pendências para acompanhamento."
+              : "O checklist foi registrado sem pendências.",
+      });
+      // Reset to selection screen
+      setSelectedTemplate(null);
+      reset();
+    } catch (error) {
+       console.error("Checklist submission error:", error);
+       toast({
+        variant: "destructive",
+        title: "Erro no Envio",
+        description: "Não foi possível enviar o checklist.",
+      });
+    }
   };
   
   if (!selectedTemplate) {
-    return <TemplateSelectionScreen onSelect={handleSelectTemplate} />;
+    return <TemplateSelectionScreen templates={templates} isLoading={isTemplatesLoading} onSelect={handleSelectTemplate} />;
   }
 
   return (
