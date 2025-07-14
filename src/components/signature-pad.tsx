@@ -85,14 +85,28 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onEnd, width = 400, 
 
   const confirmSignature = () => {
     const canvas = canvasRef.current;
-    if (canvas) {
+    const ctx = getCanvasContext();
+    if (canvas && ctx) {
       if (isCanvasBlank(canvas)) {
         onEnd('');
         return;
       }
+
+      // Save current state
+      const originalCompositeOperation = ctx.globalCompositeOperation;
+      
+      // Draw a white background behind the signature
+      ctx.globalCompositeOperation = 'destination-over';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       // Export as JPEG with quality 0.9 for smaller size
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       onEnd(dataUrl);
+
+      // Restore original state and clear the visual background for next drawing
+      ctx.globalCompositeOperation = originalCompositeOperation;
+
       setIsSigned(true);
     }
   };
