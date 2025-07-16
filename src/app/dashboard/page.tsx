@@ -1,8 +1,10 @@
+
 "use client";
 
 import { ManagerDashboard } from "@/components/dashboards/manager-dashboard";
 import { DriverDashboard } from "@/components/dashboards/driver-dashboard";
 import { MechanicDashboard } from "@/components/dashboards/mechanic-dashboard";
+import { AIAssistant } from "@/components/ai-assistant";
 
 // In a real app, this would be determined from the user's session
 const useUserRole = () => {
@@ -25,5 +27,10 @@ export default function DashboardPage() {
     }
   };
 
-  return <div className="w-full">{renderDashboard()}</div>;
+  return (
+    <div className="w-full space-y-6">
+      <AIAssistant />
+      {renderDashboard()}
+    </div>
+  );
 }

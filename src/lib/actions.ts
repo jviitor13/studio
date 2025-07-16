@@ -2,6 +2,8 @@
 "use server";
 import { assessVehicleDamage as assessVehicleDamageFlow } from "@/ai/flows/assess-vehicle-damage";
 import type { AssessVehicleDamageInput } from "@/ai/flows/assess-vehicle-damage";
+import { assistantFlow } from "@/ai/flows/assistant-flow";
+import type { AssistantFlowInput } from "@/ai/flows/assistant-flow";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
@@ -13,6 +15,17 @@ export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
         return { success: false, error: "Failed to assess vehicle damage." };
     }
 }
+
+export async function invokeAssistant(data: AssistantFlowInput) {
+    try {
+        const result = await assistantFlow(data);
+        return { success: true, data: result };
+    } catch (error) {
+        console.error("Error invoking assistant:", error);
+        return { success: false, error: "Falha ao se comunicar com o assistente de IA." };
+    }
+}
+
 
 interface UserData {
   name: string;
