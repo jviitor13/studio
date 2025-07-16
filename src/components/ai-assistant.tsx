@@ -106,7 +106,7 @@ export function AIAssistant() {
               )}
               <div className={`p-3 rounded-lg max-w-sm ${
                   message.sender === 'bot'
-                    ? 'bg-muted text-foreground'
+                    ? 'bg-accent text-accent-foreground'
                     : 'bg-primary text-primary-foreground'
                 }`}>
                 <p className="text-sm">{message.text}</p>
@@ -117,7 +117,7 @@ export function AIAssistant() {
                                 key={btnIndex}
                                 variant="link"
                                 size="sm"
-                                className="p-0 h-auto text-primary-foreground underline"
+                                className="p-0 h-auto text-primary hover:text-primary/80 underline"
                                 onClick={() => handleButtonClick(btn.value)}
                             >
                                 <ChevronRight className="h-4 w-4 mr-1" />
