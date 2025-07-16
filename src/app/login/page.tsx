@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase"; // Import a instância auth
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -29,7 +30,6 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const auth = getAuth();
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
