@@ -17,18 +17,43 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 
-const reports: { title: string; category: string; date: string; }[] = []
+type Report = {
+    title: string;
+    category: string;
+    date: string;
+};
 
 export default function RelatoriosPage() {
     const { toast } = useToast();
+    const [reports, setReports] = React.useState<Report[]>([]);
     const [open, setOpen] = React.useState(false);
     const [date, setDate] = React.useState<DateRange | undefined>();
+    const [reportType, setReportType] = React.useState('');
 
     const handleGenerateReport = () => {
+        if (!reportType) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Por favor, selecione um tipo de relatório.',
+            });
+            return;
+        }
+
+        const newReport: Report = {
+            title: `Relatório de ${reportType} - ${format(new Date(), 'dd/MM/yyyy')}`,
+            category: reportType,
+            date: format(new Date(), 'dd/MM/yyyy'),
+        };
+
+        setReports(prevReports => [...prevReports, newReport]);
         setOpen(false);
+        setReportType('');
+        setDate(undefined);
+
         toast({
-            title: "Relatório Solicitado",
-            description: "Seu relatório está sendo gerado e estará disponível em breve.",
+            title: "Relatório Gerado!",
+            description: "Seu relatório está pronto e disponível para download.",
         });
     }
 
@@ -55,15 +80,15 @@ export default function RelatoriosPage() {
             <div className="grid gap-4 py-4">
               <div className="grid items-center gap-2">
                 <Label htmlFor="report-type">Tipo de Relatório</Label>
-                <Select>
+                <Select value={reportType} onValueChange={setReportType}>
                   <SelectTrigger id="report-type">
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="costs">Relatório de Custos</SelectItem>
-                    <SelectItem value="performance">Performance da Frota</SelectItem>
-                    <SelectItem value="fuel">Consumo de Combustível</SelectItem>
-                    <SelectItem value="incidents">Relatório de Ocorrências</SelectItem>
+                    <SelectItem value="Custos">Relatório de Custos</SelectItem>
+                    <SelectItem value="Performance da Frota">Performance da Frota</SelectItem>
+                    <SelectItem value="Consumo de Combustível">Consumo de Combustível</SelectItem>
+                    <SelectItem value="Ocorrências">Relatório de Ocorrências</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
