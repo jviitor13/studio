@@ -1,6 +1,8 @@
+
 "use server";
 import { assessVehicleDamage as assessVehicleDamageFlow } from "@/ai/flows/assess-vehicle-damage";
 import type { AssessVehicleDamageInput } from "@/ai/flows/assess-vehicle-damage";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
     try {
@@ -10,4 +12,48 @@ export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
         console.error("Error assessing vehicle damage:", error);
         return { success: false, error: "Failed to assess vehicle damage." };
     }
+}
+
+interface UserData {
+  name: string;
+  email: string;
+  password?: string;
+  role: "Gestor" | "Motorista" | "Mecânico";
+}
+
+export async function createUser(data: UserData) {
+  try {
+    // Create user in Firebase Auth
+    const userRecord = await adminAuth.createUser({
+      email: data.email,
+      password: data.password,
+      displayName: data.name,
+      emailVerified: true, // Or false, depending on your flow
+      disabled: false,
+    });
+
+    // Set custom claims for role-based access control
+    await adminAuth.setCustomUserClaims(userRecord.uid, { role: data.role });
+
+    // Create user document in Firestore
+    const userDocRef = adminDb.collection("users").doc(userRecord.uid);
+    await userDocRef.set({
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      status: "Ativo", // Default status
+      createdAt: new Date().toISOString(),
+    });
+
+    return { success: true, uid: userRecord.uid };
+  } catch (error: any) {
+    console.error("Error creating user:", error);
+    let errorMessage = "Ocorreu um erro desconhecido.";
+    if (error.code === 'auth/email-already-exists') {
+        errorMessage = "Este e-mail já está em uso por outro usuário.";
+    } else if (error.code === 'auth/invalid-password') {
+        errorMessage = "A senha fornecida não é válida. Deve ter pelo menos 6 caracteres.";
+    }
+    return { success: false, error: errorMessage };
+  }
 }

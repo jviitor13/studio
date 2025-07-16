@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,14 +40,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { createUser } from "@/lib/actions";
+import { useToast } from "@/hooks/use-toast";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-const users = [
-  { name: "Admin Gestor", email: "admin@rodocheck.com", role: "Gestor", status: "Ativo" },
-  { name: "João Silva", email: "joao.silva@email.com", role: "Motorista", status: "Ativo" },
-  { name: "Maria Oliveira", email: "maria.oliveira@email.com", role: "Motorista", status: "Ativo" },
-  { name: "Carlos Pereira", email: "carlos.pereira@email.com", role: "Motorista", status: "Inativo" },
-  { name: "Pedro Mecânico", email: "pedro.mecanico@rodocheck.com", role: "Mecânico", status: "Ativo" },
-];
+
+interface User {
+    id: string;
+    name: string;
+    email: string;
+    role: "Gestor" | "Motorista" | "Mecânico";
+    status: "Ativo" | "Inativo";
+}
+
+const userSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+  role: z.enum(["Gestor", "Motorista", "Mecânico"], { required_error: "A função é obrigatória" }),
+});
+
+type UserFormValues = z.infer<typeof userSchema>;
 
 const roleVariant: { [key: string]: "default" | "secondary" | "outline" } = {
   "Gestor": "default",
@@ -55,7 +73,47 @@ const roleVariant: { [key: string]: "default" | "secondary" | "outline" } = {
 };
 
 export default function UsuariosPage() {
+    const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
+    const [users, setUsers] = React.useState<User[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+
+    const { control, handleSubmit, register, formState: { errors, isSubmitting }, reset } = useForm<UserFormValues>({
+      resolver: zodResolver(userSchema),
+      defaultValues: {
+        name: "",
+        email: "",
+        password: "",
+        role: "Motorista",
+      }
+    });
+
+    React.useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(usersData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const onSubmit = async (data: UserFormValues) => {
+      const result = await createUser(data);
+      if (result.success) {
+        toast({
+          title: "Usuário Criado!",
+          description: `O usuário ${data.name} foi criado com sucesso.`,
+        });
+        setOpen(false);
+        reset();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao criar usuário",
+          description: result.error,
+        });
+      }
+    };
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,7 +121,7 @@ export default function UsuariosPage() {
         title="Usuários"
         description="Gerencie os usuários do sistema."
       >
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
             <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2" />
@@ -71,6 +129,7 @@ export default function UsuariosPage() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
+              <form onSubmit={handleSubmit(onSubmit)}>
                 <DialogHeader>
                     <DialogTitle>Adicionar Novo Usuário</DialogTitle>
                     <DialogDescription>
@@ -80,29 +139,56 @@ export default function UsuariosPage() {
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Nome</Label>
-                        <Input id="name" placeholder="Nome Completo" className="col-span-3" />
+                        <div className="col-span-3">
+                          <Input id="name" placeholder="Nome Completo" {...register("name")} />
+                          {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="email" className="text-right">Email</Label>
-                        <Input id="email" type="email" placeholder="usuario@email.com" className="col-span-3" />
+                        <div className="col-span-3">
+                          <Input id="email" type="email" placeholder="usuario@email.com" {...register("email")} />
+                          {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="password" className="text-right">Senha</Label>
+                        <div className="col-span-3">
+                          <Input id="password" type="password" placeholder="Senha inicial" {...register("password")} />
+                          {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
+                        </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="role" className="text-right">Função</Label>
-                        <Select>
-                            <SelectTrigger id="role" className="col-span-3">
-                                <SelectValue placeholder="Selecione a função" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="gestor">Gestor</SelectItem>
-                                <SelectItem value="motorista">Motorista</SelectItem>
-                                <SelectItem value="mecanico">Mecânico</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="col-span-3">
+                           <Controller
+                              name="role"
+                              control={control}
+                              render={({ field }) => (
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <SelectTrigger id="role">
+                                        <SelectValue placeholder="Selecione a função" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Gestor">Gestor</SelectItem>
+                                        <SelectItem value="Motorista">Motorista</SelectItem>
+                                        <SelectItem value="Mecânico">Mecânico</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button type="submit" onClick={() => setOpen(false)}>Salvar Usuário</Button>
+                    <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {isSubmitting ? 'Salvando...' : 'Salvar Usuário'}
+                    </Button>
                 </DialogFooter>
+              </form>
             </DialogContent>
         </Dialog>
       </PageHeader>
