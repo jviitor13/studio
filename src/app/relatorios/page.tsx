@@ -17,12 +17,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 
-const reports = [
-    { title: "Relatório Mensal de Custos - Julho 2024", category: "Financeiro", date: "2024-08-01" },
-    { title: "Relatório de Performance da Frota - Q2 2024", category: "Operacional", date: "2024-07-15" },
-    { title: "Consumo de Combustível por Veículo - Julho 2024", category: "Operacional", date: "2024-08-02" },
-    { title: "Relatório de Ocorrências - Julho 2024", category: "Segurança", date: "2024-08-01" },
-]
+const reports: { title: string; category: string; date: string; }[] = []
 
 export default function RelatoriosPage() {
     const { toast } = useToast();
@@ -127,23 +122,31 @@ export default function RelatoriosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-           <ul className="space-y-3">
-            {reports.map((report, index) => (
-                <li key={index} className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-4">
-                        <FileText className="h-6 w-6 text-primary" />
-                        <div>
-                            <p className="font-semibold">{report.title}</p>
-                            <p className="text-sm text-muted-foreground">{report.category} - Gerado em {report.date}</p>
+           {reports.length > 0 ? (
+            <ul className="space-y-3">
+                {reports.map((report, index) => (
+                    <li key={index} className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <FileText className="h-6 w-6 text-primary" />
+                            <div>
+                                <p className="font-semibold">{report.title}</p>
+                                <p className="text-sm text-muted-foreground">{report.category} - Gerado em {report.date}</p>
+                            </div>
                         </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                        <Download className="mr-2 h-4 w-4" />
-                        Baixar
-                    </Button>
-                </li>
-            ))}
-           </ul>
+                        <Button variant="outline" size="sm">
+                            <Download className="mr-2 h-4 w-4" />
+                            Baixar
+                        </Button>
+                    </li>
+                ))}
+            </ul>
+           ) : (
+            <div className="text-center py-10 text-muted-foreground">
+                <FileText className="mx-auto h-12 w-12" />
+                <p className="mt-4">Nenhum relatório gerado ainda.</p>
+                <p className="text-sm">Use o botão "Gerar Relatório" para começar.</p>
+            </div>
+           )}
         </CardContent>
       </Card>
     </div>
