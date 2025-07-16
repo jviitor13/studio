@@ -23,9 +23,10 @@ const defaultMessages: Message[] = [
     sender: 'bot',
     text: 'Olá! Bem-vindo(a) de volta ao RodoCheck. O que você gostaria de fazer hoje?',
     buttons: [
-      { label: 'Criar checklist', value: 'Criar um checklist de viagem' },
-      { label: 'Ver pendentes', value: 'Ver checklists pendentes' },
-      { label: 'Falar com suporte', value: 'Preciso falar com o suporte' },
+      { label: 'Checklist de Manutenção', value: 'Criar checklist de manutenção' },
+      { label: 'Gestão de Pneus', value: 'Acessar gestão de pneus' },
+      { label: 'Consultas', value: 'Realizar uma consulta' },
+      { label: 'Relatórios', value: 'Gerar um relatório' },
     ],
   },
 ];
