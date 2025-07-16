@@ -192,7 +192,6 @@ export default function ConsultasPage() {
                                         <SelectValue placeholder="Todos os tipos" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Todos os tipos</SelectItem>
                                         <SelectItem value="viagem">Viagem</SelectItem>
                                         <SelectItem value="retorno">Retorno</SelectItem>
                                         <SelectItem value="manutencao">Manutenção</SelectItem>
@@ -210,7 +209,6 @@ export default function ConsultasPage() {
                                         <SelectValue placeholder="Todos os status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="">Todos os status</SelectItem>
                                         <SelectItem value="OK">Concluído</SelectItem>
                                         <SelectItem value="Pendente">Com Pendências</SelectItem>
                                     </SelectContent>
