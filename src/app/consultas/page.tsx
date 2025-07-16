@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, Download, Search, FileText } from "lucide-react"
-import { format } from "date-fns"
+import { format, startOfDay, endOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query } from "firebase/firestore"
+import { collection, onSnapshot, query, where, Timestamp } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
@@ -41,9 +41,16 @@ const statusBadgeColor : {[key:string]: string} = {
 
 
 export default function ConsultasPage() {
-    const [date, setDate] = React.useState<DateRange | undefined>()
-    const [checklists, setChecklists] = React.useState<CompletedChecklist[]>([])
+    const [allChecklists, setAllChecklists] = React.useState<CompletedChecklist[]>([]);
+    const [filteredChecklists, setFilteredChecklists] = React.useState<CompletedChecklist[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    
+    // Filter states
+    const [date, setDate] = React.useState<DateRange | undefined>()
+    const [type, setType] = React.useState<string>("");
+    const [plate, setPlate] = React.useState<string>("");
+    const [status, setStatus] = React.useState<string>("");
+
     const [selectedChecklist, setSelectedChecklist] = React.useState<CompletedChecklist | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const { toast } = useToast()
@@ -57,16 +64,44 @@ export default function ConsultasPage() {
             checklistsData.push({
               ...data,
               id: doc.id,
-              // Convert timestamp to a serializable format (string)
               createdAt: data.createdAt.toDate().toISOString(),
             } as CompletedChecklist);
           });
-          setChecklists(checklistsData);
+          setAllChecklists(checklistsData);
+          setFilteredChecklists(checklistsData);
           setIsLoading(false);
         });
     
         return () => unsubscribe();
       }, []);
+      
+    const handleSearch = () => {
+        let results = [...allChecklists];
+
+        if (date?.from && date?.to) {
+            const from = startOfDay(date.from);
+            const to = endOfDay(date.to);
+            results = results.filter(c => {
+                const createdAt = new Date(c.createdAt);
+                return createdAt >= from && createdAt <= to;
+            });
+        }
+
+        if (type) {
+            results = results.filter(c => c.type === type);
+        }
+
+        if (plate) {
+            results = results.filter(c => c.vehicle.toLowerCase().includes(plate.toLowerCase()));
+        }
+        
+        if (status) {
+            results = results.filter(c => c.status === status);
+        }
+
+        setFilteredChecklists(results);
+    };
+
 
     const handleViewDetails = (checklist: CompletedChecklist) => {
         setSelectedChecklist(checklist)
@@ -152,11 +187,12 @@ export default function ConsultasPage() {
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="type">Tipo de Checklist</Label>
-                                <Select>
+                                <Select value={type} onValueChange={setType}>
                                     <SelectTrigger id="type">
                                         <SelectValue placeholder="Todos os tipos" />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="">Todos os tipos</SelectItem>
                                         <SelectItem value="viagem">Viagem</SelectItem>
                                         <SelectItem value="retorno">Retorno</SelectItem>
                                         <SelectItem value="manutencao">Manutenção</SelectItem>
@@ -165,23 +201,24 @@ export default function ConsultasPage() {
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="plate">Placa do Veículo</Label>
-                                <Input id="plate" placeholder="Ex: RDO1A12" />
+                                <Input id="plate" placeholder="Ex: RDO1A12" value={plate} onChange={e => setPlate(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="status">Status</Label>
-                                <Select>
+                                <Select value={status} onValueChange={setStatus}>
                                     <SelectTrigger id="status">
                                         <SelectValue placeholder="Todos os status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="ok">OK</SelectItem>
-                                        <SelectItem value="nok">Com Pendências</SelectItem>
+                                        <SelectItem value="">Todos os status</SelectItem>
+                                        <SelectItem value="OK">Concluído</SelectItem>
+                                        <SelectItem value="Pendente">Com Pendências</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
                         <div className="flex justify-end mt-4">
-                            <Button>
+                            <Button onClick={handleSearch}>
                                 <Search className="mr-2 h-4 w-4"/>
                                 Buscar
                             </Button>
@@ -193,7 +230,7 @@ export default function ConsultasPage() {
                     <CardHeader>
                         <CardTitle>Resultados</CardTitle>
                         <CardDescription>
-                            Foram encontrados {checklists.length} checklists.
+                            Foram encontrados {filteredChecklists.length} checklists.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -216,7 +253,7 @@ export default function ConsultasPage() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    checklists.map((item) => (
+                                    filteredChecklists.map((item) => (
                                         <TableRow key={item.id}>
                                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
@@ -234,10 +271,10 @@ export default function ConsultasPage() {
                                         </TableRow>
                                     ))
                                 )}
-                                 {!isLoading && checklists.length === 0 && (
+                                 {!isLoading && filteredChecklists.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center h-24">
-                                            Nenhum checklist encontrado.
+                                            Nenhum checklist encontrado com os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
                                  )}

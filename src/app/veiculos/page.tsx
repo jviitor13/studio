@@ -47,6 +47,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
+import Link from "next/link";
 
 const vehicles = [
   { id: "RDO1A12", model: "Scania R450", driver: "João Silva", status: "Em Viagem", nextMaintenance: "2024-08-15" },
@@ -164,8 +165,10 @@ export default function VeiculosPage() {
                         <DropdownMenuItem>
                           <Car className="mr-2 h-4 w-4" /> Ver Detalhes
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
+                        <DropdownMenuItem asChild>
+                          <Link href="/manutencoes">
+                            <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <User className="mr-2 h-4 w-4" /> Atribuir Motorista

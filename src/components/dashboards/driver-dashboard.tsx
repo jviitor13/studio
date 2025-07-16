@@ -7,9 +7,51 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ShieldCheck, FileText, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEffect, useState } from "react";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { CompletedChecklist } from "@/lib/types";
+import { Skeleton } from "../ui/skeleton";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
+    'OK': 'default',
+    'Pendente': 'destructive',
+}
+
+const statusBadgeColor : {[key:string]: string} = {
+    'OK': 'bg-green-500 hover:bg-green-600',
+    'Pendente': ''
+}
 
 export function DriverDashboard() {
-  const lastChecklists: { id: string; date: string; type: string; status: string; }[] = [];
+  const [lastChecklists, setLastChecklists] = useState<CompletedChecklist[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(auth.currentUser);
+
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged(currentUser => {
+      setUser(currentUser);
+      if (currentUser) {
+        setIsLoading(true);
+        const q = query(collection(db, "completed-checklists"), where("driver", "==", currentUser.displayName || ""));
+        const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
+            const checklistsData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                 createdAt: (doc.data().createdAt as any).toDate().toISOString(),
+            } as CompletedChecklist));
+            setLastChecklists(checklistsData);
+            setIsLoading(false);
+        });
+        return () => unsubscribeFirestore();
+      } else {
+        setIsLoading(false);
+      }
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,22 +132,26 @@ export function DriverDashboard() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>ID</TableHead>
                             <TableHead>Data</TableHead>
+                            <TableHead>Veículo</TableHead>
                             <TableHead>Tipo</TableHead>
                             <TableHead className="text-right">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {lastChecklists.length > 0 ? (
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={4}><Skeleton className="h-24 w-full" /></TableCell>
+                            </TableRow>
+                        ) : lastChecklists.length > 0 ? (
                             lastChecklists.map((checklist) => (
                                 <TableRow key={checklist.id}>
-                                    <TableCell className="font-medium">{checklist.id}</TableCell>
-                                    <TableCell>{checklist.date}</TableCell>
-                                    <TableCell>{checklist.type}</TableCell>
+                                    <TableCell>{format(new Date(checklist.createdAt), "dd/MM/yyyy")}</TableCell>
+                                    <TableCell className="font-medium">{checklist.vehicle}</TableCell>
+                                    <TableCell className="capitalize">{checklist.type}</TableCell>
                                     <TableCell className="text-right">
-                                    <Badge variant={checklist.status === "Aprovado" ? "default" : "destructive"} className={checklist.status === "Aprovado" ? "bg-green-500 hover:bg-green-600" : ""}>
-                                        {checklist.status}
+                                    <Badge variant={statusVariant[checklist.status]} className={cn(statusBadgeColor[checklist.status])}>
+                                        {checklist.status === 'OK' ? 'Concluído' : 'Com Pendências'}
                                     </Badge>
                                     </TableCell>
                                 </TableRow>
