@@ -1,13 +1,15 @@
 
 import * as admin from 'firebase-admin';
-
-// This is the one place we use require
-const serviceAccount = require('../../rodocheck-244cd-firebase-adminsdk-q5v8b-c6b2b51268.json');
+import serviceAccount from '../../rodocheck-244cd-firebase-adminsdk-q5v8b-c6b2b51268.json';
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } catch (error: any) {
+    console.error('Firebase admin initialization error', error);
+  }
 }
 
 const adminAuth = admin.auth();
