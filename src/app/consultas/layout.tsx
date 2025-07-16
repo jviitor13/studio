@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function ConsultasLayout({
   children,
@@ -16,6 +18,17 @@ export default function ConsultasLayout({
           >
             <Logo className="h-7 w-7 text-primary" />
             <span className="sr-only">RodoCheck</span>
+          </Link>
+           <Link
+            href="/dashboard"
+            className="text-foreground transition-colors hover:text-foreground"
+          >
+            <Button variant="outline" size="sm" className="h-8 gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              <span>
+                Voltar ao Painel
+              </span>
+            </Button>
           </Link>
         </nav>
       </header>

@@ -19,6 +19,17 @@ export default function OcorrenciasLayout({
             <Logo className="h-7 w-7 text-primary" />
             <span className="sr-only">RodoCheck</span>
           </Link>
+           <Link
+            href="/dashboard"
+            className="text-foreground transition-colors hover:text-foreground"
+          >
+            <Button variant="outline" size="sm" className="h-8 gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              <span>
+                Voltar ao Painel
+              </span>
+            </Button>
+          </Link>
         </nav>
       </header>
       <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
