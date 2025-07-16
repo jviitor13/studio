@@ -5,7 +5,7 @@ import * as React from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileText, PlusCircle, Calendar as CalendarIcon } from "lucide-react";
+import { Download, FileText, PlusCircle, Calendar as CalendarIcon, MoreHorizontal, Eye, Sheet as SheetIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,13 +15,26 @@ import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { exportToExcel, generateReportPdf } from "@/lib/report-generator";
 
 
 type Report = {
+    id: string;
     title: string;
     category: string;
     date: string;
+    period?: { from: Date; to: Date };
+    // In a real scenario, this would hold the actual data for the report
+    data: any[]; 
 };
+
+// Mock data for demonstration purposes
+const mockReportData = [
+    { item: 'Custo com Combustível', valor: 'R$ 15.234,00', veiculo: 'RDO1A12', data: '2024-07-15' },
+    { item: 'Manutenção Pneus', valor: 'R$ 3.500,00', veiculo: 'RDO2C24', data: '2024-07-25' },
+    { item: 'Troca de Óleo', valor: 'R$ 850,00', veiculo: 'RDO1A12', data: '2024-08-01' },
+];
 
 export default function RelatoriosPage() {
     const { toast } = useToast();
@@ -41,12 +54,15 @@ export default function RelatoriosPage() {
         }
 
         const newReport: Report = {
-            title: `Relatório de ${reportType} - ${format(new Date(), 'dd/MM/yyyy')}`,
+            id: `REP-${Date.now()}`,
+            title: `Relatório de ${reportType}`,
             category: reportType,
             date: format(new Date(), 'dd/MM/yyyy'),
+            period: (date?.from && date.to) ? { from: date.from, to: date.to } : undefined,
+            data: mockReportData, // Using mock data for now
         };
 
-        setReports(prevReports => [...prevReports, newReport]);
+        setReports(prevReports => [newReport, ...prevReports]);
         setOpen(false);
         setReportType('');
         setDate(undefined);
@@ -56,6 +72,16 @@ export default function RelatoriosPage() {
             description: "Seu relatório está pronto e disponível para download.",
         });
     }
+    
+    const handleDownloadPdf = (report: Report) => {
+        toast({ title: "Gerando PDF...", description: "Seu download começará em breve." });
+        generateReportPdf(report);
+    };
+
+    const handleDownloadExcel = (report: Report) => {
+        toast({ title: "Gerando Excel...", description: "Seu download começará em breve." });
+        exportToExcel(report.data, `relatorio_${report.category.toLowerCase().replace(' ', '_')}_${report.date.replace(/\//g, '-')}`);
+    };
 
   return (
     <div className="flex flex-col gap-6">
@@ -100,7 +126,7 @@ export default function RelatoriosPage() {
                         id="date-range"
                         variant={"outline"}
                         className={cn(
-                        "justify-start text-left font-normal",
+                        "justify-start text-left font-normal w-full",
                         !date && "text-muted-foreground"
                         )}
                     >
@@ -149,8 +175,8 @@ export default function RelatoriosPage() {
         <CardContent>
            {reports.length > 0 ? (
             <ul className="space-y-3">
-                {reports.map((report, index) => (
-                    <li key={index} className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors">
+                {reports.map((report) => (
+                    <li key={report.id} className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-4">
                             <FileText className="h-6 w-6 text-primary" />
                             <div>
@@ -158,10 +184,28 @@ export default function RelatoriosPage() {
                                 <p className="text-sm text-muted-foreground">{report.category} - Gerado em {report.date}</p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm">
-                            <Download className="mr-2 h-4 w-4" />
-                            Baixar
-                        </Button>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Abrir menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => alert('Visualização não implementada.')}>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Visualizar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDownloadPdf(report)}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Baixar PDF
+                                </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => handleDownloadExcel(report)}>
+                                    <SheetIcon className="mr-2 h-4 w-4" />
+                                    Baixar Excel
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </li>
                 ))}
             </ul>
