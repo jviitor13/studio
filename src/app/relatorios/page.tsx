@@ -86,7 +86,7 @@ export default function RelatoriosPage() {
   return (
     <div className="flex flex-col gap-6">
        <PageHeader
-        title="Relatórios"
+        title="Gerar Relatórios"
         description="Gere e baixe relatórios operacionais e financeiros."
       >
         <Dialog open={open} onOpenChange={setOpen}>
@@ -221,3 +221,5 @@ export default function RelatoriosPage() {
     </div>
   );
 }
+
+    

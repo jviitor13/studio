@@ -18,6 +18,7 @@ import {
   Search,
   LayoutDashboard,
   Bell,
+  Settings,
 } from "lucide-react";
 import { Logo } from "@/components/icons";
 import {
@@ -29,6 +30,9 @@ import {
   SidebarMenuButton,
   SidebarProvider,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
@@ -39,71 +43,76 @@ const userRole = "gestor"; // can be 'motorista', 'mecanico', 'gestor'
 
 const getMenuItems = (role: string) => {
   const baseItems = [
-    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/dashboard", label: "Dashboard", icon: Home, group: 'home' },
   ];
   
-  const roleItems: Record<string, { href: string; label: string; icon: React.ElementType }[]> = {
+  const roleItems: Record<string, { href: string; label: string; icon: React.ElementType, group: string }[]> = {
     motorista: [
-      { href: "/checklist/viagem", label: "Checklist de Viagem", icon: ShieldCheck },
-      { href: "/ocorrencias", label: "Ocorrências", icon: Bell },
-      { href: "/documentos", label: "Documentos", icon: FileText },
+      { href: "/checklist/viagem", label: "Iniciar Checklist", icon: ShieldCheck, group: 'operacao' },
+      { href: "/ocorrencias", label: "Registrar Ocorrência", icon: Bell, group: 'operacao' },
+      { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'gerenciamento' },
+      { href: "/documentos", label: "Meus Documentos", icon: FileText, group: 'gerenciamento' },
     ],
     gestor: [
-      { href: "/consultas", label: "Consultas", icon: Search },
-      { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
-      { href: "/escalas", label: "Escalas", icon: Calendar },
-      { href: "/manutencoes", label: "Manutenções", icon: Wrench },
-      { href: "/checklist-templates", label: "Modelos de Checklist", icon: ListChecks },
-      { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck },
-      { href: "/veiculos", label: "Veículos", icon: Truck },
-      { href: "/pneus", label: "Gestão de Pneus", icon: CircleDot },
-      { href: "/usuarios", label: "Usuários", icon: Users },
+      // Operação
+      { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck, group: 'operacao' },
+      { href: "/checklist/viagem", label: "Checklist de Viagem", icon: ShieldCheck, group: 'operacao' },
+      { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'operacao' },
+      // Gerenciamento
+      { href: "/escalas", label: "Escalas", icon: Calendar, group: 'gerenciamento' },
+      { href: "/manutencoes", label: "Manutenções", icon: Wrench, group: 'gerenciamento' },
+      { href: "/pneus", label: "Pneus", icon: CircleDot, group: 'gerenciamento' },
+      { href: "/relatorios", label: "Gerar Relatórios", icon: BarChart3, group: 'gerenciamento' },
+      { href: "/veiculos", label: "Veículos", icon: Truck, group: 'gerenciamento' },
+      // Cadastros e Configurações
+      { href: "/checklist-templates", label: "Modelos de Checklist", icon: ListChecks, group: 'cadastros' },
+      { href: "/usuarios", label: "Usuários", icon: Users, group: 'cadastros' },
     ],
     mecanico: [
-      { href: "/manutencoes", label: "Manutenções", icon: Wrench },
-      { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck },
-      { href: "/veiculos", label: "Veículos", icon: Truck },
-      { href: "/pneus/manutencao", label: "Manutenção de Pneus", icon: CircleDot },
+      { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck, group: 'operacao' },
+      { href: "/manutencoes", label: "Ordens de Serviço", icon: Wrench, group: 'operacao' },
+      { href: "/pneus/manutencao", label: "Manutenção de Pneus", icon: CircleDot, group: 'operacao' },
+      { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'gerenciamento' },
+      { href: "/veiculos", label: "Veículos", icon: Truck, group: 'gerenciamento' },
     ]
   };
 
-  const combined = [...baseItems, ...(roleItems[role] || [])];
-  // Remove duplicates just in case
-  return combined.filter((item, index, self) => 
-    index === self.findIndex((t) => t.href === item.href)
-  );
+  const selectedRoleItems = roleItems[role] || [];
+  
+  const sortedItems = selectedRoleItems.sort((a, b) => a.label.localeCompare(b.label));
+
+  return [...baseItems, ...sortedItems];
 };
 
 
 const getBottomNavItems = (role: string) => {
     const gestorItems = [
-        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/dashboard", label: "Início", icon: Home },
         { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
         { href: "/veiculos", label: "Frota", icon: Truck },
         { href: "/consultas", label: "Busca", icon: Search },
-        { href: "/usuarios", label: "Perfil", icon: Users },
+        { href: "/manutencoes", label: "Serviços", icon: Wrench },
     ];
     
-    // Example for other roles, can be customized
     const motoristaItems = [
-        { href: "/dashboard", label: "Home", icon: Home },
+        { href: "/dashboard", label: "Início", icon: Home },
         { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
-        { href: "/veiculos", label: "Veículo", icon: Truck },
         { href: "/ocorrencias", label: "Ocorrências", icon: Bell },
-        { href: "/usuarios", label: "Perfil", icon: Users },
+        { href: "/consultas", label: "Consultar", icon: Search },
+        { href: "/documentos", label: "Docs", icon: FileText },
+    ];
+
+    const mecanicoItems = [
+        { href: "/dashboard", label: "Início", icon: Home },
+        { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
+        { href: "/pneus/manutencao", label: "Pneus", icon: CircleDot },
+        { href: "/manutencoes", label: "Serviços", icon: Wrench },
+        { href: "/consultas", label: "Busca", icon: Search },
     ];
 
     if (role === 'gestor') return gestorItems;
     if (role === 'motorista') return motoristaItems;
-    
-    // Fallback for mechanic or other roles
-    return [
-        { href: "/dashboard", label: "Home", icon: Home },
-        { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
-        { href: "/pneus/manutencao", label: "Pneus", icon: CircleDot },
-        { href: "/manutencoes", label: "Serviços", icon: Wrench },
-        { href: "/usuarios", label: "Perfil", icon: Users },
-    ];
+    return mecanicoItems;
 };
 
 
@@ -115,6 +124,82 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const menuItems = getMenuItems(userRole);
   const bottomNavItems = getBottomNavItems(userRole);
+
+  const renderMenuItems = (items: ReturnType<typeof getMenuItems>) => {
+    const grouped = items.reduce((acc, item) => {
+      acc[item.group] = acc[item.group] || [];
+      acc[item.group].push(item);
+      return acc;
+    }, {} as Record<string, typeof items>);
+
+    return (
+      <>
+        {/* Home */}
+        {grouped['home']?.map(item => (
+            <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                    <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                    </SidebarMenuButton>
+                </Link>
+            </SidebarMenuItem>
+        ))}
+        <SidebarSeparator />
+        
+        {/* Operação */}
+        {grouped['operacao'] && (
+            <SidebarGroup>
+                <SidebarGroupLabel>Operação</SidebarGroupLabel>
+                {grouped['operacao'].map(item => (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                            <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                                <item.icon />
+                                <span>{item.label}</span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarGroup>
+        )}
+        
+        {/* Gerenciamento */}
+        {grouped['gerenciamento'] && (
+            <SidebarGroup>
+                <SidebarGroupLabel>Gerenciamento</SidebarGroupLabel>
+                {grouped['gerenciamento'].map(item => (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                            <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                                <item.icon />
+                                <span>{item.label}</span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarGroup>
+        )}
+
+        {/* Cadastros */}
+         {grouped['cadastros'] && (
+            <SidebarGroup>
+                <SidebarGroupLabel>Cadastros</SidebarGroupLabel>
+                {grouped['cadastros'].map(item => (
+                    <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                            <SidebarMenuButton isActive={pathname === item.href} tooltip={item.label}>
+                                <item.icon />
+                                <span>{item.label}</span>
+                            </SidebarMenuButton>
+                        </Link>
+                    </SidebarMenuItem>
+                ))}
+            </SidebarGroup>
+        )}
+      </>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -129,19 +214,7 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href}>
-                    <SidebarMenuButton
-                      isActive={pathname === item.href}
-                      tooltip={item.label}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
+              {renderMenuItems(menuItems)}
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
@@ -169,3 +242,5 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
+
+    

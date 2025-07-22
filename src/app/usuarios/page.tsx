@@ -47,6 +47,7 @@ import { createUser } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { format } from "date-fns";
 
 
 interface User {
@@ -55,6 +56,7 @@ interface User {
     email: string;
     role: "Gestor" | "Motorista" | "Mecânico";
     status: "Ativo" | "Inativo";
+    createdAt: string;
 }
 
 const userSchema = z.object({
@@ -114,12 +116,17 @@ export default function UsuariosPage() {
         });
       }
     };
+    
+    const formatDate = (dateString: string) => {
+        if (!dateString) return 'N/A';
+        return format(new Date(dateString), "dd/MM/yyyy");
+    };
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Usuários"
-        description="Gerencie os usuários do sistema."
+        title="Cadastro de Usuários"
+        description="Gerencie os usuários com acesso ao sistema RodoCheck."
       >
         <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
             <DialogTrigger asChild>
@@ -207,6 +214,7 @@ export default function UsuariosPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Função</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Data Criação</TableHead>
                 <TableHead>
                   <span className="sr-only">Ações</span>
                 </TableHead>
@@ -227,6 +235,7 @@ export default function UsuariosPage() {
                       {user.status}
                     </Badge>
                   </TableCell>
+                   <TableCell>{formatDate(user.createdAt)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -254,3 +263,5 @@ export default function UsuariosPage() {
     </div>
   );
 }
+
+    

@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, FileText } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2 } from "lucide-react"
 import { format, startOfDay, endOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -26,8 +26,11 @@ import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, where, Timestamp } from "firebase/firestore"
+import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageHeader } from "@/components/page-header"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
@@ -124,11 +127,28 @@ export default function ConsultasPage() {
             })
         }
     }
+
+     const handleDelete = async (checklistId: string) => {
+        try {
+            await deleteDoc(doc(db, "completed-checklists", checklistId));
+            toast({
+                title: "Sucesso!",
+                description: "O checklist foi excluído permanentemente.",
+            });
+        } catch (error) {
+            console.error("Delete error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Excluir",
+                description: "Não foi possível excluir o checklist. Tente novamente.",
+            });
+        }
+    };
     
     const formatDate = (date: string | Date) => {
         if (!date) return 'N/A';
         const d = typeof date === 'string' ? new Date(date) : date;
-        return format(d, "dd/MM/yyyy");
+        return format(d, "dd/MM/yyyy HH:mm");
     };
 
     return (
@@ -140,6 +160,10 @@ export default function ConsultasPage() {
                 onExport={handleExport}
             />
             <div className="flex flex-col gap-6">
+                <PageHeader
+                    title="Consultar Checklists"
+                    description="Filtre e localize checklists específicos para visualização ou exportação."
+                />
                 <Card>
                     <CardHeader>
                         <CardTitle>Filtros de Busca</CardTitle>
@@ -262,9 +286,44 @@ export default function ConsultasPage() {
                                                     {item.status === 'OK' ? 'Concluído' : 'Com Pendências'}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right space-x-2">
-                                                <Button variant="outline" size="sm" onClick={() => handleViewDetails(item)}><FileText className="mr-2 h-4 w-4"/>Ver Detalhes</Button>
-                                                <Button variant="secondary" size="sm" onClick={() => handleExport(item)}><Download className="mr-2 h-4 w-4"/>Exportar</Button>
+                                            <TableCell className="text-right">
+                                                <AlertDialog>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                <span className="sr-only">Abrir menu</span>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onSelect={() => handleViewDetails(item)}>
+                                                                <FileText className="mr-2 h-4 w-4" /> Ver Detalhes
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => handleExport(item)}>
+                                                                <Download className="mr-2 h-4 w-4" /> Exportar PDF
+                                                            </DropdownMenuItem>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                                                </DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Esta ação não pode ser desfeita. O checklist <span className="font-bold">{item.id}</span> será excluído permanentemente do banco de dados.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDelete(item.id)} className={cn(buttonVariants({ variant: "destructive" }))}>
+                                                                Sim, Excluir
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -284,3 +343,5 @@ export default function ConsultasPage() {
         </>
     )
 }
+
+    
