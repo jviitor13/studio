@@ -64,11 +64,15 @@ const checklistSchema = z.object({
     message: "Verifique os itens com fotos obrigatórias.",
     path: ["questions"],
 }).refine((data) => {
-    // Check if both signatures are provided
-    return !!data.assinaturaResponsavel && !!data.assinaturaMotorista;
+    return !!data.assinaturaResponsavel;
 }, {
-    message: "Ambas as assinaturas são obrigatórias.",
-    path: ["assinaturaResponsavel"], // Attach error to a relevant field
+    message: "A assinatura do responsável é obrigatória.",
+    path: ["assinaturaResponsavel"],
+}).refine((data) => {
+    return !!data.assinaturaMotorista;
+}, {
+    message: "A assinatura do motorista é obrigatória.",
+    path: ["assinaturaMotorista"],
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -390,7 +394,9 @@ export default function MaintenanceChecklistPage() {
             <CardHeader>
                 <CardTitle>Assinaturas</CardTitle>
                 <CardDescription>O responsável técnico e o motorista devem assinar para validar o checklist.</CardDescription>
-                {errors.assinaturaResponsavel && <p className="text-sm text-destructive pt-2">{errors.assinaturaResponsavel.message}</p>}
+                 {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
+                    <p className="text-sm text-destructive pt-2">Ambas as assinaturas são obrigatórias para finalizar.</p>
+                )}
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8">
                 <div className="grid gap-2">
@@ -425,3 +431,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
