@@ -132,7 +132,7 @@ export default function MaintenanceChecklistPage() {
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'checklist-templates'), (snapshot) => {
         const templatesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
-        setTemplates(templatesData.filter(t => t.type === 'manutencao'));
+        setTemplates(templatesData.filter(t => t.type === 'Manutenção'));
         setIsTemplatesLoading(false);
     });
     return () => unsubscribe();
@@ -220,7 +220,7 @@ export default function MaintenanceChecklistPage() {
         responsibleName: data.responsibleName ?? '',
         createdAt: Timestamp.now(),
         status: hasIssues ? "Pendente" : "OK",
-        type: selectedTemplate?.type,
+        type: "Manutenção",
         category: selectedTemplate?.category,
         name: selectedTemplate?.name,
         driver: data.driverName ?? '',

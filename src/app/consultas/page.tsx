@@ -218,7 +218,7 @@ export default function ConsultasPage() {
                                     <SelectContent>
                                         <SelectItem value="viagem">Viagem</SelectItem>
                                         <SelectItem value="retorno">Retorno</SelectItem>
-                                        <SelectItem value="manutencao">Manutenção</SelectItem>
+                                        <SelectItem value="Manutenção">Manutenção</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

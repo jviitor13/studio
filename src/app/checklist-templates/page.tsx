@@ -44,7 +44,7 @@ const questionSchema = z.object({
 const templateSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(1, "O título do modelo é obrigatório."),
-    type: z.enum(["manutencao", "viagem", "retorno"]),
+    type: z.enum(["Manutenção", "viagem", "retorno"]),
     category: z.enum(["cavalo_mecanico", "carreta", "caminhao_3_4", "moto"]),
     questions: z.array(questionSchema),
 });
@@ -64,7 +64,7 @@ export default function ChecklistTemplatePage() {
         resolver: zodResolver(templateSchema),
         defaultValues: {
           name: "",
-          type: "manutencao",
+          type: "Manutenção",
           category: "cavalo_mecanico",
           questions: [],
         },
@@ -90,7 +90,7 @@ export default function ChecklistTemplatePage() {
     
     useEffect(() => {
         if (!isEditingNew) {
-            reset(selectedTemplate ?? { name: "", type: "manutencao", category: "cavalo_mecanico", questions: [] });
+            reset(selectedTemplate ?? { name: "", type: "Manutenção", category: "cavalo_mecanico", questions: [] });
         }
     }, [selectedTemplate, reset, isEditingNew]);
 
@@ -113,7 +113,7 @@ export default function ChecklistTemplatePage() {
       setIsEditingNew(true);
       reset({
         name: "Novo Modelo",
-        type: "manutencao",
+        type: "Manutenção",
         category: "cavalo_mecanico",
         questions: [{ id: `q-${Date.now()}`, text: "Nova Pergunta", photoRequirement: "if_not_ok" }]
       })
@@ -249,7 +249,7 @@ export default function ChecklistTemplatePage() {
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <SelectTrigger id="type"><SelectValue /></SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="manutencao">Manutenção</SelectItem>
+                                                    <SelectItem value="Manutenção">Manutenção</SelectItem>
                                                     <SelectItem value="viagem">Viagem</SelectItem>
                                                     <SelectItem value="retorno">Retorno</SelectItem>
                                                 </SelectContent>
