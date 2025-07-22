@@ -39,19 +39,6 @@ const itemSchema = z.object({
   status: z.enum(["OK", "Não OK", "N/A"]),
   photo: z.string().optional(),
   observation: z.string().optional(),
-}).refine(data => {
-    // This validation ensures that a photo is present if the status and photoRequirement demand it.
-    if (data.status === 'N/A') return true;
-    if (data.photoRequirement === 'always') {
-        return !!data.photo;
-    }
-    if (data.photoRequirement === 'if_not_ok' && data.status === 'Não OK') {
-        return !!data.photo;
-    }
-    return true;
-}, {
-    message: "Foto é obrigatória para este item e avaliação.",
-    path: ["photo"], // Apply the error to the 'photo' field of the specific item
 });
 
 
@@ -66,6 +53,23 @@ const checklistSchema = z.object({
   generalObservations: z.string().optional(),
   assinaturaResponsavel: z.string().optional(),
   assinaturaMotorista: z.string().optional(),
+}).refine((data) => {
+    // Check if both signatures are provided
+    return !!data.assinaturaResponsavel && !!data.assinaturaMotorista;
+}, {
+    message: "Ambas as assinaturas são obrigatórias.",
+    path: ["assinaturaResponsavel"], // Attach error to a relevant field
+}).refine((data) => {
+    // Check photo requirements for each question
+    return data.questions.every(question => {
+        if (question.status === 'N/A') return true;
+        if (question.photoRequirement === 'always') return !!question.photo;
+        if (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK') return !!question.photo;
+        return true;
+    });
+}, {
+    message: "Verifique os itens com fotos obrigatórias.",
+    path: ["questions"],
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -199,15 +203,6 @@ export default function MaintenanceChecklistPage() {
   };
 
   const onSubmit = async (data: ChecklistFormValues) => {
-    if(!data.assinaturaResponsavel || !data.assinaturaMotorista) {
-        toast({
-            variant: "destructive",
-            title: "Assinaturas Obrigatórias",
-            description: "Ambas as assinaturas são necessárias para finalizar o checklist.",
-        });
-        return;
-    }
-    
     try {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       const submissionData = {
@@ -253,6 +248,13 @@ export default function MaintenanceChecklistPage() {
   
   if (!selectedTemplate) {
     return <TemplateSelectionScreen templates={templates} isLoading={isTemplatesLoading} onSelect={handleSelectTemplate} />;
+  }
+
+  const checkPhotoError = (item: ItemData) => {
+      if (item.status === 'N/A') return false;
+      if (item.photoRequirement === 'always') return !item.photo;
+      if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK') return !item.photo;
+      return false;
   }
 
   return (
@@ -333,12 +335,13 @@ export default function MaintenanceChecklistPage() {
           <Card className="mt-6">
             <CardHeader>
                 <CardTitle>Itens de Verificação</CardTitle>
+                 {errors.questions && <p className="text-sm text-destructive font-normal pt-1">{errors.questions.message}</p>}
             </CardHeader>
              <CardContent className="space-y-2">
               {questionFields.map((item, itemIndex) => {
                 const currentItemState = watch(`questions.${itemIndex}`);
                 const isCompleted = currentItemState.status !== "N/A";
-                const errorForThisItem = errors.questions?.[itemIndex]?.root?.message || errors.questions?.[itemIndex]?.photo?.message;
+                const hasPhotoError = checkPhotoError(currentItemState);
                 
                 return (
                   <div key={item.id}>
@@ -346,7 +349,7 @@ export default function MaintenanceChecklistPage() {
                       type="button"
                       onClick={() => handleOpenDialog(itemIndex)}
                       className="w-full text-left p-4 border rounded-lg transition-colors flex justify-between items-center hover:bg-muted/50 data-[error=true]:border-destructive"
-                      data-error={!!errorForThisItem}
+                      data-error={hasPhotoError}
                     >
                       <span className="font-medium">{item.text}</span>
                       <div className="flex items-center gap-3">
@@ -359,7 +362,7 @@ export default function MaintenanceChecklistPage() {
                         )}
                       </div>
                     </button>
-                    {errorForThisItem && <p className="text-sm text-destructive mt-1 flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> {errorForThisItem}</p>}
+                    {hasPhotoError && <p className="text-sm text-destructive mt-1 flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> Foto é obrigatória para este item e avaliação.</p>}
                   </div>
                 );
               })}
@@ -388,6 +391,7 @@ export default function MaintenanceChecklistPage() {
             <CardHeader>
                 <CardTitle>Assinaturas</CardTitle>
                 <CardDescription>O responsável técnico e o motorista devem assinar para validar o checklist.</CardDescription>
+                {errors.assinaturaResponsavel && <p className="text-sm text-destructive pt-2">{errors.assinaturaResponsavel.message}</p>}
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-8">
                 <div className="grid gap-2">
@@ -422,3 +426,4 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
