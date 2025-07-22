@@ -35,8 +35,7 @@ const AssistantFlowOutputSchema = z.object({
 });
 export type AssistantFlowOutput = z.infer<typeof AssistantFlowOutputSchema>;
 
-export async function assistantFlow(input: AssistantFlowInput): Promise<AssistantFlowOutput> {
-  const prompt = ai.definePrompt({
+const prompt = ai.definePrompt({
     name: 'assistantPrompt',
     input: {schema: AssistantFlowInputSchema},
     output: {schema: AssistantFlowOutputSchema},
@@ -54,10 +53,13 @@ Analyze the user's intent and decide the best action. The available pages are:
 - /manutencoes: View and schedule maintenance
 - /usuarios: Manage users
 - /veiculos: Manage vehicles
+- /pneus: Manage tires
 
 Here are some examples of how to respond:
 
 - If the user says "criar um checklist de viagem", you should respond with something like "Ok, vamos criar um checklist de viagem." and set the action to "navigate" and the payload to "/checklist/viagem".
+- If the user says "checklist de manutenção" or "criar checklist de manutenção", you should respond with "Certo, vamos para a tela de checklist de manutenção." and set the action to "navigate" and the payload to "/checklist/manutencao".
+- If the user says "gestão de pneus", "ver pneus" or "gerenciar pneus", you should respond with "Ok, aqui está a tela de gestão de pneus." and set the action to "navigate" and the payload to "/pneus".
 - If the user says "ver pendências" or "problemas em aberto", you should respond with "Claro, aqui estão os checklists com pendências." and set the action to "navigate" and the payload to "/consultas". You can also filter by status if the system supports it.
 - If the user says "gerar um relatório de custos", you should respond with "Certo, vamos para a tela de relatórios." and set the action to "navigate" and the payload to "/relatorios".
 - If the user asks for "suporte" or "falar com alguém", you should respond with "Para falar com o suporte, clique no link." and set the action to "link" and the payload to a WhatsApp link like "https://wa.me/5511999999999".
@@ -67,6 +69,14 @@ Here are some examples of how to respond:
 Based on the user's query, provide the appropriate JSON output.`,
   });
 
-  const {output} = await prompt(input);
-  return output!;
-}
+export const assistantFlow = ai.defineFlow(
+  {
+    name: 'assistantFlow',
+    inputSchema: AssistantFlowInputSchema,
+    outputSchema: AssistantFlowOutputSchema,
+  },
+  async (input) => {
+    const { output } = await prompt(input);
+    return output!;
+  }
+);
