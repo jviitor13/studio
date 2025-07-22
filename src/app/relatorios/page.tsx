@@ -87,7 +87,7 @@ export default function RelatoriosPage() {
     <div className="flex flex-col gap-6">
        <PageHeader
         title="Gerar Relatórios"
-        description="Gere e baixe relatórios operacionais e financeiros."
+        description="Crie e baixe relatórios operacionais e financeiros."
       >
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -221,5 +221,3 @@ export default function RelatoriosPage() {
     </div>
   );
 }
-
-    

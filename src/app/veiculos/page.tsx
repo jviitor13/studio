@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -70,7 +71,7 @@ export default function VeiculosPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Frota de Veículos"
-        description="Gerencie os veículos da sua frota."
+        description="Gerencie todos os veículos cadastrados na sua frota."
       >
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -83,7 +84,7 @@ export default function VeiculosPage() {
             <DialogHeader>
               <DialogTitle>Adicionar Novo Veículo</DialogTitle>
               <DialogDescription>
-                Preencha as informações abaixo para cadastrar um novo veículo na frota.
+                Preencha as informações para cadastrar um novo veículo.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -114,6 +115,7 @@ export default function VeiculosPage() {
               </div>
             </div>
             <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
               <Button type="submit" onClick={() => setOpen(false)}>Salvar Veículo</Button>
             </DialogFooter>
           </DialogContent>
@@ -123,7 +125,7 @@ export default function VeiculosPage() {
         <CardHeader>
           <CardTitle>Lista de Veículos</CardTitle>
           <CardDescription>
-            Aqui estão todos os veículos cadastrados na sua frota.
+            Visualize e gerencie todos os veículos da sua frota.
           </CardDescription>
         </CardHeader>
         <CardContent>

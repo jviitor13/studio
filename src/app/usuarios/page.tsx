@@ -60,8 +60,8 @@ interface User {
 }
 
 const userSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório"),
-  email: z.string().email("Email inválido"),
+  name: z.string().min(1, "O nome é obrigatório"),
+  email: z.string().email("O e-mail informado é inválido"),
   password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
   role: z.enum(["Gestor", "Motorista", "Mecânico"], { required_error: "A função é obrigatória" }),
 });
@@ -111,7 +111,7 @@ export default function UsuariosPage() {
       } else {
         toast({
           variant: "destructive",
-          title: "Erro ao criar usuário",
+          title: "Erro ao Criar Usuário",
           description: result.error,
         });
       }
@@ -152,7 +152,7 @@ export default function UsuariosPage() {
                         </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="email" className="text-right">Email</Label>
+                        <Label htmlFor="email" className="text-right">E-mail</Label>
                         <div className="col-span-3">
                           <Input id="email" type="email" placeholder="usuario@email.com" {...register("email")} />
                           {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
@@ -203,7 +203,7 @@ export default function UsuariosPage() {
         <CardHeader>
           <CardTitle>Lista de Usuários</CardTitle>
           <CardDescription>
-            Todos os usuários com acesso ao sistema RodoCheck.
+            Todos os usuários com acesso ao sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -211,10 +211,10 @@ export default function UsuariosPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>E-mail</TableHead>
                 <TableHead>Função</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Data Criação</TableHead>
+                <TableHead>Data de Cadastro</TableHead>
                 <TableHead>
                   <span className="sr-only">Ações</span>
                 </TableHead>
@@ -263,5 +263,3 @@ export default function UsuariosPage() {
     </div>
   );
 }
-
-    

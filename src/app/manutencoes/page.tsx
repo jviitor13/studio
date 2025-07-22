@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Wrench, Search, Calendar as CalendarIcon, History } from "lucide-react";
+import { PlusCircle, Wrench, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,8 +20,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -29,17 +28,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Calendar as CalendarIcon } from 'lucide-react';
 
-const scheduledMaintenances = [
-  { id: "MAN-015", vehicle: "RDO1A12", service: "Troca de óleo preventiva", date: "2024-08-15", status: "Agendado" },
-  { id: "MAN-016", vehicle: "RDO4D56", service: "Revisão de freios", date: "2024-08-20", status: "Agendado" },
-  { id: "MAN-017", vehicle: "RDO5E67", service: "Revisão Geral (50.000km)", date: "2024-09-10", status: "Agendado" },
-];
-
-const maintenanceHistory = [
-  { id: "MAN-013", vehicle: "RDO3B45", service: "Reparo no sistema de freios", date: "2024-07-29", cost: "R$ 1.200,00" },
-  { id: "MAN-014", vehicle: "RDO2C24", service: "Troca de Pneus", date: "2024-07-25", cost: "R$ 3.500,00" },
-];
 
 export default function ManutencoesPage() {
     const [open, setOpen] = React.useState(false);
@@ -111,6 +102,7 @@ export default function ManutencoesPage() {
               </div>
             </div>
             <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button onClick={() => setOpen(false)} type="submit">Agendar</Button>
             </DialogFooter>
           </DialogContent>
@@ -142,17 +134,11 @@ export default function ManutencoesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {scheduledMaintenances.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.id}</TableCell>
-                      <TableCell>{item.vehicle}</TableCell>
-                      <TableCell>{item.service}</TableCell>
-                      <TableCell>{item.date}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{item.status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      Nenhuma manutenção agendada.
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </CardContent>
@@ -178,15 +164,11 @@ export default function ManutencoesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {maintenanceHistory.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.id}</TableCell>
-                      <TableCell>{item.vehicle}</TableCell>
-                      <TableCell>{item.service}</TableCell>
-                      <TableCell>{item.date}</TableCell>
-                      <TableCell>{item.cost}</TableCell>
-                    </TableRow>
-                  ))}
+                   <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      Nenhum histórico de manutenção encontrado.
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </CardContent>
