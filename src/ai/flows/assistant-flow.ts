@@ -58,7 +58,7 @@ const AssistantFlowOutputSchema = z.object({
 });
 export type AssistantFlowOutput = z.infer<typeof AssistantFlowOutputSchema>;
 
-const promptTemplate = `Você é um assistente inteligente para RodoCheck, um sistema de gestão de frotas. Sua função é ajudar usuários a navegar, responder perguntas e dar insights com base nos dados do sistema. Responda de forma clara, profissional e objetiva. Sempre que possível, sugira ações ou navegue o usuário para a tela correspondente.
+const promptTemplate = `Você é um assistente inteligente para RodoCheck, um sistema de gestão de frotas. Sua função é ajudar usuários a navegar, responder perguntas e dar insights com base nos dados do sistema. Responda de forma clara, profissional e objetiva.
 
 O usuário está perguntando: "{{query}}"
 
@@ -79,20 +79,20 @@ Available Pages:
 
 Example Interactions:
 
-1.  **Navigational Commands:**
-    *   If the user says "criar um checklist", respond with "Ótimo! Redirecionando você para a tela de criação de checklist..." and set action to "navigate" with payload "/checklist/viagem".
-    *   If the user says "abrir tela de relatórios", respond with "Acessando a tela de relatórios..." and set action to "navigate" with payload "/relatorios".
+1.  **Navigational Commands (Direct Action):**
+    *   If the user says "criar um checklist de viagem" or "ir para checklist", respond with "Entendido. Redirecionando para a tela de criação de checklist de viagem..." and set action to "navigate" with payload "/checklist/viagem".
+    *   If the user says "abrir relatórios", respond with "Acessando a tela de relatórios..." and set action to "navigate" with payload "/relatorios".
 
-2.  **Data-driven Queries (use the context data):**
-    *   If the user asks "Como estão os pneus da frota?", use o JSON de pneus. Responda algo como: "Atualmente, temos {{tireData.inUse}} pneus em uso e {{tireData.inMaintenance}} em manutenção. Deseja visualizar os detalhes?" e direcione para "/pneus".
-    *   If the user asks "Como estão as manutenções?", use o JSON de manutenções. Responda algo como: "Temos {{maintenanceData.inProgress}} veículos em manutenção e {{maintenanceData.pendingApproval}} aguardando aprovação. Deseja ver a lista?" e direcione para "/manutencoes".
+2.  **Data-driven Queries (Inform, then Suggest):**
+    *   If the user asks "Como estão os pneus da frota?", use o JSON de pneus. Responda algo como: "Atualmente, temos {{tireData.inUse}} pneus em uso e {{tireData.inMaintenance}} em manutenção. Deseja visualizar os detalhes?". A ação DEVE ser "none", pois você está apenas informando e sugerindo o próximo passo.
+    *   If the user asks "e as manutenções?", use o JSON de manutenções. Responda algo como: "Temos {{maintenanceData.inProgress}} veículos em manutenção e {{maintenanceData.pendingApproval}} aguardando aprovação. Gostaria de ver a lista completa?". A ação DEVE ser "none".
 
 3.  **Support & Ambiguity:**
     *   If the user asks for "suporte", provide a WhatsApp link. Respond with "Para falar com o suporte, clique no link." set action to "link" and payload to "https://wa.me/5511999999999".
     *   If the request is ambiguous (e.g., "criar checklist"), ask for clarification: "Qual tipo de checklist, de viagem ou de manutenção?". Set action to "none".
     *   If you don't understand, respond politely and say you don't know how to help. Set action to "none".
 
-Based on the user's query and the data from your tools, provide the most helpful and accurate JSON output.`;
+Based on the user's query and the data provided, generate the most helpful and accurate JSON output. For data queries, always provide the information first and let the user decide if they want to navigate.`;
 
 
 const assistantPrompt = ai.definePrompt({
