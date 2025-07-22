@@ -121,8 +121,7 @@ export default function ChecklistTemplatePage() {
     
     const onSubmit = async (data: TemplateFormValues) => {
         try {
-            const dataToSave = { ...data };
-            delete dataToSave.id;
+            const { id, ...dataToSave } = data;
 
             if (selectedTemplate?.id && !isEditingNew) {
                 const docRef = doc(db, 'checklist-templates', selectedTemplate.id);
