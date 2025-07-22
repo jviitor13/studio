@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import { Grip, Repeat, Trash2 } from 'lucide-react';
+import { Grip, Repeat, Trash2, PlusCircle, Thermometer, Gauge } from 'lucide-react';
 
 // Mock data
 const vehicleTireData: Record<string, Record<string, any>> = {
@@ -37,9 +38,10 @@ const TirePosition = ({ position, tireData }: { position: string, tireData?: any
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant={tireData ? "outline" : "secondary"} className="w-20 h-28 flex flex-col items-center justify-center border-2 border-dashed">
+        <Button variant={tireData ? "outline" : "secondary"} className="w-20 h-28 flex flex-col items-center justify-center border-2 border-dashed hover:border-primary transition-colors">
           <Grip className="h-6 w-6" />
           <span className="text-xs mt-1">{position}</span>
+           {tireData && <span className="text-[10px] mt-1 font-bold text-primary truncate">{tireData.id}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64">
@@ -50,9 +52,21 @@ const TirePosition = ({ position, tireData }: { position: string, tireData?: any
               <p className="text-sm text-muted-foreground">{tireData.brand} {tireData.model}</p>
             </div>
             <Separator />
-            <div className="text-sm">
-                <p><strong>Pressão:</strong> {tireData.pressure}</p>
-                <p><strong>Sulco:</strong> {tireData.depth}</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                    <Gauge className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                        <p className="font-semibold">{tireData.pressure}</p>
+                        <p className="text-xs text-muted-foreground">Pressão</p>
+                    </div>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <Thermometer className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                        <p className="font-semibold">{tireData.depth}</p>
+                        <p className="text-xs text-muted-foreground">Sulco</p>
+                    </div>
+                </div>
             </div>
             <Separator />
              <div className="flex flex-col gap-2">
@@ -65,7 +79,7 @@ const TirePosition = ({ position, tireData }: { position: string, tireData?: any
              <div className="space-y-2 text-center">
                 <p className="font-medium">Posição Vazia</p>
                 <p className="text-sm text-muted-foreground">{position}</p>
-                <Button size="sm" className="mt-2">Instalar Pneu</Button>
+                <Button size="sm" className="mt-2"><PlusCircle className="mr-2 h-4 w-4" />Instalar Pneu</Button>
              </div>
         )}
       </PopoverContent>

@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Eye } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Eye, Truck, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,13 +41,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
 
 const tires = [
-  { id: "PNEU-001", brand: "Michelin", model: "X Multi Z", status: "Em Uso", vehicle: "RDO1A12", position: "Dianteiro Esquerdo" },
-  { id: "PNEU-002", brand: "Pirelli", model: "FR:01", status: "Em Uso", vehicle: "RDO1A12", position: "Dianteiro Direito" },
-  { id: "PNEU-003", brand: "Goodyear", model: "KMax S", status: "Em Estoque", vehicle: "-", position: "-" },
-  { id: "PNEU-004", brand: "Michelin", model: "X Multi Z", status: "Em Manutenção", vehicle: "RDO2C24", position: "Traseiro Esquerdo (Ext)" },
-  { id: "PNEU-005", brand: "Bridgestone", model: "R268", status: "Sucateado", vehicle: "-", position: "-" },
+  { id: "PNEU-001", brand: "Michelin", model: "X Multi Z", size: "275/80 R22.5", lifespan: "85%", status: "Em Uso", vehicle: "RDO1A12", position: "DDE" },
+  { id: "PNEU-002", brand: "Pirelli", model: "FR:01", size: "275/80 R22.5", lifespan: "90%", status: "Em Uso", vehicle: "RDO1A12", position: "DDD" },
+  { id: "PNEU-003", brand: "Goodyear", model: "KMax S", size: "295/80 R22.5", lifespan: "100%", status: "Em Estoque", vehicle: "-", position: "-" },
+  { id: "PNEU-004", brand: "Michelin", model: "X Multi Z", size: "275/80 R22.5", lifespan: "40%", status: "Em Manutenção", vehicle: "RDO2C24", position: "T1EE" },
+  { id: "PNEU-005", brand: "Bridgestone", model: "R268", size: "11R22.5", lifespan: "0%", status: "Sucateado", vehicle: "-", position: "-" },
 ];
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
@@ -63,7 +65,7 @@ export default function PneusPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Gestão de Pneus"
-        description="Gerencie os pneus da sua frota."
+        description="Gerencie o ciclo de vida completo dos pneus da sua frota."
       >
         <div className="flex gap-2">
            <Link href="/pneus/visualizacao">
@@ -79,42 +81,98 @@ export default function PneusPage() {
                         Adicionar Pneu
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-3xl">
                     <DialogHeader>
-                        <DialogTitle>Adicionar Novo Pneu</DialogTitle>
+                        <DialogTitle>Cadastro Detalhado de Pneu</DialogTitle>
                         <DialogDescription>
-                            Preencha os dados para cadastrar um novo pneu.
+                            Preencha todos os dados para um controle preciso do pneu.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="id" className="text-right">ID / Fogo</Label>
-                            <Input id="id" placeholder="Ex: PNEU-006" className="col-span-3" />
+                    <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
+                        {/* Seção Dados Básicos */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Dados de Identificação</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="id">ID / Fogo 🔥</Label>
+                                    <Input id="id" placeholder="Ex: PNEU-006" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="serial">Número de Série</Label>
+                                    <Input id="serial" placeholder="Ex: Y78SDFG89" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="brand">Marca</Label>
+                                    <Input id="brand" placeholder="Ex: Michelin" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="model">Modelo</Label>
+                                    <Input id="model" placeholder="Ex: X Multi Z" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="mfg-date">Data de Fabricação</Label>
+                                    <Input id="mfg-date" type="week" />
+                                </div>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="brand" className="text-right">Marca</Label>
-                            <Input id="brand" placeholder="Ex: Michelin" className="col-span-3" />
+                        <Separator />
+                        {/* Seção Especificações Técnicas */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="size">Medida</Label>
+                                    <Input id="size" placeholder="Ex: 275/80 R22.5" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="indices">Índice Carga/Velocidade</Label>
+                                    <Input id="indices" placeholder="Ex: 149/146L" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="type">Tipo (Construção)</Label>
+                                    <Select>
+                                        <SelectTrigger id="type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="radial">Radial</SelectItem>
+                                            <SelectItem value="diagonal">Diagonal</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                         </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="model" className="text-right">Modelo</Label>
-                            <Input id="model" placeholder="Ex: X Multi Z" className="col-span-3" />
+                        <Separator />
+                        {/* Seção Status e Vida Útil */}
+                         <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Status e Vida Útil</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="status">Situação Atual</Label>
+                                    <Select>
+                                        <SelectTrigger id="status"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="novo">Novo (em estoque)</SelectItem>
+                                            <SelectItem value="usado">Em uso</SelectItem>
+                                            <SelectItem value="recap1">Recapado 1x</SelectItem>
+                                            <SelectItem value="recap2">Recapado 2x</SelectItem>
+                                            <SelectItem value="manutencao">Em manutenção</SelectItem>
+                                            <SelectItem value="descartado">Descartado</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="retreads">Número de Reformas</Label>
+                                    <Input id="retreads" type="number" defaultValue={0} />
+                                </div>
+                                 <div className="grid gap-2">
+                                    <Label htmlFor="lifespan">Vida Útil Estimada (%)</Label>
+                                    <Input id="lifespan" type="number" placeholder="Ex: 85" />
+                                </div>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="status" className="text-right">Status</Label>
-                            <Select>
-                                <SelectTrigger id="status" className="col-span-3">
-                                    <SelectValue placeholder="Selecione o status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="estoque">Em Estoque</SelectItem>
-                                    <SelectItem value="uso">Em Uso</SelectItem>
-                                    <SelectItem value="manutencao">Em Manutenção</SelectItem>
-                                    <SelectItem value="sucateado">Sucateado</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
+
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="mt-4 pt-4 border-t">
+                        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
                         <Button type="submit" onClick={() => setOpen(false)}>Salvar Pneu</Button>
                     </DialogFooter>
                 </DialogContent>
@@ -123,20 +181,21 @@ export default function PneusPage() {
       </PageHeader>
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Pneus</CardTitle>
+          <CardTitle>Inventário de Pneus</CardTitle>
           <CardDescription>
-            Todos os pneus cadastrados no sistema.
+            Todos os pneus cadastrados no sistema, com seus status e localizações.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID / Fogo</TableHead>
+                <TableHead>ID/Fogo</TableHead>
                 <TableHead>Marca/Modelo</TableHead>
+                <TableHead>Medida</TableHead>
+                <TableHead>Vida Útil</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Veículo</TableHead>
-                <TableHead>Posição</TableHead>
+                <TableHead>Veículo/Posição</TableHead>
                 <TableHead>
                   <span className="sr-only">Ações</span>
                 </TableHead>
@@ -147,13 +206,18 @@ export default function PneusPage() {
                 <TableRow key={tire.id}>
                   <TableCell className="font-medium">{tire.id}</TableCell>
                   <TableCell>{tire.brand} {tire.model}</TableCell>
+                   <TableCell>{tire.size}</TableCell>
+                   <TableCell>
+                        <Badge variant={tire.lifespan.startsWith('100') || tire.lifespan.startsWith('9') ? 'default' : tire.lifespan.startsWith('0') ? 'destructive' : 'secondary'} className={tire.lifespan.startsWith('100') || tire.lifespan.startsWith('9') || tire.lifespan.startsWith('8') ? 'bg-green-500 hover:bg-green-600' : ''}>
+                            {tire.lifespan}
+                        </Badge>
+                    </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[tire.status] || 'secondary'}>
                       {tire.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{tire.vehicle}</TableCell>
-                  <TableCell>{tire.position}</TableCell>
+                  <TableCell>{tire.vehicle !== '-' ? `${tire.vehicle} / ${tire.position}` : 'Em Estoque'}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -164,9 +228,9 @@ export default function PneusPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Movimentar</DropdownMenuItem>
-                        <DropdownMenuItem>Histórico</DropdownMenuItem>
+                        <DropdownMenuItem><Eye className="mr-2"/>Ver Detalhes</DropdownMenuItem>
+                        <DropdownMenuItem><Truck className="mr-2"/>Movimentar</DropdownMenuItem>
+                        <DropdownMenuItem><Settings className="mr-2"/>Enviar p/ Manutenção</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive">
                           Sucatear
                         </DropdownMenuItem>
