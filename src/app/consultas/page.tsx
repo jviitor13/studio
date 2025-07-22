@@ -279,7 +279,7 @@ export default function ConsultasPage() {
                                         <TableRow key={item.id}>
                                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
-                                            <TableCell>{item.driver}</TableCell>
+                                            <TableCell>{item.responsibleName || 'N/A'}</TableCell>
                                             <TableCell className="capitalize">{item.type}</TableCell>
                                             <TableCell>
                                                 <Badge variant={statusVariant[item.status]} className={cn(statusBadgeColor[item.status])}>
@@ -343,3 +343,5 @@ export default function ConsultasPage() {
         </>
     )
 }
+
+    

@@ -205,26 +205,24 @@ export default function MaintenanceChecklistPage() {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       const submissionData = {
         templateId: data.templateId,
-        templateName: data.templateName,
-        vehicleId: data.vehicleId,
+        name: data.templateName,
+        vehicle: data.vehicleId,
         mileage: data.mileage,
         questions: data.questions.map(q => ({
             id: q.id,
             text: q.text,
             photoRequirement: q.photoRequirement,
             status: q.status,
-            photo: q.photo ?? '',
-            observation: q.observation ?? ''
+            photo: q.photo ?? null,
+            observation: q.observation ?? null
         })),
         generalObservations: data.generalObservations ?? '',
-        responsibleName: data.responsibleName ?? '',
+        responsibleName: data.responsibleName,
+        driver: data.driverName,
         createdAt: Timestamp.now(),
         status: hasIssues ? "Pendente" : "OK",
         type: "Manutenção",
-        category: selectedTemplate?.category,
-        name: selectedTemplate?.name,
-        driver: data.driverName ?? '',
-        vehicle: data.vehicleId,
+        category: selectedTemplate?.category ?? 'nao_aplicavel',
         assinaturaResponsavel: data.assinaturaResponsavel,
         assinaturaMotorista: data.assinaturaMotorista,
       };
@@ -421,3 +419,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    

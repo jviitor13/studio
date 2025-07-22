@@ -140,12 +140,11 @@ export default function PreTripChecklistPage() {
         return;
     }
     
-    // This is a simplified transformation. A real-world scenario might be more complex.
     const questionsForFirestore = data.answers.map(a => ({
         id: a.questionId,
         text: a.questionText,
-        photoRequirement: 'never' as const, // Simplified
-        status: a.answer === true ? 'OK' : a.answer === false ? 'Não OK' : 'OK', // Simplified logic, text/photo are OK
+        photoRequirement: 'never' as const, 
+        status: a.answer === true ? 'OK' : a.answer === false ? 'Não OK' : 'OK', // text/photo are OK
         observation: a.questionType === 'text' ? a.answer : '',
         photo: a.questionType === 'photo' ? a.answer : '',
     }));
@@ -159,10 +158,12 @@ export default function PreTripChecklistPage() {
           category: 'nao_aplicavel',
           name: 'Checklist de Viagem',
           driver: 'Motorista Padrão', // Should come from auth
+          responsibleName: 'N/A',
           vehicle: data.vehicleId,
           mileage: data.initialKm,
           questions: questionsForFirestore,
           generalObservations: data.observations,
+          vehicleImages: vehicleImages,
         };
 
         const docRef = await addDoc(collection(db, 'completed-checklists'), submissionData);
@@ -332,3 +333,5 @@ export default function PreTripChecklistPage() {
     </>
   );
 }
+
+    
