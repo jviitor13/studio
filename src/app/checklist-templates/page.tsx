@@ -55,12 +55,12 @@ export default function ChecklistTemplatePage() {
     const { toast } = useToast();
     const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
-    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [isEditingNew, setIsEditingNew] = useState(false);
+    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
 
-    const { control, register, handleSubmit, formState: { errors }, watch, reset, setValue } = useForm<TemplateFormValues>({
+    const { control, register, handleSubmit, formState: { errors }, watch, reset } = useForm<TemplateFormValues>({
         resolver: zodResolver(templateSchema),
         defaultValues: {
           id: undefined,
@@ -89,39 +89,33 @@ export default function ChecklistTemplatePage() {
         return () => unsubscribe();
     }, [toast]);
     
-    useEffect(() => {
-        if (selectedTemplate && !isEditingNew) {
-            reset({
-                ...selectedTemplate,
-                questions: selectedTemplate.questions.map(q => ({...q, id: `q-${Math.random()}`}))
-            });
-        }
-    }, [selectedTemplate, isEditingNew, reset]);
-
-
-    const { fields, append, remove, move } = useFieldArray({
+    const { fields, append, remove } = useFieldArray({
         control,
         name: "questions",
     });
     
-    const handleTemplateChange = (templateId: string) => {
+    const handleTemplateSelection = (templateId: string) => {
       const template = templates.find(t => t.id === templateId);
       if (template) {
         setIsEditingNew(false);
-        setSelectedTemplate(template);
+        setSelectedTemplateId(template.id);
+        reset({
+            ...template,
+            questions: template.questions.map(q => ({...q, id: `q-${Math.random()}`}))
+        });
       }
     };
 
     const handleNewTemplate = () => {
-      setSelectedTemplate(null);
       setIsEditingNew(true);
+      setSelectedTemplateId(null);
       reset({
         id: undefined,
-        name: "Novo Modelo",
+        name: "Novo Modelo de Checklist",
         type: "Manutenção",
         category: "cavalo_mecanico",
-        questions: [{ id: `q-${Date.now()}`, text: "Nova Pergunta", photoRequirement: "if_not_ok" }]
-      })
+        questions: [{ id: `q-${Date.now()}`, text: "Nova Pergunta de Exemplo", photoRequirement: "if_not_ok" }]
+      });
     }
     
     const onSubmit = async (data: TemplateFormValues) => {
@@ -130,30 +124,23 @@ export default function ChecklistTemplatePage() {
                 name: data.name,
                 type: data.type,
                 category: data.category,
-                questions: data.questions.map(({ id, ...rest }) => rest), // Destructure to remove client-side id
+                // Remove client-side ID before saving
+                questions: data.questions.map(({ id, ...rest }) => rest), 
             };
 
-            if (selectedTemplate?.id && !isEditingNew) {
-                const docRef = doc(db, 'checklist-templates', selectedTemplate.id);
+            if (selectedTemplateId && !isEditingNew) {
+                const docRef = doc(db, 'checklist-templates', selectedTemplateId);
                 await setDoc(docRef, dataToSave, { merge: true });
                 toast({
                     title: "Modelo Atualizado!",
                     description: "O modelo de checklist foi atualizado com sucesso.",
                 });
-                 // Find the updated template in the list and set it to refresh the view
-                const updatedTemplateInList = templates.find(t => t.id === selectedTemplate.id);
-                if (updatedTemplateInList) {
-                   setSelectedTemplate({...updatedTemplateInList, ...dataToSave});
-                }
             } else {
                 const docRef = await addDoc(collection(db, 'checklist-templates'), dataToSave);
-                // Create a representation of the new template to set as selected
-                const newTemplateData: ChecklistTemplate = {
-                    ...dataToSave,
-                    id: docRef.id,
-                };
-                setSelectedTemplate(newTemplateData); // Select the newly created template
-                setIsEditingNew(false); // No longer editing a "new" one, it's now an existing one
+                const newTemplateData: ChecklistTemplate = { ...dataToSave, id: docRef.id };
+                setTemplates(prev => [...prev, newTemplateData]);
+                setSelectedTemplateId(docRef.id);
+                setIsEditingNew(false);
                 setShowSuccessDialog(true);
             }
         } catch (error) {
@@ -161,20 +148,20 @@ export default function ChecklistTemplatePage() {
             toast({
                 variant: "destructive",
                 title: "Erro ao Salvar",
-                description: "Não foi possível salvar o modelo. Verifique as credenciais do Firebase e a conexão com a internet.",
+                description: "Não foi possível salvar o modelo. Tente novamente.",
             });
         }
     };
     
     const handleDeleteTemplate = async () => {
-        if (!selectedTemplate?.id) return;
+        if (!selectedTemplateId) return;
         try {
-            await deleteDoc(doc(db, 'checklist-templates', selectedTemplate.id));
+            await deleteDoc(doc(db, 'checklist-templates', selectedTemplateId));
             toast({
                 title: "Modelo Excluído",
                 description: "O modelo foi excluído com sucesso.",
             });
-            setSelectedTemplate(null);
+            setSelectedTemplateId(null);
             setIsEditingNew(false);
             reset({ id: undefined, name: "", type: "Manutenção", category: "cavalo_mecanico", questions: [] });
         } catch (error) {
@@ -190,6 +177,8 @@ export default function ChecklistTemplatePage() {
         append({ id: `q-${Date.now()}`, text: "", photoRequirement: "if_not_ok" });
     };
 
+    const isFormVisible = selectedTemplateId || isEditingNew;
+
     return (
         <>
             <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
@@ -200,7 +189,7 @@ export default function ChecklistTemplatePage() {
                         Modelo Criado com Sucesso!
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                        Seu novo modelo foi salvo. Você pode continuar editando e adicionando perguntas.
+                        Seu novo modelo foi salvo. Você pode continuar editando ou criar um novo.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -219,20 +208,20 @@ export default function ChecklistTemplatePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Seleção de Modelo</CardTitle>
-                        <CardDescription>Selecione um modelo para editar, ou crie um novo.</CardDescription>
+                        <CardDescription>Selecione um modelo para editar ou crie um novo.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex gap-4 items-center">
                         {isLoading ? (
                         <Skeleton className="h-10 w-full max-w-md" />
                         ) : (
-                        <Select onValueChange={handleTemplateChange} value={selectedTemplate?.id ?? ""}>
+                        <Select onValueChange={handleTemplateSelection} value={selectedTemplateId ?? ""}>
                             <SelectTrigger className="max-w-md">
-                                <SelectValue placeholder="Selecione um modelo..." />
+                                <SelectValue placeholder="Selecione um modelo para editar..." />
                             </SelectTrigger>
                             <SelectContent>
                                 {templates.map(template => (
                                     <SelectItem key={template.id} value={template.id}>
-                                        {template.name}
+                                        {template.name} ({template.type})
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -242,7 +231,7 @@ export default function ChecklistTemplatePage() {
                     </CardContent>
                 </Card>
 
-                {(selectedTemplate || isEditingNew) && (
+                {isFormVisible && (
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Card>
                         <CardHeader>
@@ -298,7 +287,7 @@ export default function ChecklistTemplatePage() {
                             <div className="border rounded-lg p-4 space-y-4">
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-semibold">Perguntas do Checklist</h3>
-                                     {errors.questions && <p className="text-sm text-destructive">{errors.questions.message}</p>}
+                                     {errors.questions && typeof errors.questions.message === 'string' && <p className="text-sm text-destructive">{errors.questions.message}</p>}
                                 </div>
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex items-start gap-2 p-2 rounded-md border bg-muted/50">
@@ -345,7 +334,7 @@ export default function ChecklistTemplatePage() {
                         </CardContent>
                         <CardFooter className="border-t px-6 py-4 flex justify-between">
                             <Button type="submit">Salvar Modelo</Button>
-                            {selectedTemplate && (
+                            {selectedTemplateId && !isEditingNew && (
                                 <Button type="button" variant="destructive" onClick={handleDeleteTemplate}>Excluir Modelo</Button>
                             )}
                         </CardFooter>
@@ -356,3 +345,5 @@ export default function ChecklistTemplatePage() {
         </>
     );
 }
+
+    
