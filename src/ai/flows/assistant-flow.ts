@@ -11,11 +11,60 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { adminDb } from '@/lib/firebase-admin';
+
+
+// Tool to get tire status summary from Firestore
+const getTireStatusSummary = ai.defineTool(
+    {
+        name: 'getTireStatusSummary',
+        description: 'Get a summary of the status of all tires in the fleet.',
+        outputSchema: z.object({
+            inUse: z.number().describe('Number of tires currently in use on a vehicle.'),
+            inStock: z.number().describe('Number of tires available in stock.'),
+            inMaintenance: z.number().describe('Number of tires currently in maintenance.'),
+            scrapped: z.number().describe('Number of tires that have been scrapped.'),
+        }),
+    },
+    async () => {
+        // In a real app, this data would come from Firestore.
+        // const snapshot = await adminDb.collection('tires').get();
+        // const tires = snapshot.docs.map(doc => doc.data());
+        // For now, returning mock data.
+        return {
+            inUse: 8,
+            inStock: 12,
+            inMaintenance: 3,
+            scrapped: 2,
+        };
+    }
+);
+
+// Tool to get maintenance status summary from Firestore
+const getMaintenanceSummary = ai.defineTool(
+    {
+        name: 'getMaintenanceSummary',
+        description: 'Get a summary of the status of all vehicle maintenances.',
+        outputSchema: z.object({
+            inProgress: z.number().describe('Number of vehicles currently in maintenance.'),
+            pendingApproval: z.number().describe('Number of maintenances waiting for approval.'),
+            pending: z.number().describe('Number of maintenances that are pending action.'),
+        }),
+    },
+    async () => {
+        // In a real app, this data would come from Firestore.
+        // For now, returning mock data.
+        return {
+            inProgress: 5,
+            pendingApproval: 2,
+            pending: 1,
+        };
+    }
+);
+
 
 const AssistantFlowInputSchema = z.object({
   query: z.string().describe('The user question or command.'),
-  // In a real app, you would pass the user's role and ID here.
-  // userRole: z.string().describe('The role of the user (e.g., gestor, motorista).'),
 });
 export type AssistantFlowInput = z.infer<typeof AssistantFlowInputSchema>;
 
@@ -39,12 +88,14 @@ const prompt = ai.definePrompt({
     name: 'assistantPrompt',
     input: {schema: AssistantFlowInputSchema},
     output: {schema: AssistantFlowOutputSchema},
-    prompt: `You are an intelligent and friendly assistant for the RodoCheck application, a vehicle and fleet management system.
-Your goal is to understand the user's request and provide a helpful response and a specific action to perform.
+    tools: [getTireStatusSummary, getMaintenanceSummary],
+    prompt: `You are an intelligent assistant for RodoCheck, a fleet management system developed on Firebase. 
+Your role is to help users navigate the app, answer questions about its features, and provide insights based on real-time data from Firebase. 
+Respond clearly, professionally, and objectively. Whenever possible, suggest actions or navigate the user to the corresponding screen.
 
 The user is asking: "{{query}}"
 
-Analyze the user's intent and decide the best action. The available pages are:
+Available Pages:
 - /dashboard: Main dashboard
 - /checklist/viagem: Create a new trip checklist
 - /checklist/manutencao: Create a new maintenance checklist
@@ -55,18 +106,22 @@ Analyze the user's intent and decide the best action. The available pages are:
 - /veiculos: Manage vehicles
 - /pneus: Manage tires
 
-Here are some examples of how to respond:
+Example Interactions:
 
-- If the user says "criar um checklist de viagem", you should respond with something like "Ok, vamos criar um checklist de viagem." and set the action to "navigate" and the payload to "/checklist/viagem".
-- If the user says "checklist de manutenção" or "criar checklist de manutenção", you should respond with "Certo, vamos para a tela de checklist de manutenção." and set the action to "navigate" and the payload to "/checklist/manutencao".
-- If the user says "gestão de pneus", "ver pneus" or "gerenciar pneus", you should respond with "Ok, aqui está a tela de gestão de pneus." and set the action to "navigate" and the payload to "/pneus".
-- If the user says "ver pendências" or "problemas em aberto", you should respond with "Claro, aqui estão os checklists com pendências." and set the action to "navigate" and the payload to "/consultas". You can also filter by status if the system supports it.
-- If the user says "gerar um relatório de custos", you should respond with "Certo, vamos para a tela de relatórios." and set the action to "navigate" and the payload to "/relatorios".
-- If the user asks for "suporte" or "falar com alguém", you should respond with "Para falar com o suporte, clique no link." and set the action to "link" and the payload to a WhatsApp link like "https://wa.me/5511999999999".
-- If you don't understand, respond politely and say you don't know how to help with that. Set the action to "none".
-- If the request is ambiguous, ask for clarification. For example, if they say "criar checklist", ask "Qual tipo de checklist, de viagem ou de manutenção?". Set the action to "none".
+1.  **Navigational Commands:**
+    *   If the user says "criar um checklist", respond with "Ótimo! Redirecionando você para a tela de criação de checklist..." and set action to "navigate" with payload "/checklist/viagem".
+    *   If the user says "abrir tela de relatórios", respond with "Acessando a tela de relatórios..." and set action to "navigate" with payload "/relatorios".
 
-Based on the user's query, provide the appropriate JSON output.`,
+2.  **Data-driven Queries (use your tools):**
+    *   If the user asks "Como estão os pneus da frota?", use the 'getTireStatusSummary' tool. Based on the result, respond like: "Atualmente, [X] pneus estão em uso, [Y] em manutenção... Deseja visualizar os detalhes?" and set action to "navigate" with payload "/pneus".
+    *   If the user asks "Como estão as manutenções?", use the 'getMaintenanceSummary' tool. Based on the result, respond like: "Temos [A] veículos em manutenção, [B] aguardando aprovação... Deseja ver a lista?" and set action to "navigate" with payload "/manutencoes".
+
+3.  **Support & Ambiguity:**
+    *   If the user asks for "suporte", provide a WhatsApp link. Respond with "Para falar com o suporte, clique no link." set action to "link" and payload to "https://wa.me/5511999999999".
+    *   If the request is ambiguous (e.g., "criar checklist"), ask for clarification: "Qual tipo de checklist, de viagem ou de manutenção?". Set action to "none".
+    *   If you don't understand, respond politely and say you don't know how to help. Set action to "none".
+
+Based on the user's query and the data from your tools, provide the most helpful and accurate JSON output.`,
   });
 
 export const assistantFlow = ai.defineFlow(
