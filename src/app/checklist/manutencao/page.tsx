@@ -26,7 +26,6 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, addDoc, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SignaturePad } from "@/components/signature-pad";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 
 
@@ -54,12 +53,6 @@ const checklistSchema = z.object({
   assinaturaResponsavel: z.string().optional(),
   assinaturaMotorista: z.string().optional(),
 }).refine((data) => {
-    // Check if both signatures are provided
-    return !!data.assinaturaResponsavel && !!data.assinaturaMotorista;
-}, {
-    message: "Ambas as assinaturas são obrigatórias.",
-    path: ["assinaturaResponsavel"], // Attach error to a relevant field
-}).refine((data) => {
     // Check photo requirements for each question
     return data.questions.every(question => {
         if (question.status === 'N/A') return true;
@@ -70,6 +63,12 @@ const checklistSchema = z.object({
 }, {
     message: "Verifique os itens com fotos obrigatórias.",
     path: ["questions"],
+}).refine((data) => {
+    // Check if both signatures are provided
+    return !!data.assinaturaResponsavel && !!data.assinaturaMotorista;
+}, {
+    message: "Ambas as assinaturas são obrigatórias.",
+    path: ["assinaturaResponsavel"], // Attach error to a relevant field
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -426,4 +425,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
