@@ -46,7 +46,7 @@ const templateSchema = z.object({
     name: z.string().min(1, "O título do modelo é obrigatório."),
     type: z.enum(["Manutenção", "viagem", "retorno"]),
     category: z.enum(["cavalo_mecanico", "carreta", "caminhao_3_4", "moto"]),
-    questions: z.array(questionSchema),
+    questions: z.array(questionSchema).min(1, "O checklist deve ter pelo menos uma pergunta."),
 });
 
 type TemplateFormValues = z.infer<typeof templateSchema>;
@@ -63,6 +63,7 @@ export default function ChecklistTemplatePage() {
     const { control, register, handleSubmit, formState: { errors }, watch, reset, setValue } = useForm<TemplateFormValues>({
         resolver: zodResolver(templateSchema),
         defaultValues: {
+          id: undefined,
           name: "",
           type: "Manutenção",
           category: "cavalo_mecanico",
@@ -89,10 +90,13 @@ export default function ChecklistTemplatePage() {
     }, [toast]);
     
     useEffect(() => {
-        if (!isEditingNew) {
-            reset(selectedTemplate ?? { name: "", type: "Manutenção", category: "cavalo_mecanico", questions: [] });
+        if (selectedTemplate && !isEditingNew) {
+            reset({
+                ...selectedTemplate,
+                questions: selectedTemplate.questions.map(q => ({...q, id: `q-${Math.random()}`}))
+            });
         }
-    }, [selectedTemplate, reset, isEditingNew]);
+    }, [selectedTemplate, isEditingNew, reset]);
 
 
     const { fields, append, remove, move } = useFieldArray({
@@ -112,6 +116,7 @@ export default function ChecklistTemplatePage() {
       setSelectedTemplate(null);
       setIsEditingNew(true);
       reset({
+        id: undefined,
         name: "Novo Modelo",
         type: "Manutenção",
         category: "cavalo_mecanico",
@@ -121,12 +126,11 @@ export default function ChecklistTemplatePage() {
     
     const onSubmit = async (data: TemplateFormValues) => {
         try {
-            // Prepare data by removing the temporary client-side ID from questions
             const dataToSave = {
                 name: data.name,
                 type: data.type,
                 category: data.category,
-                questions: data.questions.map(({ id, ...rest }) => rest), // Destructure to remove 'id'
+                questions: data.questions.map(({ id, ...rest }) => rest), // Destructure to remove client-side id
             };
 
             if (selectedTemplate?.id && !isEditingNew) {
@@ -136,14 +140,20 @@ export default function ChecklistTemplatePage() {
                     title: "Modelo Atualizado!",
                     description: "O modelo de checklist foi atualizado com sucesso.",
                 });
+                 // Find the updated template in the list and set it to refresh the view
+                const updatedTemplateInList = templates.find(t => t.id === selectedTemplate.id);
+                if (updatedTemplateInList) {
+                   setSelectedTemplate({...updatedTemplateInList, ...dataToSave});
+                }
             } else {
                 const docRef = await addDoc(collection(db, 'checklist-templates'), dataToSave);
+                // Create a representation of the new template to set as selected
                 const newTemplateData: ChecklistTemplate = {
                     ...dataToSave,
                     id: docRef.id,
                 };
-                setSelectedTemplate(newTemplateData);
-                setIsEditingNew(false);
+                setSelectedTemplate(newTemplateData); // Select the newly created template
+                setIsEditingNew(false); // No longer editing a "new" one, it's now an existing one
                 setShowSuccessDialog(true);
             }
         } catch (error) {
@@ -166,7 +176,7 @@ export default function ChecklistTemplatePage() {
             });
             setSelectedTemplate(null);
             setIsEditingNew(false);
-            reset();
+            reset({ id: undefined, name: "", type: "Manutenção", category: "cavalo_mecanico", questions: [] });
         } catch (error) {
              toast({
                 variant: "destructive",
@@ -286,36 +296,45 @@ export default function ChecklistTemplatePage() {
                             </div>
 
                             <div className="border rounded-lg p-4 space-y-4">
-                                <h3 className="font-semibold">Perguntas do Checklist</h3>
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-semibold">Perguntas do Checklist</h3>
+                                     {errors.questions && <p className="text-sm text-destructive">{errors.questions.message}</p>}
+                                </div>
                                 {fields.map((field, index) => (
-                                    <div key={field.id} className="flex items-center gap-2 p-2 rounded-md border bg-muted/50">
-                                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                                        <span className="font-semibold">{index + 1}.</span>
-                                        <Input
-                                            placeholder="Digite a pergunta"
-                                            {...register(`questions.${index}.text`)}
-                                            className="flex-1"
-                                        />
-                                        <Controller
-                                            name={`questions.${index}.photoRequirement`}
-                                            control={control}
-                                            render={({ field }) => (
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <SelectTrigger className="w-[240px]">
-                                                    <SelectValue placeholder="Regra da foto" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="if_not_ok">Foto se "Não OK"</SelectItem>
-                                                    <SelectItem value="always">Foto sempre obrigatória</SelectItem>
-                                                    <SelectItem value="never">Foto nunca obrigatória</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            )}
-                                        />
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                    <div key={field.id} className="flex items-start gap-2 p-2 rounded-md border bg-muted/50">
+                                        <Button type="button" variant="ghost" size="icon" className="cursor-grab shrink-0 mt-1">
+                                            <GripVertical className="h-5 w-5 text-muted-foreground" />
                                         </Button>
-                                        {errors.questions?.[index]?.text && <p className="text-sm text-destructive -ml-2">{errors.questions?.[index]?.text?.message}</p>}
+                                        <div className="flex-1 space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold">{index + 1}.</span>
+                                                <Input
+                                                    placeholder="Digite a pergunta"
+                                                    {...register(`questions.${index}.text`)}
+                                                    className="flex-1"
+                                                />
+                                                <Controller
+                                                    name={`questions.${index}.photoRequirement`}
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <SelectTrigger className="w-[240px]">
+                                                            <SelectValue placeholder="Regra da foto" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="if_not_ok">Foto se "Não OK"</SelectItem>
+                                                            <SelectItem value="always">Foto sempre obrigatória</SelectItem>
+                                                            <SelectItem value="never">Foto nunca obrigatória</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    )}
+                                                />
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                             {errors.questions?.[index]?.text && <p className="text-sm text-destructive ml-8">{errors.questions?.[index]?.text?.message}</p>}
+                                        </div>
                                     </div>
                                 ))}
                                 <Button type="button" variant="outline" onClick={addQuestion}>
