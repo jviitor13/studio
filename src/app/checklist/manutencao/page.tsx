@@ -48,17 +48,7 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   driverName: z.string().min(1, "Nome do motorista é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
-  questions: z.array(itemSchema).refine((questions) => {
-    return questions.every(question => {
-        if (question.status === 'N/A') return true;
-        if (question.photoRequirement === 'always') return !!question.photo;
-        if (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK') return !!question.photo;
-        return true;
-    });
-  }, {
-      message: "Verifique os itens com fotos obrigatórias.",
-      path: ["questions"],
-  }),
+  questions: z.array(itemSchema),
   generalObservations: z.string().optional(),
   assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
@@ -125,6 +115,8 @@ export default function MaintenanceChecklistPage() {
   const [isTemplatesLoading, setIsTemplatesLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<{ itemIndex: number; item: ItemData } | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'checklist-templates'), (snapshot) => {
@@ -135,7 +127,7 @@ export default function MaintenanceChecklistPage() {
     return () => unsubscribe();
   }, []);
 
-  const { control, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, setValue, watch, reset, trigger } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -157,6 +149,7 @@ export default function MaintenanceChecklistPage() {
 
   const watchResponsibleName = watch("responsibleName");
   const watchDriverName = watch("driverName");
+  const watchedQuestions = watch("questions");
 
   const handleSelectTemplate = (template: ChecklistTemplate) => {
     setSelectedTemplate(template);
@@ -187,14 +180,30 @@ export default function MaintenanceChecklistPage() {
   const handleDialogSave = (data: { status: "OK" | "Não OK" | "N/A"; photo?: string; observation?: string }) => {
     if (selectedItem) {
       const { itemIndex } = selectedItem;
-      setValue(`questions.${itemIndex}.status`, data.status, { shouldValidate: true });
-      setValue(`questions.${itemIndex}.photo`, data.photo, { shouldValidate: true });
-      setValue(`questions.${itemIndex}.observation`, data.observation, { shouldValidate: true });
+      setValue(`questions.${itemIndex}.status`, data.status, { shouldValidate: true, shouldDirty: true });
+      setValue(`questions.${itemIndex}.photo`, data.photo, { shouldValidate: true, shouldDirty: true });
+      setValue(`questions.${itemIndex}.observation`, data.observation, { shouldValidate: true, shouldDirty: true });
       setSelectedItem(null);
     }
   };
 
   const onSubmit = async (data: ChecklistFormValues) => {
+    setIsSubmitting(true);
+    // Manual validation for items that need photos
+    for (const [index, question] of data.questions.entries()) {
+        const photoIsRequired = question.photoRequirement === 'always' || (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK');
+        if (photoIsRequired && !question.photo) {
+            toast({
+                variant: "destructive",
+                title: "Validação Falhou",
+                description: `O item "${question.text}" requer uma foto para a avaliação "${question.status}".`,
+            });
+            setIsSubmitting(false);
+            return;
+        }
+    }
+
+
     try {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       const submissionData = {
@@ -235,6 +244,8 @@ export default function MaintenanceChecklistPage() {
         title: "Erro no Envio",
         description: "Não foi possível enviar o checklist. Verifique os campos e tente novamente.",
       });
+    } finally {
+        setIsSubmitting(false);
     }
   };
   
@@ -327,11 +338,11 @@ export default function MaintenanceChecklistPage() {
           <Card className="mt-6">
             <CardHeader>
                 <CardTitle>Itens de Verificação</CardTitle>
-                 {errors.questions && <p className="text-sm text-destructive font-normal pt-1">{errors.questions.message}</p>}
+                 {typeof errors.questions?.message === 'string' && <p className="text-sm text-destructive font-normal pt-1">{errors.questions.message}</p>}
             </CardHeader>
              <CardContent className="space-y-2">
               {questionFields.map((item, itemIndex) => {
-                const currentItemState = watch(`questions.${itemIndex}`);
+                const currentItemState = watchedQuestions[itemIndex];
                 const isCompleted = currentItemState.status !== "N/A";
                 const hasPhotoError = checkPhotoError(currentItemState);
                 
@@ -422,5 +433,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
