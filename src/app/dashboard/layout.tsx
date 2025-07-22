@@ -63,6 +63,7 @@ const getMenuItems = (role: string) => {
       { href: "/manutencoes", label: "Manutenções", icon: Wrench },
       { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck },
       { href: "/veiculos", label: "Veículos", icon: Truck },
+      { href: "/pneus/manutencao", label: "Manutenção de Pneus", icon: CircleDot },
     ]
   };
 
@@ -99,7 +100,8 @@ const getBottomNavItems = (role: string) => {
     return [
         { href: "/dashboard", label: "Home", icon: Home },
         { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
-        { href: "/manutencoes", label: "Manutenções", icon: Wrench },
+        { href: "/pneus/manutencao", label: "Pneus", icon: CircleDot },
+        { href: "/manutencoes", label: "Serviços", icon: Wrench },
         { href: "/usuarios", label: "Perfil", icon: Users },
     ];
 };

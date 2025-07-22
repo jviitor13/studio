@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Eye, Truck, Settings } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Eye, Truck, Settings, Wrench, CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Table,
@@ -42,6 +43,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+
 
 const tires = [
   { id: "PNEU-001", brand: "Michelin", model: "X Multi Z", size: "275/80 R22.5", lifespan: "85%", status: "Em Uso", vehicle: "RDO1A12", position: "DDE" },
@@ -58,6 +65,80 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
   "Sucateado": "destructive",
 };
 
+const MaintenanceDialog = ({ tireId }: { tireId: string }) => {
+    const { toast } = useToast();
+    const [open, setOpen] = React.useState(false);
+    const [date, setDate] = React.useState<Date>();
+
+    const handleSendToMaintenance = () => {
+        toast({
+            title: "Envio Registrado!",
+            description: `O pneu ${tireId} foi enviado para manutenção.`,
+        });
+        setOpen(false);
+    }
+    
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Wrench className="mr-2"/>Enviar p/ Manutenção
+                </DropdownMenuItem>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Enviar Pneu para Manutenção</DialogTitle>
+                    <DialogDescription>
+                        Preencha os dados para registrar o envio do pneu <span className="font-bold">{tireId}</span>.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid items-center gap-2">
+                        <Label htmlFor="maintenance-type">Tipo de Manutenção</Label>
+                        <Select>
+                            <SelectTrigger id="maintenance-type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="reforma">Reforma / Recapagem</SelectItem>
+                                <SelectItem value="troca_carcaca">Troca de Carcaça</SelectItem>
+                                <SelectItem value="avaliacao">Avaliação Técnica</SelectItem>
+                                <SelectItem value="sucata">Descarte / Sucata</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid items-center gap-2">
+                        <Label htmlFor="supplier">Fornecedor / Oficina</Label>
+                        <Input id="supplier" placeholder="Ex: Recapadora Silva" />
+                    </div>
+                     <div className="grid items-center gap-2">
+                        <Label htmlFor="return-date">Previsão de Retorno</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                id="return-date"
+                                variant={"outline"}
+                                className={cn("justify-start text-left font-normal", !date && "text-muted-foreground")}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date ? format(date, "PPP") : <span>Selecione uma data</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} initialFocus /></PopoverContent>
+                        </Popover>
+                    </div>
+                     <div className="grid items-center gap-2">
+                        <Label htmlFor="observations">Observações Técnicas</Label>
+                        <Textarea id="observations" placeholder="Descreva problemas como bolhas, desgaste irregular, etc." />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button type="submit" onClick={handleSendToMaintenance}>Enviar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function PneusPage() {
     const [open, setOpen] = React.useState(false);
 
@@ -72,6 +153,12 @@ export default function PneusPage() {
             <Button variant="outline">
                 <Eye className="mr-2" />
                 Visualizar por Veículo
+            </Button>
+           </Link>
+           <Link href="/pneus/manutencao">
+            <Button variant="outline">
+                <Wrench className="mr-2" />
+                Acompanhar Manutenções
             </Button>
            </Link>
             <Dialog open={open} onOpenChange={setOpen}>
@@ -230,7 +317,8 @@ export default function PneusPage() {
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                         <DropdownMenuItem><Eye className="mr-2"/>Ver Detalhes</DropdownMenuItem>
                         <DropdownMenuItem><Truck className="mr-2"/>Movimentar</DropdownMenuItem>
-                        <DropdownMenuItem><Settings className="mr-2"/>Enviar p/ Manutenção</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <MaintenanceDialog tireId={tire.id} />
                         <DropdownMenuItem className="text-destructive">
                           Sucatear
                         </DropdownMenuItem>
