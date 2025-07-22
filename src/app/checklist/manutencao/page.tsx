@@ -48,31 +48,20 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   driverName: z.string().min(1, "Nome do motorista é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
-  questions: z.array(itemSchema),
-  generalObservations: z.string().optional(),
-  assinaturaResponsavel: z.string().optional(),
-  assinaturaMotorista: z.string().optional(),
-}).refine((data) => {
-    // Check photo requirements for each question
-    return data.questions.every(question => {
+  questions: z.array(itemSchema).refine((questions) => {
+    return questions.every(question => {
         if (question.status === 'N/A') return true;
         if (question.photoRequirement === 'always') return !!question.photo;
         if (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK') return !!question.photo;
         return true;
     });
-}, {
-    message: "Verifique os itens com fotos obrigatórias.",
-    path: ["questions"],
-}).refine((data) => {
-    return !!data.assinaturaResponsavel;
-}, {
-    message: "A assinatura do responsável é obrigatória.",
-    path: ["assinaturaResponsavel"],
-}).refine((data) => {
-    return !!data.assinaturaMotorista;
-}, {
-    message: "A assinatura do motorista é obrigatória.",
-    path: ["assinaturaMotorista"],
+  }, {
+      message: "Verifique os itens com fotos obrigatórias.",
+      path: ["questions"],
+  }),
+  generalObservations: z.string().optional(),
+  assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
+  assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -394,7 +383,7 @@ export default function MaintenanceChecklistPage() {
             <CardHeader>
                 <CardTitle>Assinaturas</CardTitle>
                 <CardDescription>O responsável técnico e o motorista devem assinar para validar o checklist.</CardDescription>
-                 {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
+                {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
                     <p className="text-sm text-destructive pt-2">Ambas as assinaturas são obrigatórias para finalizar.</p>
                 )}
             </CardHeader>
@@ -406,6 +395,7 @@ export default function MaintenanceChecklistPage() {
                           setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true });
                         }}
                     />
+                     {errors.assinaturaResponsavel && <p className="text-sm text-destructive">{errors.assinaturaResponsavel.message}</p>}
                     <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
                 </div>
                  <div className="grid gap-2">
@@ -415,6 +405,7 @@ export default function MaintenanceChecklistPage() {
                           setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true });
                         }}
                     />
+                    {errors.assinaturaMotorista && <p className="text-sm text-destructive">{errors.assinaturaMotorista.message}</p>}
                     <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
                 </div>
             </CardContent>
