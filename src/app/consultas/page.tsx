@@ -2,7 +2,7 @@
 "use client"
 
 import * as React from "react"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -343,5 +343,3 @@ export default function ConsultasPage() {
         </>
     )
 }
-
-    
