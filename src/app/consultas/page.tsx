@@ -280,7 +280,7 @@ export default function ConsultasPage() {
                                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.driver}</TableCell>
-                                            <TableCell>{item.type}</TableCell>
+                                            <TableCell className="capitalize">{item.type}</TableCell>
                                             <TableCell>
                                                 <Badge variant={statusVariant[item.status]} className={cn(statusBadgeColor[item.status])}>
                                                     {item.status === 'OK' ? 'Concluído' : 'Com Pendências'}
