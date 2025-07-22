@@ -63,8 +63,8 @@ const checklistSchema = z.object({
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
   questions: z.array(itemSchema),
   generalObservations: z.string().optional(),
-  assinaturaResponsavel: z.string().min(1, "Assinatura do responsável é obrigatória."),
-  assinaturaMotorista: z.string().min(1, "Assinatura do motorista é obrigatória."),
+  assinaturaResponsavel: z.string().optional(),
+  assinaturaMotorista: z.string().optional(),
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -160,9 +160,6 @@ export default function MaintenanceChecklistPage() {
 
   const watchResponsibleName = watch("responsibleName");
   const watchDriverName = watch("driverName");
-  const watchAllErrors = errors;
-  const showSignatureError = !!(watchAllErrors.assinaturaResponsavel || watchAllErrors.assinaturaMotorista) && (!watch('assinaturaResponsavel') || !watch('assinaturaMotorista'));
-
 
   const handleSelectTemplate = (template: ChecklistTemplate) => {
     setSelectedTemplate(template);
@@ -201,6 +198,15 @@ export default function MaintenanceChecklistPage() {
   };
 
   const onSubmit = async (data: ChecklistFormValues) => {
+    if(!data.assinaturaResponsavel || !data.assinaturaMotorista) {
+        toast({
+            variant: "destructive",
+            title: "Assinaturas Obrigatórias",
+            description: "Ambas as assinaturas são necessárias para finalizar o checklist.",
+        });
+        return;
+    }
+    
     try {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       const submissionData = {
@@ -400,15 +406,6 @@ export default function MaintenanceChecklistPage() {
                     {errors.assinaturaMotorista && <p className="text-sm text-destructive">{errors.assinaturaMotorista.message}</p>}
                 </div>
             </CardContent>
-             {showSignatureError && (
-                <CardContent>
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Assinaturas Obrigatórias</AlertTitle>
-                        <AlertDescription>Ambas as assinaturas são necessárias para finalizar o checklist.</AlertDescription>
-                    </Alert>
-                </CardContent>
-            )}
             <CardFooter className="border-t px-6 py-4 flex justify-between">
               <Button type="submit" size="lg" disabled={isSubmitting}>{isSubmitting ? 'Enviando...' : 'Finalizar Checklist'}</Button>
               <Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)}>Cancelar e Voltar</Button>
