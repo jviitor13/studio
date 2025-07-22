@@ -14,53 +14,27 @@ import {z} from 'genkit';
 import { adminDb } from '@/lib/firebase-admin';
 
 
-// Tool to get tire status summary from Firestore
-const getTireStatusSummary = ai.defineTool(
-    {
-        name: 'getTireStatusSummary',
-        description: 'Get a summary of the status of all tires in the fleet.',
-        outputSchema: z.object({
-            inUse: z.number().describe('Number of tires currently in use on a vehicle.'),
-            inStock: z.number().describe('Number of tires available in stock.'),
-            inMaintenance: z.number().describe('Number of tires currently in maintenance.'),
-            scrapped: z.number().describe('Number of tires that have been scrapped.'),
-        }),
-    },
-    async () => {
-        // In a real app, this data would come from Firestore.
-        // const snapshot = await adminDb.collection('tires').get();
-        // const tires = snapshot.docs.map(doc => doc.data());
-        // For now, returning mock data.
-        return {
-            inUse: 8,
-            inStock: 12,
-            inMaintenance: 3,
-            scrapped: 2,
-        };
-    }
-);
+// In a real app, this data would come from Firestore. For now, we use mock data.
+const getTireData = async () => {
+    // const snapshot = await adminDb.collection('tires').get();
+    // return snapshot.docs.map(doc => doc.data());
+    return {
+        inUse: 8,
+        inStock: 12,
+        inMaintenance: 3,
+        scrapped: 2,
+    };
+};
 
-// Tool to get maintenance status summary from Firestore
-const getMaintenanceSummary = ai.defineTool(
-    {
-        name: 'getMaintenanceSummary',
-        description: 'Get a summary of the status of all vehicle maintenances.',
-        outputSchema: z.object({
-            inProgress: z.number().describe('Number of vehicles currently in maintenance.'),
-            pendingApproval: z.number().describe('Number of maintenances waiting for approval.'),
-            pending: z.number().describe('Number of maintenances that are pending action.'),
-        }),
-    },
-    async () => {
-        // In a real app, this data would come from Firestore.
-        // For now, returning mock data.
-        return {
-            inProgress: 5,
-            pendingApproval: 2,
-            pending: 1,
-        };
-    }
-);
+const getMaintenanceData = async () => {
+    // const snapshot = await adminDb.collection('maintenances').get();
+    // return snapshot.docs.map(doc => doc.data());
+     return {
+        inProgress: 5,
+        pendingApproval: 2,
+        pending: 1,
+    };
+}
 
 
 const AssistantFlowInputSchema = z.object({
@@ -84,16 +58,13 @@ const AssistantFlowOutputSchema = z.object({
 });
 export type AssistantFlowOutput = z.infer<typeof AssistantFlowOutputSchema>;
 
-const prompt = ai.definePrompt({
-    name: 'assistantPrompt',
-    input: {schema: AssistantFlowInputSchema},
-    output: {schema: AssistantFlowOutputSchema},
-    tools: [getTireStatusSummary, getMaintenanceSummary],
-    prompt: `You are an intelligent assistant for RodoCheck, a fleet management system developed on Firebase. 
-Your role is to help users navigate the app, answer questions about its features, and provide insights based on real-time data from Firebase. 
-Respond clearly, professionally, and objectively. Whenever possible, suggest actions or navigate the user to the corresponding screen.
+const promptTemplate = `Você é um assistente inteligente para RodoCheck, um sistema de gestão de frotas. Sua função é ajudar usuários a navegar, responder perguntas e dar insights com base nos dados do sistema. Responda de forma clara, profissional e objetiva. Sempre que possível, sugira ações ou navegue o usuário para a tela correspondente.
 
-The user is asking: "{{query}}"
+O usuário está perguntando: "{{query}}"
+
+Para te ajudar a responder, aqui estão alguns dados atuais do sistema:
+- **Resumo de Pneus:** {{{tireData}}}
+- **Resumo de Manutenções:** {{{maintenanceData}}}
 
 Available Pages:
 - /dashboard: Main dashboard
@@ -112,17 +83,31 @@ Example Interactions:
     *   If the user says "criar um checklist", respond with "Ótimo! Redirecionando você para a tela de criação de checklist..." and set action to "navigate" with payload "/checklist/viagem".
     *   If the user says "abrir tela de relatórios", respond with "Acessando a tela de relatórios..." and set action to "navigate" with payload "/relatorios".
 
-2.  **Data-driven Queries (use your tools):**
-    *   If the user asks "Como estão os pneus da frota?", use the 'getTireStatusSummary' tool. Based on the result, respond like: "Atualmente, [X] pneus estão em uso, [Y] em manutenção... Deseja visualizar os detalhes?" and set action to "navigate" with payload "/pneus".
-    *   If the user asks "Como estão as manutenções?", use the 'getMaintenanceSummary' tool. Based on the result, respond like: "Temos [A] veículos em manutenção, [B] aguardando aprovação... Deseja ver a lista?" and set action to "navigate" with payload "/manutencoes".
+2.  **Data-driven Queries (use the context data):**
+    *   If the user asks "Como estão os pneus da frota?", use o JSON de pneus. Responda algo como: "Atualmente, temos {{tireData.inUse}} pneus em uso e {{tireData.inMaintenance}} em manutenção. Deseja visualizar os detalhes?" e direcione para "/pneus".
+    *   If the user asks "Como estão as manutenções?", use o JSON de manutenções. Responda algo como: "Temos {{maintenanceData.inProgress}} veículos em manutenção e {{maintenanceData.pendingApproval}} aguardando aprovação. Deseja ver a lista?" e direcione para "/manutencoes".
 
 3.  **Support & Ambiguity:**
     *   If the user asks for "suporte", provide a WhatsApp link. Respond with "Para falar com o suporte, clique no link." set action to "link" and payload to "https://wa.me/5511999999999".
     *   If the request is ambiguous (e.g., "criar checklist"), ask for clarification: "Qual tipo de checklist, de viagem ou de manutenção?". Set action to "none".
     *   If you don't understand, respond politely and say you don't know how to help. Set action to "none".
 
-Based on the user's query and the data from your tools, provide the most helpful and accurate JSON output.`,
-  });
+Based on the user's query and the data from your tools, provide the most helpful and accurate JSON output.`;
+
+
+const assistantPrompt = ai.definePrompt({
+    name: 'assistantPrompt',
+    prompt: promptTemplate,
+    input: {
+        schema: z.object({
+            query: z.string(),
+            tireData: z.string(),
+            maintenanceData: z.string(),
+        })
+    },
+    output: { schema: AssistantFlowOutputSchema },
+});
+
 
 export const assistantFlow = ai.defineFlow(
   {
@@ -131,7 +116,16 @@ export const assistantFlow = ai.defineFlow(
     outputSchema: AssistantFlowOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
+    // Fetch real-time data before calling the prompt
+    const tireData = await getTireData();
+    const maintenanceData = await getMaintenanceData();
+
+    const { output } = await assistantPrompt({
+      query: input.query,
+      tireData: JSON.stringify(tireData, null, 2),
+      maintenanceData: JSON.stringify(maintenanceData, null, 2),
+    });
+    
     return output!;
   }
 );
