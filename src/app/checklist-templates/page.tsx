@@ -121,7 +121,13 @@ export default function ChecklistTemplatePage() {
     
     const onSubmit = async (data: TemplateFormValues) => {
         try {
-            const { id, ...dataToSave } = data;
+            // Prepare data by removing the temporary client-side ID from questions
+            const dataToSave = {
+                name: data.name,
+                type: data.type,
+                category: data.category,
+                questions: data.questions.map(({ id, ...rest }) => rest), // Destructure to remove 'id'
+            };
 
             if (selectedTemplate?.id && !isEditingNew) {
                 const docRef = doc(db, 'checklist-templates', selectedTemplate.id);
@@ -132,8 +138,11 @@ export default function ChecklistTemplatePage() {
                 });
             } else {
                 const docRef = await addDoc(collection(db, 'checklist-templates'), dataToSave);
-                const newTemplate = { ...data, id: docRef.id };
-                setSelectedTemplate(newTemplate);
+                const newTemplateData: ChecklistTemplate = {
+                    ...dataToSave,
+                    id: docRef.id,
+                };
+                setSelectedTemplate(newTemplateData);
                 setIsEditingNew(false);
                 setShowSuccessDialog(true);
             }
