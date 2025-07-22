@@ -60,7 +60,7 @@ export default function ChecklistTemplatePage() {
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
 
-    const { control, register, handleSubmit, formState: { errors }, watch, reset } = useForm<TemplateFormValues>({
+    const { control, register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm<TemplateFormValues>({
         resolver: zodResolver(templateSchema),
         defaultValues: {
           id: undefined,
@@ -124,7 +124,6 @@ export default function ChecklistTemplatePage() {
                 name: data.name,
                 type: data.type,
                 category: data.category,
-                // Remove client-side ID before saving
                 questions: data.questions.map(({ id, ...rest }) => rest), 
             };
 
@@ -137,8 +136,6 @@ export default function ChecklistTemplatePage() {
                 });
             } else {
                 const docRef = await addDoc(collection(db, 'checklist-templates'), dataToSave);
-                const newTemplateData: ChecklistTemplate = { ...dataToSave, id: docRef.id };
-                setTemplates(prev => [...prev, newTemplateData]);
                 setSelectedTemplateId(docRef.id);
                 setIsEditingNew(false);
                 setShowSuccessDialog(true);
@@ -333,7 +330,7 @@ export default function ChecklistTemplatePage() {
                             </div>
                         </CardContent>
                         <CardFooter className="border-t px-6 py-4 flex justify-between">
-                            <Button type="submit">Salvar Modelo</Button>
+                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar Modelo"}</Button>
                             {selectedTemplateId && !isEditingNew && (
                                 <Button type="button" variant="destructive" onClick={handleDeleteTemplate}>Excluir Modelo</Button>
                             )}
@@ -345,5 +342,3 @@ export default function ChecklistTemplatePage() {
         </>
     );
 }
-
-    
