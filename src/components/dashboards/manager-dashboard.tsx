@@ -71,11 +71,11 @@ export function ManagerDashboard() {
   const [activeAlerts, setActiveAlerts] = useState(0);
 
   useEffect(() => {
+    // Listener for 'vehicles' collection
     const unsubscribeVehicles = onSnapshot(collection(db, "vehicles"), (snapshot) => {
         const vehiclesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
         setVehicles(vehiclesData);
-        
-        // Process fleet status
+
         const statusCounts = vehiclesData.reduce((acc, vehicle) => {
             acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
             return acc;
@@ -88,10 +88,10 @@ export function ManagerDashboard() {
         }));
         setFleetStatus(chartData);
 
-        // Filter maintenance vehicles
         setMaintenanceVehicles(vehiclesData.filter(v => v.status === 'Em Manutenção'));
     });
 
+    // Listener for 'completed-checklists' collection
     const unsubscribeChecklists = onSnapshot(collection(db, "completed-checklists"), (snapshot) => {
         const checklistsData = snapshot.docs.map(doc => {
             const data = doc.data();
@@ -104,13 +104,14 @@ export function ManagerDashboard() {
         setChecklists(checklistsData);
         setActiveAlerts(checklistsData.filter(c => c.status === 'Pendente').length);
 
-        // Process problematic items
         const problemCounts = checklistsData
             .filter(c => c.status === 'Pendente')
             .flatMap(c => c.questions)
             .filter(q => q.status === 'Não OK')
             .reduce((acc, q) => {
-                acc[q.text] = (acc[q.text] || 0) + 1;
+                // Normalize problem text to group similar items
+                const problemKey = q.text.toLowerCase().trim();
+                acc[problemKey] = (acc[problemKey] || 0) + 1;
                 return acc;
             }, {} as Record<string, number>);
         
@@ -118,13 +119,14 @@ export function ManagerDashboard() {
             .sort(([,a], [,b]) => b - a)
             .slice(0, 5) // Top 5 problems
             .map(([problem, count], index) => ({
-                problem: problem.length > 20 ? problem.substring(0, 18) + '...' : problem,
+                problem: problem.charAt(0).toUpperCase() + problem.slice(1), // Capitalize first letter
                 count,
                 fill: `hsl(var(--chart-${index + 1}))`
             }));
         setProblematicItems(sortedProblems);
     });
 
+    // Cleanup function to unsubscribe from listeners on component unmount
     return () => {
         unsubscribeVehicles();
         unsubscribeChecklists();
@@ -284,5 +286,7 @@ export function ManagerDashboard() {
       </Card>
     </div>
   );
+
+    
 
     
