@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks, AlertTriangle } from "lucide-react";
+import { CheckCircle, FileQuestion, MessageSquare, Paperclip, ThumbsDown, ThumbsUp, ListChecks, AlertTriangle, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChecklistTemplate } from "@/lib/checklist-templates-data";
 import { ItemChecklistDialog } from "@/components/item-checklist-dialog";
@@ -40,6 +40,7 @@ const itemSchema = z.object({
   photo: z.string().optional(),
   observation: z.string().optional(),
 }).refine(data => {
+    // This validation ensures that a photo is present if the status and photoRequirement demand it.
     if (data.status === 'N/A') return true;
     if (data.photoRequirement === 'always') {
         return !!data.photo;
@@ -49,8 +50,8 @@ const itemSchema = z.object({
     }
     return true;
 }, {
-    message: "Foto é obrigatória para esta avaliação.",
-    path: ["photo"],
+    message: "Foto é obrigatória para este item e avaliação.",
+    path: ["photo"], // Apply the error to the 'photo' field of the specific item
 });
 
 
@@ -150,7 +151,7 @@ export default function MaintenanceChecklistPage() {
       assinaturaResponsavel: "",
       assinaturaMotorista: "",
     },
-    mode: 'onBlur' 
+    mode: 'onChange' 
   });
   
   const { fields: questionFields } = useFieldArray({
@@ -234,6 +235,10 @@ export default function MaintenanceChecklistPage() {
       };
 
       const docRef = await addDoc(collection(db, 'completed-checklists'), submissionData);
+      toast({
+        title: "Sucesso!",
+        description: "Checklist de manutenção enviado com sucesso.",
+      });
       router.push(`/checklist/completed/${docRef.id}`);
 
     } catch (error) {
@@ -333,7 +338,7 @@ export default function MaintenanceChecklistPage() {
               {questionFields.map((item, itemIndex) => {
                 const currentItemState = watch(`questions.${itemIndex}`);
                 const isCompleted = currentItemState.status !== "N/A";
-                const errorForThisItem = errors.questions?.[itemIndex]?.photo?.message;
+                const errorForThisItem = errors.questions?.[itemIndex]?.root?.message || errors.questions?.[itemIndex]?.photo?.message;
                 
                 return (
                   <div key={item.id}>
@@ -354,7 +359,7 @@ export default function MaintenanceChecklistPage() {
                         )}
                       </div>
                     </button>
-                    {errorForThisItem && <p className="text-sm text-destructive mt-1">{errorForThisItem}</p>}
+                    {errorForThisItem && <p className="text-sm text-destructive mt-1 flex items-center gap-1"><AlertTriangle className="h-4 w-4" /> {errorForThisItem}</p>}
                   </div>
                 );
               })}
@@ -393,7 +398,6 @@ export default function MaintenanceChecklistPage() {
                         }}
                     />
                     <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
-                    {errors.assinaturaResponsavel && <p className="text-sm text-destructive">{errors.assinaturaResponsavel.message}</p>}
                 </div>
                  <div className="grid gap-2">
                     <Label className="font-semibold">Assinatura do Motorista</Label>
@@ -403,11 +407,13 @@ export default function MaintenanceChecklistPage() {
                         }}
                     />
                     <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
-                    {errors.assinaturaMotorista && <p className="text-sm text-destructive">{errors.assinaturaMotorista.message}</p>}
                 </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4 flex justify-between">
-              <Button type="submit" size="lg" disabled={isSubmitting}>{isSubmitting ? 'Enviando...' : 'Finalizar Checklist'}</Button>
+              <Button type="submit" size="lg" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Enviando...' : 'Finalizar Checklist'}
+              </Button>
               <Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)}>Cancelar e Voltar</Button>
             </CardFooter>
           </Card>
@@ -416,5 +422,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
