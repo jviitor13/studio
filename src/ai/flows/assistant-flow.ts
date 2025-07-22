@@ -14,26 +14,26 @@ import {z} from 'genkit';
 import { adminDb } from '@/lib/firebase-admin';
 
 
-// In a real app, this data would come from Firestore. For now, we use mock data.
 const getTireData = async () => {
-    // const snapshot = await adminDb.collection('tires').get();
-    // return snapshot.docs.map(doc => doc.data());
-    return {
-        inUse: 8,
-        inStock: 12,
-        inMaintenance: 3,
-        scrapped: 2,
-    };
+    const snapshot = await adminDb.collection('pneus').get();
+    const tires = snapshot.docs.map(doc => doc.data());
+    // This is a summary. You can make it more complex as needed.
+    return tires.reduce((acc, tire) => {
+        const status = tire.status || 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
 };
 
 const getMaintenanceData = async () => {
-    // const snapshot = await adminDb.collection('maintenances').get();
-    // return snapshot.docs.map(doc => doc.data());
-     return {
-        inProgress: 5,
-        pendingApproval: 2,
-        pending: 1,
-    };
+    const snapshot = await adminDb.collection('manutencoes').get();
+    const maintenances = snapshot.docs.map(doc => doc.data());
+    // This is a summary. You can make it more complex as needed.
+     return maintenances.reduce((acc, maintenance) => {
+        const status = maintenance.status || 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
 }
 
 
@@ -80,19 +80,18 @@ Available Pages:
 Example Interactions:
 
 1.  **Navigational Commands (Direct Action):**
-    *   If the user says "criar um checklist de viagem" or "ir para checklist", respond with "Entendido. Redirecionando para a tela de criação de checklist de viagem..." and set action to "navigate" with payload "/checklist/viagem".
+    *   If the user says "criar um checklist de viagem" or "ir para checklist de viagem", respond with "Entendido. Redirecionando para a tela de criação de checklist de viagem..." and set action to "navigate" with payload "/checklist/viagem".
     *   If the user says "abrir relatórios", respond with "Acessando a tela de relatórios..." and set action to "navigate" with payload "/relatorios".
 
 2.  **Data-driven Queries (Inform, then Suggest):**
-    *   If the user asks "Como estão os pneus da frota?", use o JSON de pneus. Responda algo como: "Atualmente, temos {{tireData.inUse}} pneus em uso e {{tireData.inMaintenance}} em manutenção. Deseja visualizar os detalhes?". A ação DEVE ser "none", pois você está apenas informando e sugerindo o próximo passo.
-    *   If the user asks "e as manutenções?", use o JSON de manutenções. Responda algo como: "Temos {{maintenanceData.inProgress}} veículos em manutenção e {{maintenanceData.pendingApproval}} aguardando aprovação. Gostaria de ver a lista completa?". A ação DEVE ser "none".
+    *   If the user asks about system data (like "Como estão os pneus?" or "e as manutenções?"), use o JSON de dados para dar uma resposta informativa. For example: "Atualmente, temos X pneus em uso e Y em manutenção. Deseja visualizar os detalhes?". The action MUST be "none" in this case. You are only providing information and suggesting the next step for the user to decide.
 
 3.  **Support & Ambiguity:**
     *   If the user asks for "suporte", provide a WhatsApp link. Respond with "Para falar com o suporte, clique no link." set action to "link" and payload to "https://wa.me/5511999999999".
     *   If the request is ambiguous (e.g., "criar checklist"), ask for clarification: "Qual tipo de checklist, de viagem ou de manutenção?". Set action to "none".
     *   If you don't understand, respond politely and say you don't know how to help. Set action to "none".
 
-Based on the user's query and the data provided, generate the most helpful and accurate JSON output. For data queries, always provide the information first and let the user decide if they want to navigate.`;
+Based on the user's query and the data provided, generate the most helpful and accurate JSON output. For data queries, always provide the information first and let the user decide if they want to navigate. The action must be 'none' for these cases.`;
 
 
 const assistantPrompt = ai.definePrompt({
