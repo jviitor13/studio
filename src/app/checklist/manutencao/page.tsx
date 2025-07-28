@@ -38,14 +38,12 @@ const checklistSchema = z.object({
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
   questions: z.array(itemSchema).refine(items => items.every(item => item.status !== 'N/A'), {
     message: 'Todos os itens de verificação devem ser avaliados (OK ou Não OK).',
-    path: ['root'],
   }).refine(items => items.every(item => {
       if (item.photoRequirement === 'always') return !!item.photo;
       if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK') return !!item.photo;
       return true;
   }), {
     message: 'Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens.',
-    path: ['root'],
   }),
   assinaturaResponsavel: z.string().min(1, 'A assinatura do responsável é obrigatória.'),
   assinaturaMotorista: z.string().min(1, 'A assinatura do motorista é obrigatória.'),
@@ -80,7 +78,7 @@ export default function MaintenanceChecklistPage() {
       vehicleId: '',
       responsibleName: '',
       driverName: '',
-      mileage: 0,
+      mileage: undefined,
       questions: [],
       assinaturaResponsavel: '',
       assinaturaMotorista: '',
@@ -265,7 +263,7 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Itens de Verificação</CardTitle>
                             <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
-                            {errors.questions?.root && <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>}
+                            {errors.questions && <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>}
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {fields.map((item, index) => {
@@ -309,15 +307,15 @@ export default function MaintenanceChecklistPage() {
                         </div>
                     </CardContent>
                     </Card>
+
+                    <CardFooter className="border-t px-6 py-4">
+                        <Button type="submit" size="lg" disabled={isSubmitting || !selectedTemplate}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSubmitting ? 'Enviando...' : 'Finalizar e Abrir Ordem de Serviço'}
+                        </Button>
+                    </CardFooter>
                 </>
             )}
-            
-            <CardFooter className="border-t px-6 py-4">
-                <Button type="submit" size="lg" disabled={isSubmitting || !selectedTemplate}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSubmitting ? 'Enviando...' : 'Finalizar e Abrir Ordem de Serviço'}
-                </Button>
-            </CardFooter>
         </div>
     </form>
     </>
