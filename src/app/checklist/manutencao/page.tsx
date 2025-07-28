@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle, CheckCircle, GripVertical, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, GripVertical } from 'lucide-react';
 import { SignaturePad } from '@/components/signature-pad';
 import { PageHeader } from '@/components/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,22 +36,27 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
   driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
-  questions: z.array(itemSchema)
-    .refine(items => !items.some(item => item.status === "N/A"), {
-      message: "Todos os itens devem ser avaliados (OK, Não OK).",
-      path: [0], // Show error at the top of the items list
-    })
-    .refine(items => items.every(item => {
-        if (item.photoRequirement === 'always' && !item.photo) return false;
-        if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK' && !item.photo) return false;
-        return true;
-    }), {
-        message: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens marcados como 'Não OK'.",
-        path: [0],
-    }),
+  questions: z.array(itemSchema),
   assinaturaResponsavel: z.string().min(1, 'A assinatura do responsável é obrigatória.'),
   assinaturaMotorista: z.string().min(1, 'A assinatura do motorista é obrigatória.'),
+}).refine(data => {
+    // Check if all questions have been answered (not 'N/A')
+    const allAnswered = data.questions.every(q => q.status !== 'N/A');
+    if (!allAnswered) return false;
+    
+    // Check for required photos
+    const photosMissing = data.questions.some(item => 
+        (item.photoRequirement === 'always' && !item.photo) ||
+        (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK' && !item.photo)
+    );
+    if (photosMissing) return false;
+
+    return true;
+}, { 
+    message: "Verifique se todos os itens foram respondidos e se as fotos obrigatórias foram adicionadas.",
+    path: ["questions"], // Attach error to the questions field
 });
+
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 
@@ -86,6 +91,7 @@ export default function MaintenanceChecklistPage() {
       assinaturaResponsavel: '',
       assinaturaMotorista: '',
     },
+    mode: 'onChange' // Validate on change to enable/disable button
   });
   
   const { fields, replace, update } = useFieldArray({ control, name: "questions" });
@@ -97,11 +103,20 @@ export default function MaintenanceChecklistPage() {
         const templatesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChecklistTemplate));
         setTemplates(templatesData);
         setIsLoadingTemplates(false);
+    }, (error) => {
+        console.error("Error fetching templates:", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao Carregar Modelos",
+            description: "Não foi possível buscar os dados do Firestore.",
+        });
+        setIsLoadingTemplates(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   const handleTemplateChange = (templateId: string) => {
+    setValue('templateId', templateId, { shouldValidate: true });
     const template = templates.find(t => t.id === templateId);
     if (template) {
         setSelectedTemplate(template);
@@ -132,6 +147,26 @@ export default function MaintenanceChecklistPage() {
 
   const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
+    
+    // Final validation before submitting
+    const allAnswered = data.questions.every(q => q.status !== 'N/A');
+    if (!allAnswered) {
+        toast({ variant: "destructive", title: "Itens Pendentes", description: "Todos os itens de verificação devem ser avaliados (OK ou Não OK)." });
+        setIsSubmitting(false);
+        return;
+    }
+
+    const photosMissing = data.questions.some(item => 
+        (item.photoRequirement === 'always' && !item.photo) ||
+        (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK' && !item.photo)
+    );
+    if (photosMissing) {
+        toast({ variant: "destructive", title: "Fotos Obrigatórias", description: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens." });
+        setIsSubmitting(false);
+        return;
+    }
+
+
     try {
         const hasIssues = data.questions.some(item => item.status === "Não OK");
 
@@ -198,20 +233,17 @@ export default function MaintenanceChecklistPage() {
             <div className="grid gap-2">
               <Label htmlFor="templateId">Modelo do Checklist</Label>
               {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
-                <Controller
-                  name="templateId"
-                  control={control}
-                  render={({ field }) => (
-                    <Select onValueChange={(value) => {
-                      field.onChange(value)
-                      handleTemplateChange(value);
-                    }} defaultValue={field.value}>
-                      <SelectTrigger id="templateId"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
-                      <SelectContent>
-                        {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
+                 <Controller
+                    name="templateId"
+                    control={control}
+                    render={({ field }) => (
+                        <Select onValueChange={handleTemplateChange} value={field.value}>
+                            <SelectTrigger id="templateId"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                            <SelectContent>
+                                {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
                 />
               )}
               {errors.templateId && <p className="text-sm text-destructive">{errors.templateId.message}</p>}
@@ -259,7 +291,6 @@ export default function MaintenanceChecklistPage() {
                         <CardTitle>Itens de Verificação</CardTitle>
                         <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
                          {errors.questions && <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>}
-                         {errors.questions?.root && <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>}
                     </CardHeader>
                     <CardContent className="space-y-2">
                          {fields.map((item, index) => {
@@ -276,7 +307,7 @@ export default function MaintenanceChecklistPage() {
                                         {item.status === 'N/A' && <GripVertical className="h-5 w-5 text-muted-foreground" />}
                                         <span>{item.text}</span>
                                     </div>
-                                    <Button variant="ghost" size="sm">Editar</Button>
+                                    <Button type="button" variant="ghost" size="sm">Editar</Button>
                                 </div>
                             )
                         })}
@@ -317,5 +348,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
