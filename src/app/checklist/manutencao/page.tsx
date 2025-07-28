@@ -36,25 +36,19 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
   driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
-  questions: z.array(itemSchema),
+  questions: z.array(itemSchema).refine(items => items.every(item => item.status !== 'N/A'), {
+    message: 'Todos os itens de verificação devem ser avaliados (OK ou Não OK).',
+    path: ['root'],
+  }).refine(items => items.every(item => {
+      if (item.photoRequirement === 'always') return !!item.photo;
+      if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK') return !!item.photo;
+      return true;
+  }), {
+    message: 'Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens.',
+    path: ['root'],
+  }),
   assinaturaResponsavel: z.string().min(1, 'A assinatura do responsável é obrigatória.'),
   assinaturaMotorista: z.string().min(1, 'A assinatura do motorista é obrigatória.'),
-}).refine((data) => {
-    // Check if all questions have been answered
-    return data.questions.every(q => q.status !== 'N/A');
-}, {
-    message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
-    path: ["questions"],
-}).refine((data) => {
-    // Check for required photos
-    return data.questions.every(item => {
-        if (item.photoRequirement === 'always' && !item.photo) return false;
-        if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK' && !item.photo) return false;
-        return true;
-    });
-}, {
-    message: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens.",
-    path: ["questions"],
 });
 
 
@@ -198,13 +192,12 @@ export default function MaintenanceChecklistPage() {
         item={currentItem?.item ?? null}
         onSave={handleSaveItem}
     />
-    <div className="mx-auto grid w-full max-w-4xl gap-6">
+    <form className="mx-auto grid w-full max-w-4xl gap-6" onSubmit={handleSubmit(onSubmit)}>
       <PageHeader
         title="Novo Checklist de Manutenção"
         description="Registre uma nova manutenção corretiva ou emergencial para um veículo."
       />
 
-      <form onSubmit={handleSubmit(onSubmit)}>
         <div className="space-y-8">
             <Card>
             <CardHeader>
@@ -272,7 +265,7 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Itens de Verificação</CardTitle>
                             <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
-                            {errors.questions && <p className="text-sm text-destructive mt-2">{errors.questions.message || errors.questions.root?.message}</p>}
+                            {errors.questions?.root && <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>}
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {fields.map((item, index) => {
@@ -326,8 +319,9 @@ export default function MaintenanceChecklistPage() {
                 </Button>
             </CardFooter>
         </div>
-      </form>
-    </div>
+    </form>
     </>
   );
 }
+
+    
