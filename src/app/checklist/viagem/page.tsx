@@ -29,6 +29,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { compressImage } from "@/lib/image-compressor";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 
 const answerSchema = z.object({
@@ -65,8 +66,9 @@ export default function PreTripChecklistPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [damageInfo, setDamageInfo] = useState("");
+  const [isReviewing, setIsReviewing] = useState(false);
   
-  const { control, handleSubmit, formState: { errors, isSubmitting }, watch, reset, update: updateAnswer } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors, isSubmitting }, watch, reset, update: updateAnswer, trigger, getValues } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -78,7 +80,8 @@ export default function PreTripChecklistPage() {
           questionType: q.type,
           answer: q.type === 'boolean' ? false : ''
       }))
-    }
+    },
+    mode: 'onChange',
   });
 
   const { fields, update } = useFieldArray({
@@ -133,6 +136,19 @@ export default function PreTripChecklistPage() {
      }
   };
 
+  const handleReview = async () => {
+    const isValid = await trigger();
+    if (isValid) {
+      if (vehicleImages.length === 0) {
+        toast({ variant: "destructive", title: "Erro de Validação", description: "É obrigatório o envio de pelo menos uma foto do veículo." });
+        return;
+      }
+      setIsReviewing(true);
+    } else {
+       toast({ variant: "destructive", title: "Erro de Validação", description: "Por favor, preencha todos os campos obrigatórios antes de continuar." });
+    }
+  }
+
 
   const onSubmit = async (data: ChecklistFormValues) => {
     if(vehicleImages.length === 0) {
@@ -176,6 +192,8 @@ export default function PreTripChecklistPage() {
             title: "Erro no Envio",
             description: "Não foi possível enviar o checklist de viagem.",
         });
+    } finally {
+      setIsReviewing(false);
     }
   };
   
@@ -190,12 +208,37 @@ export default function PreTripChecklistPage() {
             toast({ title: "Aviso", description: "Prossiga com o preenchimento, mas não se esqueça de adicionar a justificativa nas observações." });
         }}
       />
+      
+      <AlertDialog open={isReviewing} onOpenChange={setIsReviewing}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revisar e Finalizar Checklist</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirme os dados abaixo antes de finalizar. Esta ação não poderá ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="text-sm space-y-2">
+                <p><strong>Veículo:</strong> {getValues("vehicleId")}</p>
+                <p><strong>Km Inicial:</strong> {getValues("initialKm")}</p>
+                <p><strong>Observações:</strong> {getValues("observations") || "Nenhuma"}</p>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Confirmar e Enviar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+
+
       <div className="mx-auto grid w-full max-w-4xl gap-2">
         <h1 className="text-3xl font-semibold font-headline">Checklist de Viagem</h1>
         <p className="text-muted-foreground">Preencha todos os campos para iniciar sua jornada com segurança.</p>
       </div>
       <div className="mx-auto grid w-full max-w-4xl items-start gap-6">
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form>
           <Card>
             <CardHeader>
               <CardTitle>Informações Iniciais</CardTitle>
@@ -255,7 +298,7 @@ export default function PreTripChecklistPage() {
                             </Label>
                         )}
                     </div>
-                     {vehicleImages.length === 0 && <p className="text-sm text-destructive">Envio de foto geral do veículo é obrigatório</p>}
+                     {vehicleImages.length === 0 && errors.vehicleId && <p className="text-sm text-destructive">Envio de foto geral do veículo é obrigatório</p>}
                 </div>
             </CardContent>
           </Card>
@@ -321,7 +364,7 @@ export default function PreTripChecklistPage() {
               </div>
             </CardContent>
              <CardFooter>
-                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                <Button type="button" size="lg" className="w-full" onClick={handleReview} disabled={isSubmitting}>
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
