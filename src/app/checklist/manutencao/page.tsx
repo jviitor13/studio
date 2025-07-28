@@ -51,13 +51,13 @@ const checklistSchema = z.object({
   questions: z.array(itemSchema)
     .refine(
         (questions) => questions.every((q) => q.status !== "N/A"),
-        { message: "Todos os itens de verificação devem ser respondidos (OK, Não OK)." }
+        { message: "Todos os itens de verificação devem ser respondidos (OK ou Não OK)." }
     ).refine(
         (questions) => questions.every((q) => {
             const needsPhoto = q.photoRequirement === 'always' || (q.photoRequirement === 'if_not_ok' && q.status === 'Não OK');
             return !needsPhoto || (needsPhoto && !!q.photo);
         }),
-        { message: "Um ou mais itens que requerem foto não foram preenchidos." }
+        { message: "Um ou mais itens requerem foto, mas não foi anexada." }
     ),
   generalObservations: z.string().optional(),
   assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
@@ -199,22 +199,6 @@ export default function MaintenanceChecklistPage() {
 
   const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
-    
-    // Manual validation for items that need photos - this is a secondary check, Zod handles the primary one.
-    for (const question of data.questions) {
-        const photoIsRequired = question.photoRequirement === 'always' || (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK');
-        if (photoIsRequired && !question.photo) {
-            toast({
-                variant: "destructive",
-                title: "Validação Falhou",
-                description: `O item "${question.text}" requer uma foto para a avaliação "${question.status}".`,
-            });
-            setIsSubmitting(false);
-            return;
-        }
-    }
-
-
     try {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
       
@@ -334,7 +318,7 @@ export default function MaintenanceChecklistPage() {
                 <Controller
                   name="mileage"
                   control={control}
-                  render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} />}
+                  render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} />}
                 />
                 {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
               </div>
@@ -440,4 +424,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
