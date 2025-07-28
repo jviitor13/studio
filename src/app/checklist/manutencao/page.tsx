@@ -57,7 +57,7 @@ const checklistSchema = z.object({
             const needsPhoto = q.photoRequirement === 'always' || (q.photoRequirement === 'if_not_ok' && q.status === 'Não OK');
             return !needsPhoto || (needsPhoto && !!q.photo);
         }),
-        { message: "Um ou mais itens requerem foto, mas não foi anexada." }
+        { message: "Um ou mais itens requerem uma foto obrigatória que não foi anexada." }
     ),
   generalObservations: z.string().optional(),
   assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
@@ -110,7 +110,7 @@ function TemplateSelectionScreen({ onSelect, templates, isLoading }: { onSelect:
             ))
           )}
            {!isLoading && templates.length === 0 && (
-              <p className="text-center text-muted-foreground">Nenhum modelo de checklist encontrado. Crie um na tela de "Modelos de Checklist".</p>
+              <p className="text-center text-muted-foreground">Nenhum modelo de checklist de manutenção encontrado. Crie um na tela de "Modelos de Checklist".</p>
            )}
         </CardContent>
       </Card>
@@ -142,9 +142,8 @@ export default function MaintenanceChecklistPage() {
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
-      responsibleName: "Pedro Mecânico", // Mock, could come from auth
-      driverName: "João Motorista",
-      mileage: 0,
+      responsibleName: "", // Mock, could come from auth
+      driverName: "",
       questions: [],
       generalObservations: "",
       assinaturaResponsavel: "",
@@ -318,7 +317,7 @@ export default function MaintenanceChecklistPage() {
                 <Controller
                   name="mileage"
                   control={control}
-                  render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} />}
+                  render={({ field }) => <Input id="mileage" type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || undefined)} />}
                 />
                 {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
               </div>
@@ -424,3 +423,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
