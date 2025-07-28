@@ -20,6 +20,8 @@ import { PageHeader } from '@/components/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChecklistTemplate, ChecklistItem as ChecklistItemData } from '@/lib/checklist-templates-data';
 import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { cn } from '@/lib/utils';
 
 const itemSchema = z.object({
   id: z.string(),
@@ -61,6 +63,7 @@ export default function MaintenanceChecklistPage() {
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const {
     control,
@@ -140,6 +143,15 @@ export default function MaintenanceChecklistPage() {
     setCurrentItem(null);
   }, [currentItem, update, getValues, trigger]);
 
+  const handleReview = async () => {
+    const isValid = await trigger();
+    if (isValid) {
+      setIsReviewing(true);
+    } else {
+       toast({ variant: "destructive", title: "Campos Inválidos", description: "Por favor, revise os campos marcados em vermelho e tente novamente." });
+    }
+  }
+
 
   const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
@@ -166,7 +178,7 @@ export default function MaintenanceChecklistPage() {
 
         toast({
             title: "Sucesso!",
-            description: "Checklist de manutenção enviado e ordem de serviço aberta.",
+            description: "Checklist de manutenção enviado com sucesso.",
         });
 
         router.push(`/checklist/completed/${docRef.id}`);
@@ -180,6 +192,7 @@ export default function MaintenanceChecklistPage() {
         });
     } finally {
         setIsSubmitting(false);
+        setIsReviewing(false);
     }
   };
 
@@ -194,7 +207,31 @@ export default function MaintenanceChecklistPage() {
         item={currentItem?.item ?? null}
         onSave={handleSaveItem}
     />
-    <form className="mx-auto grid w-full max-w-4xl gap-6" onSubmit={handleSubmit(onSubmit)}>
+     <AlertDialog open={isReviewing} onOpenChange={setIsReviewing}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revisar e Finalizar Checklist</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirme os dados abaixo antes de finalizar. Esta ação não poderá ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="text-sm space-y-2 max-h-60 overflow-y-auto pr-2">
+                <p><strong>Veículo:</strong> {getValues("vehicleId")}</p>
+                <p><strong>Responsável:</strong> {getValues("responsibleName")}</p>
+                <p><strong>Motorista:</strong> {getValues("driverName")}</p>
+                <p><strong>Quilometragem:</strong> {getValues("mileage")}</p>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Confirmar e Enviar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+
+    <form className="mx-auto grid w-full max-w-4xl gap-6" onSubmit={(e) => e.preventDefault()}>
         <PageHeader
             title="Novo Checklist de Manutenção"
             description="Registre uma nova manutenção corretiva ou emergencial para um veículo."
@@ -215,7 +252,9 @@ export default function MaintenanceChecklistPage() {
                                 control={control}
                                 render={({ field }) => (
                                     <Select onValueChange={handleTemplateChange} value={field.value}>
-                                        <SelectTrigger id="templateId"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                                        <SelectTrigger id="templateId" className={cn(errors.templateId && "border-destructive")}>
+                                          <SelectValue placeholder="Selecione o modelo" />
+                                        </SelectTrigger>
                                         <SelectContent>
                                             {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                                         </SelectContent>
@@ -232,7 +271,9 @@ export default function MaintenanceChecklistPage() {
                             control={control}
                             render={({ field }) => (
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger id="vehicleId"><SelectValue placeholder="Selecione a placa" /></SelectTrigger>
+                                <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
+                                  <SelectValue placeholder="Selecione a placa" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
                                     <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
@@ -245,17 +286,17 @@ export default function MaintenanceChecklistPage() {
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="responsibleName">Nome do Responsável</Label>
-                        <Input id="responsibleName" {...register('responsibleName')} />
+                        <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
                         {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="driverName">Nome do Motorista</Label>
-                        <Input id="driverName" {...register('driverName')} />
+                        <Input id="driverName" {...register('driverName')} className={cn(errors.driverName && "border-destructive")} />
                         {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
                     </div>
                     <div className="grid gap-2 md:col-span-2">
                         <Label htmlFor="mileage">Quilometragem Atual</Label>
-                        <Input id="mileage" type="number" {...register('mileage')} />
+                        <Input id="mileage" type="number" {...register('mileage')} className={cn(errors.mileage && "border-destructive")} />
                         {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
                     </div>
                 </CardContent>
@@ -267,7 +308,7 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Itens de Verificação</CardTitle>
                             <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
-                            {errors.questions && typeof errors.questions.message === 'string' && (
+                            {errors.questions && (
                                 <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
                                     {errors.questions.message}
                                 </p>
@@ -300,14 +341,9 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Assinaturas</CardTitle>
                             <CardDescription>O responsável e o motorista devem assinar para validar.</CardDescription>
-                            {errors.assinaturaResponsavel && (
+                             {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
                                 <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
-                                    {errors.assinaturaResponsavel.message}
-                                </p>
-                            )}
-                            {errors.assinaturaMotorista && !errors.assinaturaResponsavel && (
-                                 <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
-                                    {errors.assinaturaMotorista.message}
+                                    {errors.assinaturaResponsavel?.message || errors.assinaturaMotorista?.message}
                                 </p>
                             )}
                         </CardHeader>
@@ -326,9 +362,8 @@ export default function MaintenanceChecklistPage() {
                     </Card>
 
                     <CardFooter className="border-t px-6 py-4">
-                        <Button type="submit" size="lg" disabled={isSubmitting || !selectedTemplate}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isSubmitting ? 'Enviando...' : 'Finalizar e Abrir Ordem de Serviço'}
+                        <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting || !selectedTemplate}>
+                            {isSubmitting ? 'Enviando...' : 'Revisar e Finalizar Checklist'}
                         </Button>
                     </CardFooter>
                 </>
