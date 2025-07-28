@@ -13,7 +13,7 @@ export interface ChecklistItem {
 export interface ChecklistTemplate {
   id: string;
   name: string;
-  type: "manutencao" | "viagem" | "retorno";
+  type: "Manutenção" | "viagem" | "retorno";
   category: "cavalo_mecanico" | "carreta" | "caminhao_3_4" | "moto";
   questions: {
     id: string;
