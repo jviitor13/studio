@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,11 +71,10 @@ export function DriverDashboard() {
              <Card className="flex-1">
                 <CardHeader>
                     <CardTitle className="font-headline">Jornada</CardTitle>
-                     <CardDescription>Inicie ou finalize sua jornada de trabalho.</CardDescription>
+                     <CardDescription>Inicie sua jornada de trabalho.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex gap-4">
                      <Button className="w-full">Iniciar Jornada</Button>
-                     <Button variant="outline" className="w-full" disabled>Finalizar Jornada</Button>
                 </CardContent>
             </Card>
         </div>
