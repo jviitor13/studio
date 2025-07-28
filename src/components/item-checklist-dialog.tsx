@@ -25,7 +25,7 @@ interface ItemChecklistDialogProps {
 
 export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemChecklistDialogProps) {
   const { toast } = useToast();
-  const [status, setStatus] = useState<"OK" | "Não OK">("OK");
+  const [status, setStatus] = useState<"OK" | "Não OK" | "N/A">("N/A");
   const [observation, setObservation] = useState("");
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +35,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
 
   useEffect(() => {
     if (item) {
-      // Don't pre-set status to N/A, force user to choose OK or Not OK
-      setStatus(item.status === "Não OK" ? "Não OK" : "OK");
+      setStatus(item.status || "N/A");
       setObservation(item.observation || "");
       setPhoto(item.photo);
       setError(null);
@@ -50,8 +49,12 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
     (item.photoRequirement === 'if_not_ok' && status === 'Não OK');
 
   const handleSave = () => {
+    if (status === 'N/A') {
+      setError("Por favor, avalie o item como 'OK' ou 'Não OK'.");
+      return;
+    }
     if (isPhotoRequired && !photo) {
-      setError("Este item requer imagem para continuar.");
+      setError("Este item requer uma imagem para continuar.");
       return;
     }
     setError(null);
@@ -100,6 +103,9 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                 setStatus(value);
                 const willRequirePhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && value === 'Não OK');
                 if (!willRequirePhoto) {
+                    setError(null);
+                }
+                 if (value !== 'N/A') {
                     setError(null);
                 }
               }}
@@ -155,7 +161,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                     ref={photoInputRef}
                     disabled={isCompressing}
                 />
-                <Button variant="outline" onClick={() => photoInputref.current?.click()} disabled={isCompressing}>
+                <Button variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isCompressing}>
                     {isCompressing ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
