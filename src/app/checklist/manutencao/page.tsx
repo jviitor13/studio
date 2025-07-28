@@ -25,7 +25,7 @@ const itemSchema = z.object({
   id: z.string(),
   text: z.string(),
   photoRequirement: z.enum(["always", "if_not_ok", "never"]),
-  status: z.enum(["OK", "Não OK", "N/A"]),
+  status: z.enum(["OK", "Não OK", "N/A"]), // N/A is only for initial state
   photo: z.string().optional(),
   observation: z.string().optional(),
 });
@@ -36,7 +36,8 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
   driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
-  questions: z.array(itemSchema).refine(items => items.every(item => item.status !== 'N/A'), {
+  questions: z.array(itemSchema).min(1, "O checklist precisa ter itens.")
+  .refine(items => items.every(item => item.status !== 'N/A'), {
     message: 'Todos os itens de verificação devem ser avaliados (OK ou Não OK).',
   }).refine(items => items.every(item => {
       if (item.photoRequirement === 'always') return !!item.photo;
@@ -68,7 +69,6 @@ export default function MaintenanceChecklistPage() {
     watch,
     register,
     formState: { errors },
-    reset,
     getValues,
     trigger
   } = useForm<ChecklistFormValues>({
@@ -114,7 +114,7 @@ export default function MaintenanceChecklistPage() {
         setSelectedTemplate(template);
         const questions = template.questions.map(q => ({
             ...q,
-            status: "N/A" as const,
+            status: "N/A" as const, // Initial unevaluated state
             observation: '',
             photo: ''
         }));
@@ -125,13 +125,17 @@ export default function MaintenanceChecklistPage() {
     }
   };
 
-  const handleSaveItem = useCallback((data: { status: "OK" | "Não OK" | "N/A"; photo?: string; observation?: string }) => {
+  const handleSaveItem = useCallback((data: { status: "OK" | "Não OK"; photo?: string; observation?: string }) => {
     if (currentItem) {
+      const currentQuestion = getValues(`questions.${currentItem.index}`);
       update(currentItem.index, {
-        ...getValues(`questions.${currentItem.index}`),
-        ...data,
+        ...currentQuestion,
+        status: data.status,
+        photo: data.photo,
+        observation: data.observation,
       });
-      trigger("questions");
+      // Use a timeout to ensure state update before triggering validation
+      setTimeout(() => trigger("questions"), 100);
     }
     setCurrentItem(null);
   }, [currentItem, update, getValues, trigger]);
@@ -191,70 +195,70 @@ export default function MaintenanceChecklistPage() {
         onSave={handleSaveItem}
     />
     <form className="mx-auto grid w-full max-w-4xl gap-6" onSubmit={handleSubmit(onSubmit)}>
-      <PageHeader
-        title="Novo Checklist de Manutenção"
-        description="Registre uma nova manutenção corretiva ou emergencial para um veículo."
-      />
+        <PageHeader
+            title="Novo Checklist de Manutenção"
+            description="Registre uma nova manutenção corretiva ou emergencial para um veículo."
+        />
 
         <div className="space-y-8">
             <Card>
-            <CardHeader>
-                <CardTitle>Informações Gerais</CardTitle>
-                <CardDescription>Primeiro, selecione o modelo e preencha os dados principais.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-6">
-                <div className="grid gap-2">
-                <Label htmlFor="templateId">Modelo do Checklist</Label>
-                {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
-                    <Controller
-                        name="templateId"
-                        control={control}
-                        render={({ field }) => (
-                            <Select onValueChange={handleTemplateChange} value={field.value}>
-                                <SelectTrigger id="templateId"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                <CardHeader>
+                    <CardTitle>Informações Gerais</CardTitle>
+                    <CardDescription>Primeiro, selecione o modelo e preencha os dados principais.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-6">
+                    <div className="grid gap-2">
+                        <Label htmlFor="templateId">Modelo do Checklist</Label>
+                        {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
+                            <Controller
+                                name="templateId"
+                                control={control}
+                                render={({ field }) => (
+                                    <Select onValueChange={handleTemplateChange} value={field.value}>
+                                        <SelectTrigger id="templateId"><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
+                                        <SelectContent>
+                                            {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            />
+                        )}
+                        {errors.templateId && <p className="text-sm text-destructive">{errors.templateId.message}</p>}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="vehicleId">Veículo</Label>
+                        <Controller
+                            name="vehicleId"
+                            control={control}
+                            render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger id="vehicleId"><SelectValue placeholder="Selecione a placa" /></SelectTrigger>
                                 <SelectContent>
-                                    {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                    <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
+                                    <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
+                                    <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
                                 </SelectContent>
                             </Select>
-                        )}
-                    />
-                )}
-                {errors.templateId && <p className="text-sm text-destructive">{errors.templateId.message}</p>}
-                </div>
-                <div className="grid gap-2">
-                <Label htmlFor="vehicleId">Veículo</Label>
-                <Controller
-                    name="vehicleId"
-                    control={control}
-                    render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger id="vehicleId"><SelectValue placeholder="Selecione a placa" /></SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
-                        <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
-                        <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    )}
-                />
-                {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
-                </div>
-                <div className="grid gap-2">
-                <Label htmlFor="responsibleName">Nome do Responsável</Label>
-                <Input id="responsibleName" {...register('responsibleName')} />
-                {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
-                </div>
-                <div className="grid gap-2">
-                <Label htmlFor="driverName">Nome do Motorista</Label>
-                <Input id="driverName" {...register('driverName')} />
-                {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
-                </div>
-                <div className="grid gap-2 md:col-span-2">
-                    <Label htmlFor="mileage">Quilometragem Atual</Label>
-                    <Input id="mileage" type="number" {...register('mileage')} />
-                    {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
-                </div>
-            </CardContent>
+                            )}
+                        />
+                        {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="responsibleName">Nome do Responsável</Label>
+                        <Input id="responsibleName" {...register('responsibleName')} />
+                        {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="driverName">Nome do Motorista</Label>
+                        <Input id="driverName" {...register('driverName')} />
+                        {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
+                    </div>
+                    <div className="grid gap-2 md:col-span-2">
+                        <Label htmlFor="mileage">Quilometragem Atual</Label>
+                        <Input id="mileage" type="number" {...register('mileage')} />
+                        {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
+                    </div>
+                </CardContent>
             </Card>
             
             {selectedTemplate && (
@@ -263,21 +267,22 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Itens de Verificação</CardTitle>
                             <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
-                            {errors.questions && <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>}
+                            {errors.questions && typeof errors.questions.message === 'string' && <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>}
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {fields.map((item, index) => {
-                                const isPhotoMissing = (item.photoRequirement === 'always' && !watch(`questions.${index}.photo`)) || (item.photoRequirement === 'if_not_ok' && watch(`questions.${index}.status`) === 'Não OK' && !watch(`questions.${index}.photo`));
-                                const isNotAnswered = watch(`questions.${index}.status`) === 'N/A';
+                                const questionState = watch(`questions.${index}`);
+                                const isPhotoMissing = (item.photoRequirement === 'always' && !questionState.photo) || (item.photoRequirement === 'if_not_ok' && questionState.status === 'Não OK' && !questionState.photo);
+                                const isNotAnswered = questionState.status === 'N/A';
                                 return (
                                     <div key={item.id}
                                         onClick={() => setCurrentItem({ item, index })}
                                         className={`flex items-center justify-between p-3 border rounded-md cursor-pointer transition-colors hover:bg-muted/80 ${isNotAnswered ? 'border-dashed' : ''} ${isPhotoMissing ? 'border-destructive' : ''}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            {watch(`questions.${index}.status`) === 'OK' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                                            {watch(`questions.${index}.status`) === 'Não OK' && <AlertTriangle className="h-5 w-5 text-destructive" />}
-                                            {watch(`questions.${index}.status`) === 'N/A' && <GripVertical className="h-5 w-5 text-muted-foreground" />}
+                                            {questionState.status === 'OK' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                            {questionState.status === 'Não OK' && <AlertTriangle className="h-5 w-5 text-destructive" />}
+                                            {isNotAnswered && <GripVertical className="h-5 w-5 text-muted-foreground" />}
                                             <span>{item.text}</span>
                                         </div>
                                         <Button type="button" variant="ghost" size="sm">Editar</Button>
@@ -288,24 +293,24 @@ export default function MaintenanceChecklistPage() {
                     </Card>
 
                     <Card>
-                    <CardHeader>
-                        <CardTitle>Assinaturas</CardTitle>
-                        <CardDescription>O responsável e o motorista devem assinar para validar.</CardDescription>
-                        {errors.assinaturaResponsavel && <p className="text-sm text-destructive mt-2">{errors.assinaturaResponsavel.message}</p>}
-                        {errors.assinaturaMotorista && <p className="text-sm text-destructive mt-2">{errors.assinaturaMotorista.message}</p>}
-                    </CardHeader>
-                    <CardContent className="grid md:grid-cols-2 gap-8">
-                        <div className="grid gap-2">
-                        <Label className="font-semibold">Assinatura do Responsável</Label>
-                        <SignaturePad onEnd={(signature) => setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true })} />
-                        <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
-                        </div>
-                        <div className="grid gap-2">
-                        <Label className="font-semibold">Assinatura do Motorista</Label>
-                        <SignaturePad onEnd={(signature) => setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true })} />
-                        <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
-                        </div>
-                    </CardContent>
+                        <CardHeader>
+                            <CardTitle>Assinaturas</CardTitle>
+                            <CardDescription>O responsável e o motorista devem assinar para validar.</CardDescription>
+                            {errors.assinaturaResponsavel && <p className="text-sm text-destructive mt-2">{errors.assinaturaResponsavel.message}</p>}
+                            {errors.assinaturaMotorista && <p className="text-sm text-destructive mt-2">{errors.assinaturaMotorista.message}</p>}
+                        </CardHeader>
+                        <CardContent className="grid md:grid-cols-2 gap-8">
+                            <div className="grid gap-2">
+                                <Label className="font-semibold">Assinatura do Responsável</Label>
+                                <SignaturePad onEnd={(signature) => setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true })} />
+                                <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label className="font-semibold">Assinatura do Motorista</Label>
+                                <SignaturePad onEnd={(signature) => setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true })} />
+                                <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
+                            </div>
+                        </CardContent>
                     </Card>
 
                     <CardFooter className="border-t px-6 py-4">

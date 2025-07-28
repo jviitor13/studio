@@ -20,12 +20,12 @@ interface ItemChecklistDialogProps {
   isOpen: boolean;
   onClose: () => void;
   item: ChecklistItemData | null;
-  onSave: (data: { status: "OK" | "Não OK" | "N/A", photo?: string, observation?: string }) => void;
+  onSave: (data: { status: "OK" | "Não OK", photo?: string, observation?: string }) => void;
 }
 
 export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemChecklistDialogProps) {
   const { toast } = useToast();
-  const [status, setStatus] = useState<"OK" | "Não OK" | "N/A">("N/A");
+  const [status, setStatus] = useState<"OK" | "Não OK">("OK");
   const [observation, setObservation] = useState("");
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,8 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
 
   useEffect(() => {
     if (item) {
-      setStatus(item.status || "N/A");
+      // Don't pre-set status to N/A, force user to choose OK or Not OK
+      setStatus(item.status === "Não OK" ? "Não OK" : "OK");
       setObservation(item.observation || "");
       setPhoto(item.photo);
       setError(null);
@@ -95,7 +96,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
             <Label>Avaliação</Label>
             <RadioGroup
               value={status}
-              onValueChange={(value: "OK" | "Não OK" | "N/A") => {
+              onValueChange={(value: "OK" | "Não OK") => {
                 setStatus(value);
                 const willRequirePhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && value === 'Não OK');
                 if (!willRequirePhoto) {
@@ -111,10 +112,6 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="Não OK" id={`${item.id}-notok`} />
                 <Label htmlFor={`${item.id}-notok`}>Não OK</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="N/A" id={`${item.id}-na`} />
-                <Label htmlFor={`${item.id}-na`}>N/A</Label>
               </div>
             </RadioGroup>
           </div>
@@ -158,7 +155,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
                     ref={photoInputRef}
                     disabled={isCompressing}
                 />
-                <Button variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isCompressing}>
+                <Button variant="outline" onClick={() => photoInputref.current?.click()} disabled={isCompressing}>
                     {isCompressing ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
