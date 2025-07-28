@@ -321,17 +321,8 @@ export default function PreTripChecklistPage() {
               </div>
             </CardContent>
           </Card>
-          <Card className="mt-6">
-            <CardFooter className="border-t px-6 py-4">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Enviando...' : 'Enviar Checklist'}
-              </Button>
-            </CardFooter>
-          </Card>
         </form>
       </div>
     </>
   );
 }
-
-    
