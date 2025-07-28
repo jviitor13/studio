@@ -25,7 +25,7 @@ const itemSchema = z.object({
   id: z.string(),
   text: z.string(),
   photoRequirement: z.enum(["always", "if_not_ok", "never"]),
-  status: z.enum(["OK", "Não OK", "N/A"]), // N/A is only for initial state
+  status: z.enum(["OK", "Não OK", "N/A"]),
   photo: z.string().optional(),
   observation: z.string().optional(),
 });
@@ -267,7 +267,11 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Itens de Verificação</CardTitle>
                             <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
-                            {errors.questions && typeof errors.questions.message === 'string' && <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>}
+                            {errors.questions && typeof errors.questions.message === 'string' && (
+                                <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
+                                    {errors.questions.message}
+                                </p>
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-2">
                             {fields.map((item, index) => {
@@ -296,8 +300,16 @@ export default function MaintenanceChecklistPage() {
                         <CardHeader>
                             <CardTitle>Assinaturas</CardTitle>
                             <CardDescription>O responsável e o motorista devem assinar para validar.</CardDescription>
-                            {errors.assinaturaResponsavel && <p className="text-sm text-destructive mt-2">{errors.assinaturaResponsavel.message}</p>}
-                            {errors.assinaturaMotorista && <p className="text-sm text-destructive mt-2">{errors.assinaturaMotorista.message}</p>}
+                            {errors.assinaturaResponsavel && (
+                                <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
+                                    {errors.assinaturaResponsavel.message}
+                                </p>
+                            )}
+                            {errors.assinaturaMotorista && !errors.assinaturaResponsavel && (
+                                 <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
+                                    {errors.assinaturaMotorista.message}
+                                </p>
+                            )}
                         </CardHeader>
                         <CardContent className="grid md:grid-cols-2 gap-8">
                             <div className="grid gap-2">
@@ -326,5 +338,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
