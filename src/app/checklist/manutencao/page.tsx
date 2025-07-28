@@ -233,148 +233,154 @@ export default function MaintenanceChecklistPage() {
           </AlertDialogContent>
       </AlertDialog>
 
-    <form className="mx-auto grid w-full max-w-4xl gap-6" onSubmit={(e) => e.preventDefault()}>
+    <div className="mx-auto grid w-full max-w-4xl gap-6">
         <PageHeader
             title="Novo Checklist de Manutenção"
             description="Registre uma nova manutenção corretiva ou emergencial para um veículo."
         />
 
-        <div className="space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Informações Gerais</CardTitle>
-                    <CardDescription>Primeiro, selecione o modelo e preencha os dados principais.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="templateId">Modelo do Checklist</Label>
-                        {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
+        <form onSubmit={(e) => e.preventDefault()}>
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Informações Gerais</CardTitle>
+                        <CardDescription>Primeiro, selecione o modelo e preencha os dados principais.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="templateId">Modelo do Checklist</Label>
+                            {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
+                                <Controller
+                                    name="templateId"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <Select onValueChange={handleTemplateChange} value={field.value}>
+                                            <SelectTrigger id="templateId" className={cn(errors.templateId && "border-destructive")}>
+                                            <SelectValue placeholder="Selecione o modelo" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                            )}
+                            {errors.templateId && <p className="text-sm text-destructive">{errors.templateId.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="vehicleId">Veículo</Label>
                             <Controller
-                                name="templateId"
+                                name="vehicleId"
                                 control={control}
                                 render={({ field }) => (
-                                    <Select onValueChange={handleTemplateChange} value={field.value}>
-                                        <SelectTrigger id="templateId" className={cn(errors.templateId && "border-destructive")}>
-                                          <SelectValue placeholder="Selecione o modelo" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {templates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
+                                    <SelectValue placeholder="Selecione a placa" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
+                                        <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
+                                        <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 )}
                             />
-                        )}
-                        {errors.templateId && <p className="text-sm text-destructive">{errors.templateId.message}</p>}
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="vehicleId">Veículo</Label>
-                        <Controller
-                            name="vehicleId"
-                            control={control}
-                            render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
-                                  <SelectValue placeholder="Selecione a placa" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
-                                    <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
-                                    <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            )}
-                        />
-                        {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="responsibleName">Nome do Responsável</Label>
-                        <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
-                        {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="driverName">Nome do Motorista</Label>
-                        <Input id="driverName" {...register('driverName')} className={cn(errors.driverName && "border-destructive")} />
-                        {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
-                    </div>
-                    <div className="grid gap-2 md:col-span-2">
-                        <Label htmlFor="mileage">Quilometragem Atual</Label>
-                        <Input id="mileage" type="number" {...register('mileage')} className={cn(errors.mileage && "border-destructive")} />
-                        {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
-                    </div>
-                </CardContent>
-            </Card>
-            
-            {selectedTemplate && (
-                <>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Itens de Verificação</CardTitle>
-                            <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
-                            {errors.questions && (
-                                <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
-                                    {errors.questions.message}
-                                </p>
-                            )}
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            {fields.map((item, index) => {
-                                const questionState = watch(`questions.${index}`);
-                                const isPhotoMissing = (item.photoRequirement === 'always' && !questionState.photo) || (item.photoRequirement === 'if_not_ok' && questionState.status === 'Não OK' && !questionState.photo);
-                                const isNotAnswered = questionState.status === 'N/A';
-                                return (
-                                    <div key={item.id}
-                                        onClick={() => {
-                                            const questionValue = getValues(`questions.${index}`);
-                                            setCurrentItem({ item: questionValue, index });
-                                        }}
-                                        className={`flex items-center justify-between p-3 border rounded-md cursor-pointer transition-colors hover:bg-muted/80 ${isNotAnswered ? 'border-dashed' : ''} ${isPhotoMissing ? 'border-destructive' : ''}`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {questionState.status === 'OK' && <CheckCircle className="h-5 w-5 text-green-600" />}
-                                            {questionState.status === 'Não OK' && <AlertTriangle className="h-5 w-5 text-destructive" />}
-                                            {isNotAnswered && <GripVertical className="h-5 w-5 text-muted-foreground" />}
-                                            <span>{item.text}</span>
+                            {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="responsibleName">Nome do Responsável</Label>
+                            <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
+                            {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="driverName">Nome do Motorista</Label>
+                            <Input id="driverName" {...register('driverName')} className={cn(errors.driverName && "border-destructive")} />
+                            {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
+                        </div>
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="mileage">Quilometragem Atual</Label>
+                            <Input id="mileage" type="number" {...register('mileage')} className={cn(errors.mileage && "border-destructive")} />
+                            {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
+                        </div>
+                    </CardContent>
+                </Card>
+                
+                {selectedTemplate && (
+                    <>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Itens de Verificação</CardTitle>
+                                <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
+                                {errors.questions && typeof errors.questions.message === 'string' && (
+                                    <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
+                                        {errors.questions.message}
+                                    </p>
+                                )}
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                {fields.map((item, index) => {
+                                    const questionState = watch(`questions.${index}`);
+                                    const isPhotoMissing = (item.photoRequirement === 'always' && !questionState.photo) || (item.photoRequirement === 'if_not_ok' && questionState.status === 'Não OK' && !questionState.photo);
+                                    const isNotAnswered = questionState.status === 'N/A';
+                                    return (
+                                        <div key={item.id}
+                                            onClick={() => {
+                                                const questionValue = getValues(`questions.${index}`);
+                                                setCurrentItem({ item: questionValue, index });
+                                            }}
+                                            className={cn(
+                                                "flex items-center justify-between p-3 border rounded-md cursor-pointer transition-colors hover:bg-muted/80",
+                                                isNotAnswered && "border-dashed",
+                                                isPhotoMissing && errors.questions && "border-destructive"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {questionState.status === 'OK' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                                {questionState.status === 'Não OK' && <AlertTriangle className="h-5 w-5 text-destructive" />}
+                                                {isNotAnswered && <GripVertical className="h-5 w-5 text-muted-foreground" />}
+                                                <span>{item.text}</span>
+                                            </div>
+                                            <Button type="button" variant="ghost" size="sm">Editar</Button>
                                         </div>
-                                        <Button type="button" variant="ghost" size="sm">Editar</Button>
-                                    </div>
-                                )
-                            })}
-                        </CardContent>
-                    </Card>
+                                    )
+                                })}
+                            </CardContent>
+                        </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Assinaturas</CardTitle>
-                            <CardDescription>O responsável e o motorista devem assinar para validar.</CardDescription>
-                             {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
-                                <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
-                                    {errors.assinaturaResponsavel?.message || errors.assinaturaMotorista?.message}
-                                </p>
-                            )}
-                        </CardHeader>
-                        <CardContent className="grid md:grid-cols-2 gap-8">
-                            <div className="grid gap-2">
-                                <Label className="font-semibold">Assinatura do Responsável</Label>
-                                <SignaturePad onEnd={(signature) => setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true })} />
-                                <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label className="font-semibold">Assinatura do Motorista</Label>
-                                <SignaturePad onEnd={(signature) => setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true })} />
-                                <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Assinaturas</CardTitle>
+                                <CardDescription>O responsável e o motorista devem assinar para validar.</CardDescription>
+                                {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
+                                    <p className="text-sm text-destructive font-semibold mt-2 p-2 bg-destructive/10 rounded-md">
+                                        {errors.assinaturaResponsavel?.message || errors.assinaturaMotorista?.message}
+                                    </p>
+                                )}
+                            </CardHeader>
+                            <CardContent className="grid md:grid-cols-2 gap-8">
+                                <div className="grid gap-2">
+                                    <Label className="font-semibold">Assinatura do Responsável</Label>
+                                    <SignaturePad onEnd={(signature) => setValue('assinaturaResponsavel', signature, { shouldValidate: true, shouldDirty: true })} />
+                                    <p className="text-sm text-muted-foreground">Responsável: {watchResponsibleName || 'N/A'}</p>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label className="font-semibold">Assinatura do Motorista</Label>
+                                    <SignaturePad onEnd={(signature) => setValue('assinaturaMotorista', signature, { shouldValidate: true, shouldDirty: true })} />
+                                    <p className="text-sm text-muted-foreground">Motorista: {watchDriverName || 'N/A'}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
 
-                    <CardFooter className="border-t px-6 py-4">
-                        <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting || !selectedTemplate}>
-                            {isSubmitting ? 'Enviando...' : 'Revisar e Finalizar Checklist'}
-                        </Button>
-                    </CardFooter>
-                </>
-            )}
-        </div>
-    </form>
+                        <CardFooter className="border-t px-6 py-4">
+                            <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting || !selectedTemplate}>
+                                {isSubmitting ? 'Enviando...' : 'Revisar e Finalizar Checklist'}
+                            </Button>
+                        </CardFooter>
+                    </>
+                )}
+            </div>
+        </form>
+    </div>
     </>
   );
 }
