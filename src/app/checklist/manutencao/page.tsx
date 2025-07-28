@@ -22,6 +22,7 @@ import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
 import { SignaturePad } from '@/components/signature-pad';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 
 const checklistItemSchema = z.object({
@@ -428,5 +429,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
