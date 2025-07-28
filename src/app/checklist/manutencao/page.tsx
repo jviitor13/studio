@@ -318,8 +318,8 @@ export default function MaintenanceChecklistPage() {
                         {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
                     </div>
                      <div className="grid gap-2">
-                        <Label htmlFor="responsibleName">Nome do Técnico Responsável</Label>
-                        <Input id="responsibleName" {...register('responsibleName')} readOnly className="bg-muted" />
+                        <Label htmlFor="responsibleName">Nome do Técnico Responsável *</Label>
+                        <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
                          {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
                     </div>
                     <div className="grid gap-2">
