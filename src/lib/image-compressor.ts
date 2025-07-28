@@ -40,3 +40,5 @@ export function compressImage(
     reader.onerror = (error) => reject(error);
   });
 }
+
+    

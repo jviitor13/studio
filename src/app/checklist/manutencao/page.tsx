@@ -78,7 +78,7 @@ export default function MaintenanceChecklistPage() {
       vehicleId: '',
       responsibleName: '',
       driverName: '',
-      mileage: undefined,
+      mileage: 0,
       questions: [],
       assinaturaResponsavel: '',
       assinaturaMotorista: '',
