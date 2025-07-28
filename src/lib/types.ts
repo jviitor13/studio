@@ -6,7 +6,7 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     vehicle: string; 
     driver: string; 
     responsibleName: string;
-    mileage?: number;
+    mileage: number;
     status: 'OK' | 'Pendente';
     type: "Manutenção" | "viagem" | "retorno";
     questions: (Omit<ChecklistItem, 'status'> & { status: 'OK' | 'Não OK' | 'N/A' })[];
