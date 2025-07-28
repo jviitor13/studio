@@ -320,6 +320,18 @@ export default function PreTripChecklistPage() {
                  )} />
               </div>
             </CardContent>
+             <CardFooter>
+                <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Finalizando...
+                        </>
+                    ) : (
+                        'Finalizar Checklist'
+                    )}
+                </Button>
+            </CardFooter>
           </Card>
         </form>
       </div>
