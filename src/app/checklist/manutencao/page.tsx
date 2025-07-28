@@ -48,11 +48,22 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, "Nome do responsável é obrigatório"),
   driverName: z.string().min(1, "Nome do motorista é obrigatório"),
   mileage: z.coerce.number().min(1, "Quilometragem é obrigatória"),
-  questions: z.array(itemSchema),
+  questions: z.array(itemSchema)
+    .refine(
+        (questions) => questions.every((q) => q.status !== "N/A"),
+        { message: "Todos os itens de verificação devem ser respondidos (OK, Não OK)." }
+    ).refine(
+        (questions) => questions.every((q) => {
+            const needsPhoto = q.photoRequirement === 'always' || (q.photoRequirement === 'if_not_ok' && q.status === 'Não OK');
+            return !needsPhoto || (needsPhoto && !!q.photo);
+        }),
+        { message: "Um ou mais itens que requerem foto não foram preenchidos." }
+    ),
   generalObservations: z.string().optional(),
   assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
 });
+
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 
@@ -133,7 +144,7 @@ export default function MaintenanceChecklistPage() {
       vehicleId: "",
       responsibleName: "Pedro Mecânico", // Mock, could come from auth
       driverName: "João Motorista",
-      mileage: undefined,
+      mileage: 0,
       questions: [],
       generalObservations: "",
       assinaturaResponsavel: "",
@@ -189,8 +200,8 @@ export default function MaintenanceChecklistPage() {
   const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
     
-    // Manual validation for items that need photos
-    for (const [index, question] of data.questions.entries()) {
+    // Manual validation for items that need photos - this is a secondary check, Zod handles the primary one.
+    for (const question of data.questions) {
         const photoIsRequired = question.photoRequirement === 'always' || (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK');
         if (photoIsRequired && !question.photo) {
             toast({
@@ -251,9 +262,8 @@ export default function MaintenanceChecklistPage() {
 
   const checkPhotoError = (item: ItemData) => {
       if (item.status === 'N/A') return false;
-      if (item.photoRequirement === 'always') return !item.photo;
-      if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK') return !item.photo;
-      return false;
+      const needsPhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK');
+      return needsPhoto && !item.photo;
   }
 
   return (
@@ -334,7 +344,7 @@ export default function MaintenanceChecklistPage() {
           <Card className="mt-6">
             <CardHeader>
                 <CardTitle>Itens de Verificação</CardTitle>
-                 {typeof errors.questions?.message === 'string' && <p className="text-sm text-destructive font-normal pt-1">{errors.questions.message}</p>}
+                 {errors.questions && <p className="text-sm text-destructive font-normal pt-1">{errors.questions.message}</p>}
             </CardHeader>
              <CardContent className="space-y-2">
               {questionFields.map((item, itemIndex) => {
@@ -347,7 +357,8 @@ export default function MaintenanceChecklistPage() {
                     <button
                       type="button"
                       onClick={() => handleOpenDialog(itemIndex)}
-                      className="w-full text-left p-4 border rounded-lg transition-colors flex justify-between items-center hover:bg-muted/50 data-[error=true]:border-destructive"
+                      className="w-full text-left p-4 border rounded-lg transition-colors flex justify-between items-center hover:bg-muted/50 data-[completed=false]:border-dashed data-[error=true]:border-destructive"
+                      data-completed={isCompleted}
                       data-error={hasPhotoError}
                     >
                       <span className="font-medium">{item.text}</span>
@@ -429,3 +440,4 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
