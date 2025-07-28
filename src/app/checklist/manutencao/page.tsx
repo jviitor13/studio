@@ -18,7 +18,7 @@ import { Loader2, AlertTriangle, CheckCircle, GripVertical } from 'lucide-react'
 import { SignaturePad } from '@/components/signature-pad';
 import { PageHeader } from '@/components/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChecklistTemplate, ChecklistItem as ChecklistItemData } from '@/lib/checklist-templates-data';
+import { ChecklistTemplate } from '@/lib/checklist-templates-data';
 import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
@@ -54,6 +54,8 @@ const checklistSchema = z.object({
 
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
+type ChecklistItemFormValues = z.infer<typeof itemSchema>;
+
 
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
@@ -62,7 +64,7 @@ export default function MaintenanceChecklistPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
-  const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
+  const [currentItem, setCurrentItem] = useState<{item: ChecklistItemFormValues, index: number} | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
 
   const {
@@ -321,7 +323,10 @@ export default function MaintenanceChecklistPage() {
                                 const isNotAnswered = questionState.status === 'N/A';
                                 return (
                                     <div key={item.id}
-                                        onClick={() => setCurrentItem({ item, index })}
+                                        onClick={() => {
+                                            const questionValue = getValues(`questions.${index}`);
+                                            setCurrentItem({ item: questionValue, index });
+                                        }}
                                         className={`flex items-center justify-between p-3 border rounded-md cursor-pointer transition-colors hover:bg-muted/80 ${isNotAnswered ? 'border-dashed' : ''} ${isPhotoMissing ? 'border-destructive' : ''}`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -373,5 +378,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    

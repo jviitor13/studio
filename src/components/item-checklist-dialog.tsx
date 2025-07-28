@@ -10,16 +10,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, Paperclip, Trash2, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { ChecklistItem as ChecklistItemData } from "@/lib/checklist-templates-data";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle } from "./ui/alert";
 import { compressImage } from "@/lib/image-compressor";
 
 
+// Match the form values type
+interface ChecklistItemFormValues {
+    id: string;
+    text: string;
+    photoRequirement: "always" | "if_not_ok" | "never";
+    status: "OK" | "Não OK" | "N/A";
+    photo?: string;
+    observation?: string;
+}
+
 interface ItemChecklistDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  item: ChecklistItemData | null;
+  item: ChecklistItemFormValues | null;
   onSave: (data: { status: "OK" | "Não OK", photo?: string, observation?: string }) => void;
 }
 
@@ -190,5 +199,3 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
     </Dialog>
   );
 }
-
-    
