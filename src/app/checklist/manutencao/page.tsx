@@ -127,7 +127,7 @@ export default function MaintenanceChecklistPage() {
     return () => unsubscribe();
   }, []);
 
-  const { control, handleSubmit, formState: { errors }, setValue, watch, reset, trigger } = useForm<ChecklistFormValues>({
+  const { control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       vehicleId: "",
@@ -139,7 +139,6 @@ export default function MaintenanceChecklistPage() {
       assinaturaResponsavel: "",
       assinaturaMotorista: "",
     },
-    mode: 'onChange' 
   });
   
   const { fields: questionFields } = useFieldArray({
@@ -189,6 +188,7 @@ export default function MaintenanceChecklistPage() {
 
   const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
+    
     // Manual validation for items that need photos
     for (const [index, question] of data.questions.entries()) {
         const photoIsRequired = question.photoRequirement === 'always' || (question.photoRequirement === 'if_not_ok' && question.status === 'Não OK');
@@ -206,19 +206,13 @@ export default function MaintenanceChecklistPage() {
 
     try {
       const hasIssues = data.questions.some(item => item.status === "Não OK");
+      
       const submissionData = {
         templateId: data.templateId,
         name: data.templateName,
         vehicle: data.vehicleId,
         mileage: data.mileage,
-        questions: data.questions.map(q => ({
-            id: q.id,
-            text: q.text,
-            photoRequirement: q.photoRequirement,
-            status: q.status,
-            photo: q.photo ?? null,
-            observation: q.observation ?? null
-        })),
+        questions: data.questions,
         generalObservations: data.generalObservations ?? '',
         responsibleName: data.responsibleName,
         driver: data.driverName,
@@ -231,10 +225,12 @@ export default function MaintenanceChecklistPage() {
       };
 
       const docRef = await addDoc(collection(db, 'completed-checklists'), submissionData);
+      
       toast({
         title: "Sucesso!",
         description: "Checklist de manutenção enviado com sucesso.",
       });
+
       router.push(`/checklist/completed/${docRef.id}`);
 
     } catch (error) {
