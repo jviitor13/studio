@@ -4,7 +4,7 @@
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, addDoc, Timestamp, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -14,17 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Camera, Trash2 } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, GripVertical, PlusCircle, Trash2 } from 'lucide-react';
 import { SignaturePad } from '@/components/signature-pad';
 import { PageHeader } from '@/components/page-header';
-import Image from 'next/image';
-import { Separator } from '@/components/ui/separator';
-import { compressImage } from '@/lib/image-compressor';
-import { Alert, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
-import { ChecklistItem as ChecklistItemData, ChecklistTemplate } from '@/lib/checklist-templates-data';
-import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChecklistTemplate, ChecklistItem as ChecklistItemData } from '@/lib/checklist-templates-data';
+import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
 
 const itemSchema = z.object({
   id: z.string(),
@@ -35,25 +30,27 @@ const itemSchema = z.object({
   observation: z.string().optional(),
 });
 
-
 const checklistSchema = z.object({
   templateId: z.string().min(1, 'Selecione um modelo de checklist.'),
   vehicleId: z.string().min(1, 'Selecione um veículo.'),
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
   driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
-  questions: z.array(itemSchema),
+  questions: z.array(itemSchema)
+    .refine(items => !items.some(item => item.status === "N/A"), {
+      message: "Todos os itens devem ser avaliados (OK, Não OK).",
+      path: [0], // Show error at the top of the items list
+    })
+    .refine(items => items.every(item => {
+        if (item.photoRequirement === 'always' && !item.photo) return false;
+        if (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK' && !item.photo) return false;
+        return true;
+    }), {
+        message: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens marcados como 'Não OK'.",
+        path: [0],
+    }),
   assinaturaResponsavel: z.string().min(1, 'A assinatura do responsável é obrigatória.'),
   assinaturaMotorista: z.string().min(1, 'A assinatura do motorista é obrigatória.'),
-}).refine(data => {
-    return data.questions.every(q => {
-        if (q.photoRequirement === 'always' && !q.photo) return false;
-        if (q.photoRequirement === 'if_not_ok' && q.status === 'Não OK' && !q.photo) return false;
-        return true;
-    });
-}, {
-    message: "Uma ou mais fotos obrigatórias não foram adicionadas.",
-    path: ["questions"],
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -65,6 +62,7 @@ export default function MaintenanceChecklistPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<ChecklistTemplate | null>(null);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
 
   const {
     control,
@@ -73,22 +71,24 @@ export default function MaintenanceChecklistPage() {
     watch,
     register,
     formState: { errors },
-    reset
+    reset,
+    getValues,
+    trigger
   } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       templateId: '',
       vehicleId: '',
-      responsibleName: 'Pedro Mecânico',
-      driverName: 'João Motorista',
+      responsibleName: '',
+      driverName: '',
       mileage: 0,
       questions: [],
       assinaturaResponsavel: '',
       assinaturaMotorista: '',
     },
   });
-
-  const { fields, replace } = useFieldArray({ control, name: "questions" });
+  
+  const { fields, replace, update } = useFieldArray({ control, name: "questions" });
 
   useEffect(() => {
     setIsLoadingTemplates(true);
@@ -107,16 +107,27 @@ export default function MaintenanceChecklistPage() {
         setSelectedTemplate(template);
         const questions = template.questions.map(q => ({
             ...q,
-            status: "N/A",
+            status: "N/A" as const,
             observation: '',
             photo: ''
-        } as const));
+        }));
         replace(questions);
     } else {
         setSelectedTemplate(null);
         replace([]);
     }
   };
+
+  const handleSaveItem = useCallback((data: { status: "OK" | "Não OK" | "N/A"; photo?: string; observation?: string }) => {
+    if (currentItem) {
+      update(currentItem.index, {
+        ...getValues(`questions.${currentItem.index}`),
+        ...data,
+      });
+      trigger("questions");
+    }
+    setCurrentItem(null);
+  }, [currentItem, update, getValues, trigger]);
 
 
   const onSubmit = async (data: ChecklistFormValues) => {
@@ -133,6 +144,7 @@ export default function MaintenanceChecklistPage() {
             createdAt: Timestamp.now(),
             status: hasIssues ? "Pendente" : "OK",
             type: "Manutenção",
+            category: selectedTemplate?.category,
             questions: data.questions,
             assinaturaResponsavel: data.assinaturaResponsavel,
             assinaturaMotorista: data.assinaturaMotorista,
@@ -163,6 +175,13 @@ export default function MaintenanceChecklistPage() {
   const watchDriverName = watch("driverName");
 
   return (
+    <>
+    <ItemChecklistDialog 
+        isOpen={!!currentItem}
+        onClose={() => setCurrentItem(null)}
+        item={currentItem?.item ?? null}
+        onSave={handleSaveItem}
+    />
     <div className="mx-auto grid w-full max-w-4xl gap-6">
       <PageHeader
         title="Novo Checklist de Manutenção"
@@ -238,10 +257,29 @@ export default function MaintenanceChecklistPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Itens de Verificação</CardTitle>
-                        <CardDescription>Responda a todas as perguntas do checklist selecionado.</CardDescription>
+                        <CardDescription>Clique em cada item para avaliá-lo.</CardDescription>
+                         {errors.questions && <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>}
+                         {errors.questions?.root && <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>}
                     </CardHeader>
-                    <CardContent>
-                        {/* Items will be handled by the dialog */}
+                    <CardContent className="space-y-2">
+                         {fields.map((item, index) => {
+                            const isPhotoMissing = (item.photoRequirement === 'always' && !item.photo) || (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK' && !item.photo);
+                            const isNotAnswered = item.status === 'N/A';
+                            return (
+                                <div key={item.id}
+                                    onClick={() => setCurrentItem({ item, index })}
+                                    className={`flex items-center justify-between p-3 border rounded-md cursor-pointer transition-colors hover:bg-muted/80 ${isNotAnswered ? 'border-dashed' : ''} ${isPhotoMissing ? 'border-destructive' : ''}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {item.status === 'OK' && <CheckCircle className="h-5 w-5 text-green-600" />}
+                                        {item.status === 'Não OK' && <AlertTriangle className="h-5 w-5 text-destructive" />}
+                                        {item.status === 'N/A' && <GripVertical className="h-5 w-5 text-muted-foreground" />}
+                                        <span>{item.text}</span>
+                                    </div>
+                                    <Button variant="ghost" size="sm">Editar</Button>
+                                </div>
+                            )
+                        })}
                     </CardContent>
                 </Card>
 
@@ -276,5 +314,8 @@ export default function MaintenanceChecklistPage() {
         </CardFooter>
       </form>
     </div>
+    </>
   );
 }
+
+    

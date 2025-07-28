@@ -15,3 +15,5 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     vehicleImages?: string[];
     generalObservations?: string;
 };
+
+    
