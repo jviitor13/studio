@@ -35,7 +35,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, onSnapshot, doc, updateDoc, Timestamp, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, doc, updateDoc, Timestamp, query, orderBy, setDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -138,16 +138,18 @@ export default function ManutencoesPage() {
         }
     };
     
-    const updateMaintenanceStatus = async (id: string, status: Maintenance['status']) => {
+    const updateMaintenanceStatus = async (maintenance: Maintenance, status: Maintenance['status']) => {
         try {
-            const docRef = doc(db, 'manutencoes', id);
+            const docRef = doc(db, 'manutencoes', maintenance.id);
             let updates: any = { status };
+            const vehicleRef = doc(db, 'vehicles', maintenance.vehicleId);
+
             if (status === 'Em Andamento') {
                 updates.startedAt = Timestamp.now();
-                 await updateDoc(doc(db, 'vehicles', maintenances.find(m=>m.id === id)!.vehicleId), { status: 'Em Manutenção' });
+                 await updateDoc(vehicleRef, { status: 'Em Manutenção' });
             }
-            if (status === 'Cancelada' || status === 'Concluída') {
-                 await updateDoc(doc(db, 'vehicles', maintenances.find(m=>m.id === id)!.vehicleId), { status: 'Disponível' });
+            if (status === 'Cancelada') {
+                 await updateDoc(vehicleRef, { status: 'Disponível' });
             }
             await updateDoc(docRef, updates);
             toast({
@@ -171,13 +173,15 @@ export default function ManutencoesPage() {
         }
 
         try {
-            const docRef = doc(db, 'manutencoes', selectedMaintenance.id);
-            await updateDoc(docRef, {
+            const maintenanceRef = doc(db, 'manutencoes', selectedMaintenance.id);
+            await updateDoc(maintenanceRef, {
                 status: 'Concluída',
                 completedAt: Timestamp.now(),
                 cost: parseFloat(maintenanceCost.replace(',', '.')),
             });
-            await updateDoc(doc(db, 'vehicles', selectedMaintenance.vehicleId), { status: 'Disponível' });
+            
+            const vehicleRef = doc(db, 'vehicles', selectedMaintenance.vehicleId);
+            await updateDoc(vehicleRef, { status: 'Disponível' });
 
             toast({
                 title: "Manutenção Concluída!",
@@ -263,7 +267,7 @@ export default function ManutencoesPage() {
                                     <SelectValue placeholder="Selecione a placa" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.plate}>{v.plate} - {v.model}</SelectItem>)}
+                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.id} - {v.model}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -364,7 +368,7 @@ export default function ManutencoesPage() {
                                     <DropdownMenuContent>
                                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                         {item.status === 'Agendada' && (
-                                            <DropdownMenuItem onSelect={() => updateMaintenanceStatus(item.id, 'Em Andamento')}>
+                                            <DropdownMenuItem onSelect={() => updateMaintenanceStatus(item, 'Em Andamento')}>
                                                 <Play className="mr-2 h-4 w-4" /> Iniciar Serviço
                                             </DropdownMenuItem>
                                         )}
@@ -376,7 +380,7 @@ export default function ManutencoesPage() {
                                                 <CheckCircle className="mr-2 h-4 w-4" /> Concluir Serviço
                                             </DropdownMenuItem>
                                         )}
-                                         <DropdownMenuItem className="text-destructive" onSelect={() => updateMaintenanceStatus(item.id, 'Cancelada')}>
+                                         <DropdownMenuItem className="text-destructive" onSelect={() => updateMaintenanceStatus(item, 'Cancelada')}>
                                             <Ban className="mr-2 h-4 w-4" /> Cancelar Agendamento
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -446,6 +450,8 @@ export default function ManutencoesPage() {
   );
 }
 
+
+    
 
     
 

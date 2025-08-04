@@ -50,12 +50,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, onSnapshot, doc, deleteDoc, query, where, updateDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, doc, deleteDoc, query, where, updateDoc, setDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -81,7 +81,7 @@ const vehicleSchema = z.object({
     plate: z.string().min(7, "A placa deve ter 7 caracteres").max(7, "A placa deve ter 7 caracteres"),
     model: z.string().min(1, "O modelo é obrigatório"),
     year: z.coerce.number().min(1980, "Ano inválido").max(new Date().getFullYear() + 1, "Ano inválido"),
-    fuel: z.string().min(1, "O tipo de combustível é obrigatório"),
+    fuel: z.string({ required_error: "O combustível é obrigatório."}).min(1, "O tipo de combustível é obrigatório"),
 });
 
 type VehicleFormValues = z.infer<typeof vehicleSchema>;
@@ -193,7 +193,7 @@ export default function VeiculosPage() {
     const [dialogType, setDialogType] = React.useState<"details" | "assign" | null>(null);
 
 
-    const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<VehicleFormValues>({
+    const { control, register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<VehicleFormValues>({
         resolver: zodResolver(vehicleSchema),
     });
 
@@ -208,12 +208,16 @@ export default function VeiculosPage() {
 
     const onSubmit = async (data: VehicleFormValues) => {
         try {
-            await addDoc(collection(db, "vehicles"), {
-                ...data,
+            const vehicleRef = doc(db, "vehicles", data.plate.toUpperCase());
+            await setDoc(vehicleRef, {
                 plate: data.plate.toUpperCase(),
-                status: "Disponível", // Default status
+                model: data.model,
+                year: data.year,
+                fuel: data.fuel,
+                status: "Disponível",
                 driver: "",
             });
+
             toast({
                 title: "Veículo Adicionado!",
                 description: `O veículo ${data.model} (${data.plate}) foi cadastrado com sucesso.`,
@@ -303,16 +307,22 @@ export default function VeiculosPage() {
                 </div>
                 <div className="grid items-center gap-2">
                     <Label htmlFor="fuel">Combustível</Label>
-                    <Select onValueChange={(value) => reset({ ...register, fuel: value })} >
-                        <SelectTrigger id="fuel">
-                            <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="diesel">Diesel</SelectItem>
-                            <SelectItem value="etanol">Etanol</SelectItem>
-                            <SelectItem value="eletrico">Elétrico</SelectItem>
-                        </SelectContent>
-                    </Select>
+                     <Controller
+                        name="fuel"
+                        control={control}
+                        render={({ field }) => (
+                           <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger id="fuel">
+                                    <SelectValue placeholder="Selecione o tipo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="diesel">Diesel</SelectItem>
+                                    <SelectItem value="etanol">Etanol</SelectItem>
+                                    <SelectItem value="eletrico">Elétrico</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
                      {errors.fuel && <p className="text-sm text-destructive">{errors.fuel.message}</p>}
                 </div>
                 </div>
@@ -379,17 +389,21 @@ export default function VeiculosPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("details"); }}>
-                                        <Car className="mr-2 h-4 w-4" /> Ver Detalhes
-                                    </DropdownMenuItem>
+                                    <DialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("details"); }}>
+                                            <Car className="mr-2 h-4 w-4" /> Ver Detalhes
+                                        </DropdownMenuItem>
+                                    </DialogTrigger>
                                     <DropdownMenuItem asChild>
                                     <Link href="/manutencoes">
                                         <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
                                     </Link>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("assign"); }}>
-                                        <User className="mr-2 h-4 w-4" /> Atribuir Motorista
-                                    </DropdownMenuItem>
+                                    <DialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("assign"); }}>
+                                            <User className="mr-2 h-4 w-4" /> Atribuir Motorista
+                                        </DropdownMenuItem>
+                                    </DialogTrigger>
                                     <AlertDialogTrigger asChild>
                                         <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                             <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -432,3 +446,5 @@ export default function VeiculosPage() {
     </>
   );
 }
+
+    

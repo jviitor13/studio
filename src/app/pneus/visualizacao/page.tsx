@@ -278,7 +278,7 @@ export default function PneusVisualizacaoPage() {
         }
     });
     return () => unsubscribe();
-  }, [selectedVehicle]);
+  }, []);
 
   useEffect(() => {
     if (!selectedVehicle) return;
@@ -432,3 +432,5 @@ export default function PneusVisualizacaoPage() {
     </>
   );
 }
+
+    

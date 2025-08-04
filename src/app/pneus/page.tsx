@@ -4,7 +4,7 @@
 import * as React from "react";
 import { PlusCircle, MoreHorizontal, Eye, Truck, Settings, Wrench, Calendar as CalendarIcon, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -575,3 +575,6 @@ export default function PneusPage() {
     </div>
   );
 }
+
+
+    
