@@ -6,9 +6,10 @@ import {
   MoreHorizontal,
   PlusCircle,
   Car,
-  Fuel,
   Wrench,
   User,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -49,14 +50,36 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
-const vehicles = [
-  { id: "RDO1A12", model: "Scania R450", driver: "João Silva", status: "Em Viagem", nextMaintenance: "2024-08-15" },
-  { id: "RDO2C24", model: "MB Actros", driver: "Maria Oliveira", status: "Disponível", nextMaintenance: "2024-09-01" },
-  { id: "RDO3B45", model: "Volvo FH 540", driver: "Carlos Pereira", status: "Em Manutenção", nextMaintenance: "2024-07-30" },
-  { id: "RDO4D56", model: "DAF XF", driver: "Ana Costa", status: "Disponível", nextMaintenance: "2024-08-20" },
-  { id: "RDO5E67", model: "Iveco Stralis", driver: "Paulo Souza", status: "Em Viagem", nextMaintenance: "2024-09-10" },
-];
+interface Vehicle {
+    id: string;
+    plate: string;
+    model: string;
+    year: number;
+    fuel: string;
+    driver?: string;
+    status: "Disponível" | "Em Viagem" | "Em Manutenção";
+    nextMaintenance?: string;
+}
+
+const vehicleSchema = z.object({
+    plate: z.string().min(7, "A placa deve ter 7 caracteres").max(7, "A placa deve ter 7 caracteres"),
+    model: z.string().min(1, "O modelo é obrigatório"),
+    year: z.coerce.number().min(1980, "Ano inválido").max(new Date().getFullYear() + 1, "Ano inválido"),
+    fuel: z.string().min(1, "O tipo de combustível é obrigatório"),
+});
+
+type VehicleFormValues = z.infer<typeof vehicleSchema>;
+
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } = {
   "Em Viagem": "default",
@@ -65,7 +88,64 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } 
 };
 
 export default function VeiculosPage() {
-  const [open, setOpen] = React.useState(false);
+    const { toast } = useToast();
+    const [open, setOpen] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+
+    const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<VehicleFormValues>({
+        resolver: zodResolver(vehicleSchema),
+    });
+
+    React.useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, "vehicles"), (snapshot) => {
+            const vehiclesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
+            setVehicles(vehiclesData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const onSubmit = async (data: VehicleFormValues) => {
+        try {
+            await addDoc(collection(db, "vehicles"), {
+                ...data,
+                plate: data.plate.toUpperCase(),
+                status: "Disponível", // Default status
+                driver: "",
+            });
+            toast({
+                title: "Veículo Adicionado!",
+                description: `O veículo ${data.model} (${data.plate}) foi cadastrado com sucesso.`,
+            });
+            setOpen(false);
+            reset();
+        } catch (error) {
+            console.error("Error adding vehicle: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Salvar",
+                description: "Não foi possível adicionar o veículo. Tente novamente.",
+            });
+        }
+    }
+
+    const handleDeleteVehicle = async (vehicleId: string) => {
+        try {
+            await deleteDoc(doc(db, "vehicles", vehicleId));
+            toast({
+                title: "Veículo Excluído",
+                description: "O veículo foi removido com sucesso.",
+            });
+        } catch (error) {
+            console.error("Error deleting vehicle: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Excluir",
+                description: "Não foi possível remover o veículo.",
+            });
+        }
+    }
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,7 +153,7 @@ export default function VeiculosPage() {
         title="Frota de Veículos"
         description="Gerencie todos os veículos cadastrados na sua frota."
       >
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2" />
@@ -81,43 +161,52 @@ export default function VeiculosPage() {
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Adicionar Novo Veículo</DialogTitle>
-              <DialogDescription>
-                Preencha as informações para cadastrar um novo veículo.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="plate" className="text-right">Placa</Label>
-                <Input id="plate" placeholder="RDO1A12" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="model" className="text-right">Modelo</Label>
-                <Input id="model" placeholder="Scania R450" className="col-span-3" />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="year" className="text-right">Ano</Label>
-                <Input id="year" type="number" placeholder="2023" className="col-span-3" />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fuel" className="text-right">Combustível</Label>
-                 <Select>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="diesel">Diesel</SelectItem>
-                    <SelectItem value="etanol">Etanol</SelectItem>
-                     <SelectItem value="eletrico">Elétrico</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" onClick={() => setOpen(false)}>Salvar Veículo</Button>
-            </DialogFooter>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <DialogHeader>
+                <DialogTitle>Adicionar Novo Veículo</DialogTitle>
+                <DialogDescription>
+                    Preencha as informações para cadastrar um novo veículo.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                <div className="grid items-center gap-2">
+                    <Label htmlFor="plate">Placa</Label>
+                    <Input id="plate" placeholder="RDO1A12" {...register("plate")} />
+                    {errors.plate && <p className="text-sm text-destructive">{errors.plate.message}</p>}
+                </div>
+                <div className="grid items-center gap-2">
+                    <Label htmlFor="model">Modelo</Label>
+                    <Input id="model" placeholder="Scania R450" {...register("model")} />
+                     {errors.model && <p className="text-sm text-destructive">{errors.model.message}</p>}
+                </div>
+                <div className="grid items-center gap-2">
+                    <Label htmlFor="year">Ano</Label>
+                    <Input id="year" type="number" placeholder="2023" {...register("year")} />
+                    {errors.year && <p className="text-sm text-destructive">{errors.year.message}</p>}
+                </div>
+                <div className="grid items-center gap-2">
+                    <Label htmlFor="fuel">Combustível</Label>
+                    <Select onValueChange={(value) => reset({ ...register, fuel: value })} >
+                        <SelectTrigger id="fuel">
+                            <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="diesel">Diesel</SelectItem>
+                            <SelectItem value="etanol">Etanol</SelectItem>
+                            <SelectItem value="eletrico">Elétrico</SelectItem>
+                        </SelectContent>
+                    </Select>
+                     {errors.fuel && <p className="text-sm text-destructive">{errors.fuel.message}</p>}
+                </div>
+                </div>
+                <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar Veículo
+                </Button>
+                </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </PageHeader>
@@ -143,43 +232,78 @@ export default function VeiculosPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vehicles.map((vehicle) => (
-                <TableRow key={vehicle.id}>
-                  <TableCell className="font-medium">{vehicle.id}</TableCell>
-                  <TableCell>{vehicle.model}</TableCell>
-                  <TableCell>{vehicle.driver}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[vehicle.status] || "default"}>
-                      {vehicle.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{vehicle.nextMaintenance}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Car className="mr-2 h-4 w-4" /> Ver Detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/manutencoes">
-                            <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <User className="mr-2 h-4 w-4" /> Atribuir Motorista
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+              {isLoading ? (
+                 <TableRow>
+                    <TableCell colSpan={6}>
+                        <Skeleton className="h-24 w-full" />
+                    </TableCell>
+                  </TableRow>
+              ) : vehicles.length > 0 ? (
+                vehicles.map((vehicle) => (
+                    <TableRow key={vehicle.id}>
+                    <TableCell className="font-medium">{vehicle.plate}</TableCell>
+                    <TableCell>{vehicle.model}</TableCell>
+                    <TableCell>{vehicle.driver || "N/A"}</TableCell>
+                    <TableCell>
+                        <Badge variant={statusVariant[vehicle.status] || "default"}>
+                        {vehicle.status}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>{vehicle.nextMaintenance || 'N/A'}</TableCell>
+                    <TableCell>
+                         <AlertDialog>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuItem>
+                                <Car className="mr-2 h-4 w-4" /> Ver Detalhes
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                <Link href="/manutencoes">
+                                    <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
+                                </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                <User className="mr-2 h-4 w-4" /> Atribuir Motorista
+                                </DropdownMenuItem>
+                                <AlertDialogTrigger asChild>
+                                     <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Esta ação não pode ser desfeita. O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteVehicle(vehicle.id)} className={cn(buttonVariants({ variant: "destructive" }))}>
+                                        Sim, Excluir
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                    </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                        Nenhum veículo cadastrado.
+                    </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -187,3 +311,4 @@ export default function VeiculosPage() {
     </div>
   );
 }
+
