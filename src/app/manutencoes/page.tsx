@@ -48,6 +48,9 @@ interface Maintenance {
     scheduledDate: string;
     status: "Agendada" | "Em Andamento" | "Concluída" | "Cancelada";
     createdAt: string;
+    cost?: number;
+    startedAt?: Timestamp;
+    completedAt?: Timestamp;
 }
 
 interface Vehicle {
@@ -75,6 +78,10 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
 export default function ManutencoesPage() {
     const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
+    const [openCompleteDialog, setOpenCompleteDialog] = React.useState(false);
+    const [selectedMaintenance, setSelectedMaintenance] = React.useState<Maintenance | null>(null);
+    const [maintenanceCost, setMaintenanceCost] = React.useState<string>("");
+
     const [maintenances, setMaintenances] = React.useState<Maintenance[]>([]);
     const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -134,7 +141,15 @@ export default function ManutencoesPage() {
     const updateMaintenanceStatus = async (id: string, status: Maintenance['status']) => {
         try {
             const docRef = doc(db, 'manutencoes', id);
-            await updateDoc(docRef, { status });
+            let updates: any = { status };
+            if (status === 'Em Andamento') {
+                updates.startedAt = Timestamp.now();
+                 await updateDoc(doc(db, 'vehicles', maintenances.find(m=>m.id === id)!.vehicleId), { status: 'Em Manutenção' });
+            }
+            if (status === 'Cancelada' || status === 'Concluída') {
+                 await updateDoc(doc(db, 'vehicles', maintenances.find(m=>m.id === id)!.vehicleId), { status: 'Disponível' });
+            }
+            await updateDoc(docRef, updates);
             toast({
                 title: "Status Atualizado!",
                 description: `A manutenção foi marcada como "${status}".`
@@ -149,6 +164,34 @@ export default function ManutencoesPage() {
         }
     }
     
+     const handleCompleteMaintenance = async () => {
+        if (!selectedMaintenance || !maintenanceCost) {
+            toast({ variant: 'destructive', title: "Erro", description: "O custo da manutenção é obrigatório." });
+            return;
+        }
+
+        try {
+            const docRef = doc(db, 'manutencoes', selectedMaintenance.id);
+            await updateDoc(docRef, {
+                status: 'Concluída',
+                completedAt: Timestamp.now(),
+                cost: parseFloat(maintenanceCost.replace(',', '.')),
+            });
+            await updateDoc(doc(db, 'vehicles', selectedMaintenance.vehicleId), { status: 'Disponível' });
+
+            toast({
+                title: "Manutenção Concluída!",
+                description: `O serviço no veículo ${selectedMaintenance.vehicleId} foi finalizado.`,
+            });
+            setOpenCompleteDialog(false);
+            setSelectedMaintenance(null);
+            setMaintenanceCost("");
+        } catch (error) {
+            console.error("Error completing maintenance:", error);
+            toast({ variant: 'destructive', title: "Erro", description: "Não foi possível finalizar a manutenção." });
+        }
+    };
+    
     const formatDate = (dateString: string) => {
         if (!dateString) return 'N/A';
         return format(new Date(dateString), "dd/MM/yyyy");
@@ -159,6 +202,35 @@ export default function ManutencoesPage() {
 
 
   return (
+    <>
+    {/* Dialog for completing maintenance */}
+    <Dialog open={openCompleteDialog} onOpenChange={setOpenCompleteDialog}>
+        <DialogContent>
+             <DialogHeader>
+                <DialogTitle>Concluir Manutenção</DialogTitle>
+                <DialogDescription>
+                    Informe o custo final para concluir o serviço no veículo <span className="font-bold">{selectedMaintenance?.vehicleId}</span>.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                 <div className="grid items-center gap-2">
+                    <Label htmlFor="cost">Custo Total (R$)</Label>
+                    <Input 
+                        id="cost" 
+                        type="text" 
+                        placeholder="Ex: 1500,50" 
+                        value={maintenanceCost} 
+                        onChange={(e) => setMaintenanceCost(e.target.value)} 
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setOpenCompleteDialog(false)}>Cancelar</Button>
+                <Button type="button" onClick={handleCompleteMaintenance}>Concluir Serviço</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Manutenções"
@@ -297,7 +369,10 @@ export default function ManutencoesPage() {
                                             </DropdownMenuItem>
                                         )}
                                         {item.status === 'Em Andamento' && (
-                                            <DropdownMenuItem onSelect={() => updateMaintenanceStatus(item.id, 'Concluída')}>
+                                            <DropdownMenuItem onSelect={() => {
+                                                setSelectedMaintenance(item);
+                                                setOpenCompleteDialog(true);
+                                            }}>
                                                 <CheckCircle className="mr-2 h-4 w-4" /> Concluir Serviço
                                             </DropdownMenuItem>
                                         )}
@@ -336,24 +411,26 @@ export default function ManutencoesPage() {
                     <TableHead>Veículo</TableHead>
                     <TableHead>Serviço Realizado</TableHead>
                     <TableHead>Data</TableHead>
+                    <TableHead>Custo</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                    {isLoading ? (
-                    <TableRow><TableCell colSpan={4}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
                    ) : historyMaintenances.length > 0 ? (
                     historyMaintenances.map((item) => (
                         <TableRow key={item.id}>
                              <TableCell className="font-medium">{item.vehicleId}</TableCell>
                             <TableCell>{item.serviceType}</TableCell>
                             <TableCell>{formatDate(item.scheduledDate)}</TableCell>
+                             <TableCell>{item.cost ? item.cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'N/D'}</TableCell>
                             <TableCell><Badge variant={statusVariant[item.status]}>{item.status}</Badge></TableCell>
                         </TableRow>
                     ))
                    ) : (
                    <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       Nenhum histórico de manutenção encontrado.
                     </TableCell>
                   </TableRow>
@@ -365,8 +442,11 @@ export default function ManutencoesPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }
 
+
+    
 
     

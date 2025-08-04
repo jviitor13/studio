@@ -22,8 +22,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DollarSign, Truck, Clock, AlertCircle } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { CompletedChecklist } from '@/lib/types';
+import { differenceInHours } from 'date-fns';
 
 // Mock data, in a real scenario this would come from Firestore.
 interface Vehicle {
@@ -33,6 +34,15 @@ interface Vehicle {
   status: 'Em Viagem' | 'Disponível' | 'Em Manutenção';
   nextMaintenance: string;
 }
+
+interface Maintenance {
+    id: string;
+    status: "Agendada" | "Em Andamento" | "Concluída" | "Cancelada";
+    cost?: number;
+    startedAt?: Timestamp;
+    completedAt?: Timestamp;
+}
+
 
 const fleetChartConfig = {
   value: {
@@ -69,6 +79,9 @@ export function ManagerDashboard() {
   const [maintenanceVehicles, setMaintenanceVehicles] = useState<Vehicle[]>([]);
   const [problematicItems, setProblematicItems] = useState<{ problem: string, count: number, fill: string }[]>([]);
   const [activeAlerts, setActiveAlerts] = useState(0);
+  const [monthlyCost, setMonthlyCost] = useState(0);
+  const [downtimeHours, setDowntimeHours] = useState(0);
+
 
   useEffect(() => {
     // Listener for 'vehicles' collection
@@ -125,11 +138,43 @@ export function ManagerDashboard() {
             }));
         setProblematicItems(sortedProblems);
     });
+    
+    // Listener for 'manutencoes' collection
+    const unsubscribeMaintenances = onSnapshot(collection(db, 'manutencoes'), (snapshot) => {
+        const maintenancesData = snapshot.docs.map(doc => doc.data() as Maintenance);
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        const cost = maintenancesData.reduce((acc, m) => {
+            if (m.status === 'Concluída' && m.cost && m.completedAt) {
+                 const completedDate = m.completedAt.toDate();
+                 if(completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear) {
+                    return acc + m.cost;
+                 }
+            }
+            return acc;
+        }, 0);
+        setMonthlyCost(cost);
+
+        const downtime = maintenancesData.reduce((acc, m) => {
+             if (m.status === 'Concluída' && m.startedAt && m.completedAt) {
+                 const completedDate = m.completedAt.toDate();
+                 if(completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear) {
+                    const hours = differenceInHours(completedDate, m.startedAt.toDate());
+                    return acc + hours;
+                 }
+            }
+            return acc;
+        }, 0);
+        setDowntimeHours(downtime);
+    });
 
     // Cleanup function to unsubscribe from listeners on component unmount
     return () => {
         unsubscribeVehicles();
         unsubscribeChecklists();
+        unsubscribeMaintenances();
     };
   }, []);
 
@@ -158,7 +203,7 @@ export function ManagerDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0 horas</div>
+            <div className="text-2xl font-bold">{downtimeHours} horas</div>
             <p className="text-xs text-muted-foreground">Total em manutenção</p>
           </CardContent>
         </Card>
@@ -168,8 +213,8 @@ export function ManagerDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 0,00</div>
-            <p className="text-xs text-muted-foreground">Nenhum custo registrado</p>
+            <div className="text-2xl font-bold">{monthlyCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            <p className="text-xs text-muted-foreground">Custos registrados no mês</p>
           </CardContent>
         </Card>
         <Card>
@@ -286,6 +331,8 @@ export function ManagerDashboard() {
       </Card>
     </div>
   );
+
+    
 
     
 
