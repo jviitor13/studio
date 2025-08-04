@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,10 +32,11 @@ const vehicleTireData: Record<string, Record<string, any>> = {
     "T1EE": { id: "PNEU-032", brand: "Goodyear", model: "KMax D", pressure: "115 psi", depth: "10mm" },
     "T1DI": { id: "PNEU-033", brand: "Goodyear", model: "KMax D", pressure: "114 psi", depth: "10mm" },
     "T1DE": { id: "PNEU-034", brand: "Goodyear", model: "KMax D", pressure: "114 psi", depth: "10mm" },
-  }
+  },
+  "RDO3B45": {}
 };
 
-const TirePosition = ({ position, tireData, onAction }: { position: string, tireData?: any, onAction: (action: string, tireId?: string) => void }) => {
+const TirePosition = ({ position, tireData, onAction }: { position: string, tireData?: any, onAction: (action: string, position: string, tireId?: string) => void }) => {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -71,16 +72,16 @@ const TirePosition = ({ position, tireData, onAction }: { position: string, tire
             </div>
             <Separator />
              <div className="flex flex-col gap-2">
-                <Button size="sm" variant="outline" onClick={() => onAction('inspecionar', tireData.id)}>Inspecionar</Button>
-                <Button size="sm" variant="outline" onClick={() => onAction('trocar', tireData.id)}><Repeat className="mr-2 h-4 w-4" />Trocar Pneu</Button>
-                <Button size="sm" variant="destructive" onClick={() => onAction('retirar', tireData.id)}><Trash2 className="mr-2 h-4 w-4" />Retirar Pneu</Button>
+                <Button size="sm" variant="outline" onClick={() => onAction('inspecionar', position, tireData.id)}>Inspecionar</Button>
+                <Button size="sm" variant="outline" onClick={() => onAction('trocar', position, tireData.id)}><Repeat className="mr-2 h-4 w-4" />Trocar Pneu</Button>
+                <Button size="sm" variant="destructive" onClick={() => onAction('retirar', position, tireData.id)}><Trash2 className="mr-2 h-4 w-4" />Retirar Pneu</Button>
              </div>
           </div>
         ) : (
              <div className="space-y-2 text-center">
                 <p className="font-medium">Posição Vazia</p>
                 <p className="text-sm text-muted-foreground">{position}</p>
-                <Button size="sm" className="mt-2" onClick={() => onAction('instalar')}><PlusCircle className="mr-2 h-4 w-4" />Instalar Pneu</Button>
+                <Button size="sm" className="mt-2" onClick={() => onAction('instalar', position)}><PlusCircle className="mr-2 h-4 w-4" />Instalar Pneu</Button>
              </div>
         )}
       </PopoverContent>
@@ -90,14 +91,40 @@ const TirePosition = ({ position, tireData, onAction }: { position: string, tire
 
 export default function PneusVisualizacaoPage() {
   const [selectedVehicle, setSelectedVehicle] = useState("RDO1A12");
-  const currentTires = vehicleTireData[selectedVehicle] || {};
+  const [currentTires, setCurrentTires] = useState(vehicleTireData[selectedVehicle] || {});
   const { toast } = useToast();
 
-  const handleTireAction = (action: string, tireId?: string) => {
-    toast({
-        title: "Ação Registrada",
-        description: `Ação '${action}' para o pneu ${tireId || ''} foi acionada. (Funcionalidade em desenvolvimento)`,
-    });
+  useEffect(() => {
+    setCurrentTires(vehicleTireData[selectedVehicle] || {});
+  }, [selectedVehicle]);
+
+  const handleTireAction = (action: string, position: string, tireId?: string) => {
+    
+    if (action === 'retirar') {
+        const newTires = { ...currentTires };
+        delete newTires[position];
+        setCurrentTires(newTires);
+        toast({
+            title: "Pneu Retirado!",
+            description: `O pneu ${tireId} foi retirado da posição ${position}.`,
+        });
+    } else if (action === 'instalar') {
+        const newTires = { ...currentTires };
+        // In a real app, you'd open a dialog to select a tire from stock.
+        // For now, we'll add a placeholder.
+        newTires[position] = { id: "PNEU-NOVO", brand: "Novo Pneu", model: "A Instalar", pressure: "N/A", depth: "N/A" };
+        setCurrentTires(newTires);
+         toast({
+            title: "Pneu Instalado!",
+            description: `Um novo pneu foi instalado na posição ${position}.`,
+        });
+    }
+    else {
+        toast({
+            title: "Ação Registrada",
+            description: `Ação '${action}' para o pneu ${tireId || ''} foi acionada. (Funcionalidade em desenvolvimento)`,
+        });
+    }
   };
 
 
@@ -162,4 +189,3 @@ export default function PneusVisualizacaoPage() {
     </div>
   );
 }
-
