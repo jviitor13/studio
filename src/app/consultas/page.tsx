@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc } from "firebase/firestore"
+import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
@@ -59,7 +59,7 @@ export default function ConsultasPage() {
     const { toast } = useToast()
 
     React.useEffect(() => {
-        const q = query(collection(db, "completed-checklists"));
+        const q = query(collection(db, "completed-checklists"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
           const checklistsData: CompletedChecklist[] = [];
           querySnapshot.forEach((doc) => {
@@ -216,7 +216,6 @@ export default function ConsultasPage() {
                                         <SelectValue placeholder="Todos os tipos" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="viagem">Viagem</SelectItem>
                                         <SelectItem value="retorno">Retorno</SelectItem>
                                         <SelectItem value="Manutenção">Manutenção</SelectItem>
                                     </SelectContent>
