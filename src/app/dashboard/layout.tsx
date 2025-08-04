@@ -57,7 +57,6 @@ const getMenuItems = (role: string) => {
       { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'operacao' },
       // Gerenciamento
-      { href: "/escalas", label: "Escalas", icon: Calendar, group: 'gerenciamento' },
       { href: "/manutencoes", label: "Manutenções", icon: Wrench, group: 'gerenciamento' },
       { href: "/pneus", label: "Pneus", icon: CircleDot, group: 'gerenciamento' },
       { href: "/relatorios", label: "Gerar Relatórios", icon: BarChart3, group: 'gerenciamento' },
@@ -240,5 +239,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
-
-    
