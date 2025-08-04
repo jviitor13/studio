@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Grip, Repeat, Trash2, PlusCircle, Thermometer, Gauge } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data
 const vehicleTireData: Record<string, Record<string, any>> = {
@@ -34,7 +35,7 @@ const vehicleTireData: Record<string, Record<string, any>> = {
   }
 };
 
-const TirePosition = ({ position, tireData }: { position: string, tireData?: any }) => {
+const TirePosition = ({ position, tireData, onAction }: { position: string, tireData?: any, onAction: (action: string, tireId?: string) => void }) => {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -70,16 +71,16 @@ const TirePosition = ({ position, tireData }: { position: string, tireData?: any
             </div>
             <Separator />
              <div className="flex flex-col gap-2">
-                <Button size="sm" variant="outline">Inspecionar</Button>
-                <Button size="sm" variant="outline"><Repeat className="mr-2 h-4 w-4" />Trocar Pneu</Button>
-                <Button size="sm" variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Retirar Pneu</Button>
+                <Button size="sm" variant="outline" onClick={() => onAction('inspecionar', tireData.id)}>Inspecionar</Button>
+                <Button size="sm" variant="outline" onClick={() => onAction('trocar', tireData.id)}><Repeat className="mr-2 h-4 w-4" />Trocar Pneu</Button>
+                <Button size="sm" variant="destructive" onClick={() => onAction('retirar', tireData.id)}><Trash2 className="mr-2 h-4 w-4" />Retirar Pneu</Button>
              </div>
           </div>
         ) : (
              <div className="space-y-2 text-center">
                 <p className="font-medium">Posição Vazia</p>
                 <p className="text-sm text-muted-foreground">{position}</p>
-                <Button size="sm" className="mt-2"><PlusCircle className="mr-2 h-4 w-4" />Instalar Pneu</Button>
+                <Button size="sm" className="mt-2" onClick={() => onAction('instalar')}><PlusCircle className="mr-2 h-4 w-4" />Instalar Pneu</Button>
              </div>
         )}
       </PopoverContent>
@@ -90,6 +91,15 @@ const TirePosition = ({ position, tireData }: { position: string, tireData?: any
 export default function PneusVisualizacaoPage() {
   const [selectedVehicle, setSelectedVehicle] = useState("RDO1A12");
   const currentTires = vehicleTireData[selectedVehicle] || {};
+  const { toast } = useToast();
+
+  const handleTireAction = (action: string, tireId?: string) => {
+    toast({
+        title: "Ação Registrada",
+        description: `Ação '${action}' para o pneu ${tireId || ''} foi acionada. (Funcionalidade em desenvolvimento)`,
+    });
+  };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,8 +128,8 @@ export default function PneusVisualizacaoPage() {
           <div className="bg-muted/30 p-4 rounded-lg border-2 border-dashed flex flex-col items-center gap-8">
             {/* Eixo Dianteiro */}
             <div className="flex justify-between w-full max-w-sm">
-              <TirePosition position="DDE" tireData={currentTires["DDE"]} />
-              <TirePosition position="DDD" tireData={currentTires["DDD"]} />
+              <TirePosition position="DDE" tireData={currentTires["DDE"]} onAction={handleTireAction} />
+              <TirePosition position="DDD" tireData={currentTires["DDD"]} onAction={handleTireAction} />
             </div>
 
             {/* Traseira do Cavalo */}
@@ -127,19 +137,19 @@ export default function PneusVisualizacaoPage() {
                 <p className="text-center text-sm font-semibold text-muted-foreground mb-4">Eixos Traseiros (Cavalo)</p>
                 {/* Primeiro Eixo Traseiro */}
                 <div className="flex justify-between w-full max-w-lg mx-auto">
-                    <TirePosition position="T1EI" tireData={currentTires["T1EI"]} />
-                    <TirePosition position="T1EE" tireData={currentTires["T1EE"]} />
+                    <TirePosition position="T1EI" tireData={currentTires["T1EI"]} onAction={handleTireAction} />
+                    <TirePosition position="T1EE" tireData={currentTires["T1EE"]} onAction={handleTireAction} />
                     <div className="w-24" /> {/* Espaço central */}
-                    <TirePosition position="T1DI" tireData={currentTires["T1DI"]} />
-                    <TirePosition position="T1DE" tireData={currentTires["T1DE"]} />
+                    <TirePosition position="T1DI" tireData={currentTires["T1DI"]} onAction={handleTireAction} />
+                    <TirePosition position="T1DE" tireData={currentTires["T1DE"]} onAction={handleTireAction} />
                 </div>
                  {/* Segundo Eixo Traseiro */}
                 <div className="flex justify-between w-full max-w-lg mx-auto mt-4">
-                    <TirePosition position="T2EI" tireData={currentTires["T2EI"]} />
-                    <TirePosition position="T2EE" tireData={currentTires["T2EE"]} />
+                    <TirePosition position="T2EI" tireData={currentTires["T2EI"]} onAction={handleTireAction} />
+                    <TirePosition position="T2EE" tireData={currentTires["T2EE"]} onAction={handleTireAction} />
                      <div className="w-24" /> {/* Espaço central */}
-                    <TirePosition position="T2DI" tireData={currentTires["T2DI"]} />
-                    <TirePosition position="T2DE" tireData={currentTires["T2DE"]} />
+                    <TirePosition position="T2DI" tireData={currentTires["T2DI"]} onAction={handleTireAction} />
+                    <TirePosition position="T2DE" tireData={currentTires["T2DE"]} onAction={handleTireAction} />
                 </div>
             </div>
              <div className="w-full text-center text-xs text-muted-foreground pt-4">
@@ -152,3 +162,4 @@ export default function PneusVisualizacaoPage() {
     </div>
   );
 }
+
