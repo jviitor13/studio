@@ -90,10 +90,16 @@ export default function ChecklistCompletedPage() {
                     url: window.location.href,
                 });
                 toast({ title: "Checklist compartilhado com sucesso!" });
-            } catch (error) {
-                console.error('Error sharing:', error);
-                // The user might have cancelled the share action, so we don't always show an error toast.
-                // You could check for specific error names if needed, e.g., if (error.name !== 'AbortError')
+            } catch (error: any) {
+                // Ignore AbortError which is thrown when the user cancels the share action
+                if (error.name !== 'AbortError') {
+                    console.error('Error sharing:', error);
+                    toast({ 
+                        variant: "destructive",
+                        title: "Falha ao compartilhar", 
+                        description: "Não foi possível compartilhar o checklist. Verifique as permissões do seu navegador." 
+                    });
+                }
             }
         } else {
             // Fallback for browsers that do not support navigator.share
