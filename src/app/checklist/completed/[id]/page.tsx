@@ -81,21 +81,26 @@ export default function ChecklistCompletedPage() {
         window.print();
     }
     
-    const handleShare = () => {
-        if(navigator.share) {
-            navigator.share({
-                title: `RodoCheck - Checklist ${checklist?.id}`,
-                text: `Confira o checklist para o veículo ${checklist?.vehicle}.`,
-                url: window.location.href,
-            })
-            .then(() => toast({ title: "Checklist compartilhado com sucesso!" }))
-            .catch((error) => console.error('Error sharing', error));
+    const handleShare = async () => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `RodoCheck - Checklist ${checklist?.id}`,
+                    text: `Confira o checklist para o veículo ${checklist?.vehicle}.`,
+                    url: window.location.href,
+                });
+                toast({ title: "Checklist compartilhado com sucesso!" });
+            } catch (error) {
+                console.error('Error sharing:', error);
+                // The user might have cancelled the share action, so we don't always show an error toast.
+                // You could check for specific error names if needed, e.g., if (error.name !== 'AbortError')
+            }
         } else {
             // Fallback for browsers that do not support navigator.share
             navigator.clipboard.writeText(window.location.href);
             toast({ title: "Link Copiado!", description: "O link para o checklist foi copiado para a área de transferência." });
         }
-    }
+    };
 
 
     if (isLoading) {
