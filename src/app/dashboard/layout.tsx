@@ -48,7 +48,6 @@ const getMenuItems = (role: string) => {
   
   const roleItems: Record<string, { href: string; label: string; icon: React.ElementType, group: string }[]> = {
     motorista: [
-      { href: "/checklist/viagem", label: "Iniciar Checklist", icon: ShieldCheck, group: 'operacao' },
       { href: "/ocorrencias", label: "Registrar Ocorrência", icon: Bell, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'gerenciamento' },
       { href: "/documentos", label: "Meus Documentos", icon: FileText, group: 'gerenciamento' },
@@ -56,7 +55,6 @@ const getMenuItems = (role: string) => {
     gestor: [
       // Operação
       { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck, group: 'operacao' },
-      { href: "/checklist/viagem", label: "Checklist de Viagem", icon: ShieldCheck, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'operacao' },
       // Gerenciamento
       { href: "/escalas", label: "Escalas", icon: Calendar, group: 'gerenciamento' },
@@ -88,7 +86,7 @@ const getMenuItems = (role: string) => {
 const getBottomNavItems = (role: string) => {
     const gestorItems = [
         { href: "/dashboard", label: "Início", icon: Home },
-        { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
+        { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
         { href: "/veiculos", label: "Frota", icon: Truck },
         { href: "/consultas", label: "Busca", icon: Search },
         { href: "/manutencoes", label: "Serviços", icon: Wrench },
@@ -96,7 +94,7 @@ const getBottomNavItems = (role: string) => {
     
     const motoristaItems = [
         { href: "/dashboard", label: "Início", icon: Home },
-        { href: "/checklist/viagem", label: "Checklist", icon: ShieldCheck },
+        { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
         { href: "/ocorrencias", label: "Ocorrências", icon: Bell },
         { href: "/consultas", label: "Consultar", icon: Search },
         { href: "/documentos", label: "Docs", icon: FileText },

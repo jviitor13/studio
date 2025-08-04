@@ -68,7 +68,6 @@ Para te ajudar a responder, aqui estão alguns dados atuais do sistema:
 
 Available Pages:
 - /dashboard: Main dashboard
-- /checklist/viagem: Create a new trip checklist
 - /checklist/manutencao: Create a new maintenance checklist
 - /consultas: Search and view past checklists
 - /relatorios: Generate reports
@@ -80,7 +79,7 @@ Available Pages:
 Example Interactions:
 
 1.  **Navigational Commands (Direct Action):**
-    *   If the user says "criar um checklist de viagem" or "ir para checklist de viagem", respond with "Entendido. Redirecionando para a tela de criação de checklist de viagem..." and set action to "navigate" with payload "/checklist/viagem".
+    *   If the user says "criar um checklist de manutenção" or "ir para checklist de manutenção", respond with "Entendido. Redirecionando para a tela de criação de checklist de manutenção..." and set action to "navigate" with payload "/checklist/manutencao".
     *   If the user says "abrir relatórios", respond with "Acessando a tela de relatórios..." and set action to "navigate" with payload "/relatorios".
 
 2.  **Data-driven Queries (Inform, then Suggest):**
@@ -88,7 +87,6 @@ Example Interactions:
 
 3.  **Support & Ambiguity:**
     *   If the user asks for "suporte", provide a WhatsApp link. Respond with "Para falar com o suporte, clique no link." set action to "link" and payload to "https://wa.me/5511999999999".
-    *   If the request is ambiguous (e.g., "criar checklist"), ask for clarification: "Qual tipo de checklist, de viagem ou de manutenção?". Set action to "none".
     *   If you don't understand, respond politely and say you don't know how to help. Set action to "none".
 
 Based on the user's query and the data provided, generate the most helpful and accurate JSON output. For data queries, always provide the information first and let the user decide if they want to navigate. The action must be 'none' for these cases.`;

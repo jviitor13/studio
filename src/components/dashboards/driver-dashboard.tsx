@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ShieldCheck, FileText, AlertTriangle } from "lucide-react";
+import { ClipboardCheck, FileText, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
@@ -87,14 +87,14 @@ export function DriverDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="/checklist/viagem" className="w-full">
+                  <Link href="/checklist/manutencao" className="w-full">
                     <Button size="lg" className="w-full h-24 text-base">
-                        <ShieldCheck className="mr-4 h-6 w-6" /> Novo Checklist
+                        <ClipboardCheck className="mr-4 h-6 w-6" /> Novo Checklist
                     </Button>
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Preencha um novo checklist de pré ou pós-viagem.</p>
+                  <p>Preencha um novo checklist de manutenção.</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
