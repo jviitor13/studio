@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Eye, Truck, Settings, Wrench, Calendar as CalendarIcon } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Eye, Truck, Settings, Wrench, Calendar as CalendarIcon, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,48 +49,89 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, updateDoc, addDoc, query, where, getDocs } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
+interface Tire {
+    id: string;
+    fireId: string;
+    serial: string;
+    brand: string;
+    model: string;
+    mfgDate: string;
+    size: string;
+    indices: string;
+    type: string;
+    status: "Em Uso" | "Em Estoque" | "Em Manutenção" | "Sucateado" | "Novo";
+    retreads: number;
+    lifespan: number;
+    vehicleId?: string;
+    position?: string;
+    pressure?: string;
+    depth?: string;
+}
 
-const tires = [
-  { id: "PNEU-001", brand: "Michelin", model: "X Multi Z", size: "275/80 R22.5", lifespan: "85%", status: "Em Uso", vehicle: "RDO1A12", position: "DDE" },
-  { id: "PNEU-002", brand: "Pirelli", model: "FR:01", size: "275/80 R22.5", lifespan: "90%", status: "Em Uso", vehicle: "RDO1A12", position: "DDD" },
-  { id: "PNEU-003", brand: "Goodyear", model: "KMax S", size: "295/80 R22.5", lifespan: "100%", status: "Em Estoque", vehicle: "-", position: "-" },
-  { id: "PNEU-004", brand: "Michelin", model: "X Multi Z", size: "275/80 R22.5", lifespan: "40%", status: "Em Manutenção", vehicle: "RDO2C24", position: "T1EE" },
-  { id: "PNEU-005", brand: "Bridgestone", model: "R268", size: "11R22.5", lifespan: "0%", status: "Sucateado", vehicle: "-", position: "-" },
-];
+interface Vehicle {
+  id: string;
+  model: string;
+}
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
   "Em Uso": "default",
+  "Novo": "default",
   "Em Estoque": "secondary",
   "Em Manutenção": "outline",
   "Sucateado": "destructive",
 };
 
-const MaintenanceDialog = ({ tireId }: { tireId: string }) => {
+const MaintenanceDialog = ({ tire }: { tire: Tire }) => {
     const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
     const [date, setDate] = React.useState<Date>();
 
-    const handleSendToMaintenance = () => {
-        toast({
-            title: "Envio Registrado!",
-            description: `O pneu ${tireId} foi enviado para manutenção.`,
-        });
-        setOpen(false);
+    const handleSendToMaintenance = async () => {
+        try {
+            const tireRef = doc(db, 'pneus', tire.id);
+            await updateDoc(tireRef, {
+                status: 'Em Manutenção',
+                vehicleId: '',
+                position: '',
+            });
+            toast({
+                title: "Envio Registrado!",
+                description: `O pneu ${tire.fireId} foi enviado para manutenção.`,
+            });
+            setOpen(false);
+        } catch (error) {
+            console.error("Error sending to maintenance:", error);
+            toast({ variant: 'destructive', title: "Erro", description: "Não foi possível enviar o pneu para manutenção." });
+        }
     }
     
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Wrench className="mr-2"/>Enviar p/ Manutenção
+                    <Wrench className="mr-2 h-4 w-4"/>Enviar p/ Manutenção
                 </DropdownMenuItem>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Enviar Pneu para Manutenção</DialogTitle>
                     <DialogDescription>
-                        Preencha os dados para registrar o envio do pneu <span className="font-bold">{tireId}</span>.
+                        Preencha os dados para registrar o envio do pneu <span className="font-bold">{tire.fireId}</span>.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -140,8 +181,193 @@ const MaintenanceDialog = ({ tireId }: { tireId: string }) => {
     )
 }
 
-export default function PneusPage() {
+const ScrapDialog = ({ tire }: { tire: Tire }) => {
+    const { toast } = useToast();
+
+    const handleScrapTire = async () => {
+        try {
+            const tireRef = doc(db, 'pneus', tire.id);
+            await updateDoc(tireRef, {
+                status: 'Sucateado',
+                vehicleId: '',
+                position: '',
+            });
+            toast({
+                title: "Pneu Sucateado!",
+                description: `O pneu ${tire.fireId} foi marcado como sucateado.`,
+            });
+        } catch (error) {
+            console.error("Error scrapping tire:", error);
+            toast({ variant: 'destructive', title: "Erro", description: "Não foi possível sucatear o pneu." });
+        }
+    };
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                    <Ban className="mr-2 h-4 w-4" />Sucatear
+                </DropdownMenuItem>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Sucateamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta ação é irreversível. O pneu <span className="font-bold">{tire.fireId}</span> será marcado como "Sucateado" e não poderá ser utilizado novamente. Deseja continuar?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleScrapTire} className={cn(buttonVariants({variant: "destructive"}))}>Sim, Sucatear</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+};
+
+const TireMovementDialog = ({ tire }: { tire: Tire }) => {
+    const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
+    const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+    const [selectedVehicle, setSelectedVehicle] = React.useState('');
+    const [selectedPosition, setSelectedPosition] = React.useState('');
+
+    React.useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, "vehicles"), (snapshot) => {
+            const vehiclesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
+            setVehicles(vehiclesData);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleMoveTire = async () => {
+        if (!selectedVehicle || !selectedPosition) {
+            toast({ variant: 'destructive', title: "Erro", description: "Selecione o veículo e a posição." });
+            return;
+        }
+
+        // Check if position is already occupied
+        const q = query(collection(db, 'pneus'), where('vehicleId', '==', selectedVehicle), where('position', '==', selectedPosition));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            toast({ variant: 'destructive', title: "Posição Ocupada", description: `A posição ${selectedPosition} no veículo ${selectedVehicle} já está ocupada.` });
+            return;
+        }
+
+        try {
+            const tireRef = doc(db, 'pneus', tire.id);
+            await updateDoc(tireRef, {
+                status: 'Em Uso',
+                vehicleId: selectedVehicle,
+                position: selectedPosition,
+            });
+            toast({
+                title: "Pneu Movimentado!",
+                description: `O pneu ${tire.fireId} foi instalado no veículo ${selectedVehicle}, posição ${selectedPosition}.`,
+            });
+            setOpen(false);
+        } catch (error) {
+            console.error("Error moving tire:", error);
+            toast({ variant: 'destructive', title: "Erro", description: "Não foi possível movimentar o pneu." });
+        }
+    };
+
+    const tirePositions = ["DDE", "DDD", "T1EI", "T1EE", "T1DI", "T1DE", "T2EI", "T2EE", "T2DI", "T2DE"];
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <DropdownMenuItem disabled={tire.status !== 'Em Estoque'} onSelect={(e) => e.preventDefault()}>
+                    <Truck className="mr-2 h-4 w-4"/>Movimentar
+                </DropdownMenuItem>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Movimentar Pneu</DialogTitle>
+                    <DialogDescription>
+                        Instale o pneu <span className="font-bold">{tire.fireId}</span> em um veículo.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid items-center gap-2">
+                        <Label htmlFor="vehicle-select">Veículo de Destino</Label>
+                        <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                            <SelectTrigger id="vehicle-select"><SelectValue placeholder="Selecione um veículo..." /></SelectTrigger>
+                            <SelectContent>
+                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.id} - {v.model}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid items-center gap-2">
+                        <Label htmlFor="position-select">Posição de Instalação</Label>
+                        <Select value={selectedPosition} onValueChange={setSelectedPosition}>
+                            <SelectTrigger id="position-select"><SelectValue placeholder="Selecione uma posição..." /></SelectTrigger>
+                            <SelectContent>
+                                {tirePositions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button type="submit" onClick={handleMoveTire}>Confirmar Movimentação</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+export default function PneusPage() {
+    const { toast } = useToast();
+    const [openNewTireDialog, setOpenNewTireDialog] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [tires, setTires] = React.useState<Tire[]>([]);
+
+    React.useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, "pneus"), (snapshot) => {
+            const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
+            setTires(tiresData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSaveNewTire = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const data = Object.fromEntries(formData.entries());
+
+        const newTire = {
+            fireId: data.id as string,
+            serial: data.serial as string,
+            brand: data.brand as string,
+            model: data.model as string,
+            mfgDate: data['mfg-date'] as string,
+            size: data.size as string,
+            indices: data.indices as string,
+            type: data.type as string,
+            status: data.status as Tire['status'],
+            retreads: Number(data.retreads),
+            lifespan: Number(data.lifespan),
+            vehicleId: '',
+            position: '',
+        };
+
+        // Basic validation
+        if (!newTire.fireId || !newTire.brand || !newTire.model || !newTire.size) {
+            toast({ variant: "destructive", title: "Erro", description: "Preencha todos os campos obrigatórios." });
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, 'pneus'), newTire);
+            toast({ title: "Sucesso!", description: "Novo pneu cadastrado." });
+            setOpenNewTireDialog(false);
+        } catch (error) {
+            console.error("Error adding new tire:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível cadastrar o pneu." });
+        }
+    }
 
   return (
     <div className="flex flex-col gap-6">
@@ -152,24 +378,25 @@ export default function PneusPage() {
         <div className="flex gap-2">
            <Link href="/pneus/visualizacao">
             <Button variant="outline">
-                <Eye className="mr-2" />
+                <Eye className="mr-2 h-4 w-4" />
                 Visualizar por Veículo
             </Button>
            </Link>
            <Link href="/pneus/manutencao">
             <Button variant="outline">
-                <Wrench className="mr-2" />
+                <Wrench className="mr-2 h-4 w-4" />
                 Acompanhar Manutenções
             </Button>
            </Link>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={openNewTireDialog} onOpenChange={setOpenNewTireDialog}>
                 <DialogTrigger asChild>
                     <Button>
-                        <PlusCircle className="mr-2" />
+                        <PlusCircle className="mr-2 h-4 w-4" />
                         Adicionar Pneu
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-3xl">
+                  <form onSubmit={handleSaveNewTire}>
                     <DialogHeader>
                         <DialogTitle>Cadastro Detalhado de Pneu</DialogTitle>
                         <DialogDescription>
@@ -182,24 +409,24 @@ export default function PneusPage() {
                             <h3 className="font-semibold text-lg">Dados de Identificação</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="id">ID / Fogo 🔥</Label>
-                                    <Input id="id" placeholder="Ex: PNEU-006" />
+                                    <Label htmlFor="id">ID / Fogo 🔥 *</Label>
+                                    <Input id="id" name="id" placeholder="Ex: PNEU-006" required/>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="serial">Número de Série</Label>
-                                    <Input id="serial" placeholder="Ex: Y78SDFG89" />
+                                    <Input id="serial" name="serial" placeholder="Ex: Y78SDFG89" />
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="brand">Marca</Label>
-                                    <Input id="brand" placeholder="Ex: Michelin" />
+                                    <Label htmlFor="brand">Marca *</Label>
+                                    <Input id="brand" name="brand" placeholder="Ex: Michelin" required/>
                                 </div>
                                 <div className="grid gap-2">
-                                    <Label htmlFor="model">Modelo</Label>
-                                    <Input id="model" placeholder="Ex: X Multi Z" />
+                                    <Label htmlFor="model">Modelo *</Label>
+                                    <Input id="model" name="model" placeholder="Ex: X Multi Z" required/>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="mfg-date">Data de Fabricação</Label>
-                                    <Input id="mfg-date" type="week" />
+                                    <Input id="mfg-date" name="mfg-date" type="week" />
                                 </div>
                             </div>
                         </div>
@@ -209,16 +436,16 @@ export default function PneusPage() {
                             <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="size">Medida</Label>
-                                    <Input id="size" placeholder="Ex: 275/80 R22.5" />
+                                    <Label htmlFor="size">Medida *</Label>
+                                    <Input id="size" name="size" placeholder="Ex: 275/80 R22.5" required />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="indices">Índice Carga/Velocidade</Label>
-                                    <Input id="indices" placeholder="Ex: 149/146L" />
+                                    <Input id="indices" name="indices" placeholder="Ex: 149/146L" />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="type">Tipo (Construção)</Label>
-                                    <Select>
+                                    <Select name="type" defaultValue="radial">
                                         <SelectTrigger id="type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="radial">Radial</SelectItem>
@@ -235,34 +462,34 @@ export default function PneusPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="grid gap-2">
                                     <Label htmlFor="status">Situação Atual</Label>
-                                    <Select>
+                                    <Select name="status" defaultValue="Novo">
                                         <SelectTrigger id="status"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="novo">Novo (em estoque)</SelectItem>
-                                            <SelectItem value="usado">Em uso</SelectItem>
-                                            <SelectItem value="recap1">Recapado 1x</SelectItem>
-                                            <SelectItem value="recap2">Recapado 2x</SelectItem>
-                                            <SelectItem value="manutencao">Em manutenção</SelectItem>
-                                            <SelectItem value="descartado">Descartado</SelectItem>
+                                            <SelectItem value="Novo">Novo (em estoque)</SelectItem>
+                                            <SelectItem value="Em Estoque">Em Estoque</SelectItem>
+                                            <SelectItem value="Em Uso">Em uso</SelectItem>
+                                            <SelectItem value="Em Manutenção">Em manutenção</SelectItem>
+                                            <SelectItem value="Sucateado">Sucateado</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="retreads">Número de Reformas</Label>
-                                    <Input id="retreads" type="number" defaultValue={0} />
+                                    <Input id="retreads" name="retreads" type="number" defaultValue={0} />
                                 </div>
                                  <div className="grid gap-2">
                                     <Label htmlFor="lifespan">Vida Útil Estimada (%)</Label>
-                                    <Input id="lifespan" type="number" placeholder="Ex: 85" />
+                                    <Input id="lifespan" name="lifespan" type="number" placeholder="Ex: 85" defaultValue={100} />
                                 </div>
                             </div>
                         </div>
 
                     </div>
                     <DialogFooter className="mt-4 pt-4 border-t">
-                        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                        <Button type="submit" onClick={() => setOpen(false)}>Salvar Pneu</Button>
+                        <Button type="button" variant="ghost" onClick={() => setOpenNewTireDialog(false)}>Cancelar</Button>
+                        <Button type="submit">Salvar Pneu</Button>
                     </DialogFooter>
+                  </form>
                 </DialogContent>
             </Dialog>
         </div>
@@ -290,44 +517,57 @@ export default function PneusPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tires.map((tire) => (
-                <TableRow key={tire.id}>
-                  <TableCell className="font-medium">{tire.id}</TableCell>
-                  <TableCell>{tire.brand} {tire.model}</TableCell>
-                   <TableCell>{tire.size}</TableCell>
-                   <TableCell>
-                        <Badge variant={tire.lifespan.startsWith('100') || tire.lifespan.startsWith('9') ? 'default' : tire.lifespan.startsWith('0') ? 'destructive' : 'secondary'} className={tire.lifespan.startsWith('100') || tire.lifespan.startsWith('9') || tire.lifespan.startsWith('8') ? 'bg-green-500 hover:bg-green-600' : ''}>
-                            {tire.lifespan}
+              {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7}>
+                        <Skeleton className="h-24 w-full" />
+                    </TableCell>
+                  </TableRow>
+              ) : (
+                tires.map((tire) => (
+                    <TableRow key={tire.id}>
+                    <TableCell className="font-medium">{tire.fireId}</TableCell>
+                    <TableCell>{tire.brand} {tire.model}</TableCell>
+                    <TableCell>{tire.size}</TableCell>
+                    <TableCell>
+                            <Badge variant={tire.lifespan > 75 ? 'default' : tire.lifespan < 25 ? 'destructive' : 'secondary'} className={tire.lifespan > 75 ? 'bg-green-500 hover:bg-green-600' : ''}>
+                                {tire.lifespan}%
+                            </Badge>
+                        </TableCell>
+                    <TableCell>
+                        <Badge variant={statusVariant[tire.status] || 'secondary'}>
+                        {tire.status}
                         </Badge>
                     </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[tire.status] || 'secondary'}>
-                      {tire.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{tire.vehicle !== '-' ? `${tire.vehicle} / ${tire.position}` : 'Em Estoque'}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem><Eye className="mr-2"/>Ver Detalhes</DropdownMenuItem>
-                        <DropdownMenuItem><Truck className="mr-2"/>Movimentar</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <MaintenanceDialog tireId={tire.id} />
-                        <DropdownMenuItem className="text-destructive">
-                          Sucatear
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    <TableCell>{tire.vehicleId ? `${tire.vehicleId} / ${tire.position}` : 'Em Estoque'}</TableCell>
+                    <TableCell>
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem disabled><Eye className="mr-2 h-4 w-4"/>Ver Detalhes</DropdownMenuItem>
+                            <TireMovementDialog tire={tire} />
+                            <DropdownMenuSeparator />
+                            <MaintenanceDialog tire={tire} />
+                            <ScrapDialog tire={tire} />
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                    </TableRow>
+                ))
+              )}
+               {!isLoading && tires.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={7} className="text-center h-24">
+                            Nenhum pneu cadastrado.
+                        </TableCell>
+                    </TableRow>
+                )}
             </TableBody>
           </Table>
         </CardContent>
