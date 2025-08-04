@@ -55,7 +55,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, doc, deleteDoc, query, where, updateDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,12 @@ interface Vehicle {
     driver?: string;
     status: "Disponível" | "Em Viagem" | "Em Manutenção";
     nextMaintenance?: string;
+}
+
+interface User {
+    id: string;
+    name: string;
+    role: string;
 }
 
 const vehicleSchema = z.object({
@@ -87,11 +93,105 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" } 
   "Em Manutenção": "destructive",
 };
 
+const VehicleDetailsDialog = ({ vehicle }: { vehicle: Vehicle | null }) => {
+    if (!vehicle) return null;
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Detalhes do Veículo: {vehicle.plate}</DialogTitle>
+                <DialogDescription>{vehicle.model} - {vehicle.year}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Placa:</span>
+                    <span>{vehicle.plate}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Modelo:</span>
+                    <span>{vehicle.model}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Ano:</span>
+                    <span>{vehicle.year}</span>
+                </div>
+                 <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Combustível:</span>
+                    <span className="capitalize">{vehicle.fuel}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Status:</span>
+                     <Badge variant={statusVariant[vehicle.status] || "default"} className="w-fit">{vehicle.status}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Motorista Atual:</span>
+                    <span>{vehicle.driver || "Nenhum motorista atribuído"}</span>
+                </div>
+                 <div className="grid grid-cols-2 gap-2">
+                    <span className="font-semibold">Próxima Manutenção:</span>
+                    <span>{vehicle.nextMaintenance || "Não agendada"}</span>
+                </div>
+            </div>
+            <DialogFooter>
+                 <DialogTrigger asChild><Button variant="outline">Fechar</Button></DialogTrigger>
+            </DialogFooter>
+        </DialogContent>
+    );
+};
+
+const AssignDriverDialog = ({ vehicle, onAssign }: { vehicle: Vehicle | null, onAssign: (driverName: string) => void }) => {
+    const [drivers, setDrivers] = React.useState<User[]>([]);
+    const [selectedDriver, setSelectedDriver] = React.useState("");
+
+    React.useEffect(() => {
+        if (vehicle) {
+            const q = query(collection(db, "users"), where("role", "==", "Motorista"));
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const driversData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                setDrivers(driversData);
+            });
+            return () => unsubscribe();
+        }
+    }, [vehicle]);
+
+    if (!vehicle) return null;
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Atribuir Motorista ao Veículo {vehicle.plate}</DialogTitle>
+                <DialogDescription>
+                    Selecione um motorista da lista para vincular a este veículo.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <Label htmlFor="driver-select">Motoristas Disponíveis</Label>
+                <Select value={selectedDriver} onValueChange={setSelectedDriver}>
+                    <SelectTrigger id="driver-select">
+                        <SelectValue placeholder="Selecione um motorista..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {drivers.map(driver => (
+                            <SelectItem key={driver.id} value={driver.name}>{driver.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <DialogFooter>
+                 <DialogTrigger asChild><Button variant="ghost">Cancelar</Button></DialogTrigger>
+                <Button onClick={() => onAssign(selectedDriver)} disabled={!selectedDriver}>Atribuir</Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
 export default function VeiculosPage() {
     const { toast } = useToast();
-    const [open, setOpen] = React.useState(false);
+    const [openNewVehicleDialog, setOpenNewVehicleDialog] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(true);
     const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+    const [selectedVehicle, setSelectedVehicle] = React.useState<Vehicle | null>(null);
+    const [dialogType, setDialogType] = React.useState<"details" | "assign" | null>(null);
+
 
     const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<VehicleFormValues>({
         resolver: zodResolver(vehicleSchema),
@@ -118,7 +218,7 @@ export default function VeiculosPage() {
                 title: "Veículo Adicionado!",
                 description: `O veículo ${data.model} (${data.plate}) foi cadastrado com sucesso.`,
             });
-            setOpen(false);
+            setOpenNewVehicleDialog(false);
             reset();
         } catch (error) {
             console.error("Error adding vehicle: ", error);
@@ -146,14 +246,31 @@ export default function VeiculosPage() {
             });
         }
     }
+    
+    const handleAssignDriver = async (driverName: string) => {
+        if (!selectedVehicle) return;
+        try {
+            const vehicleRef = doc(db, 'vehicles', selectedVehicle.id);
+            await updateDoc(vehicleRef, { driver: driverName });
+            toast({
+                title: "Motorista Atribuído!",
+                description: `${driverName} foi atribuído ao veículo ${selectedVehicle.plate}.`,
+            });
+            setDialogType(null);
+        } catch (error) {
+            console.error("Error assigning driver:", error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível atribuir o motorista.' });
+        }
+    };
+
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <PageHeader
         title="Frota de Veículos"
         description="Gerencie todos os veículos cadastrados na sua frota."
       >
-        <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
+        <Dialog open={openNewVehicleDialog} onOpenChange={(isOpen) => { setOpenNewVehicleDialog(isOpen); if (!isOpen) reset(); }}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2" />
@@ -200,7 +317,7 @@ export default function VeiculosPage() {
                 </div>
                 </div>
                 <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="button" variant="ghost" onClick={() => setOpenNewVehicleDialog(false)}>Cancelar</Button>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Salvar Veículo
@@ -218,96 +335,100 @@ export default function VeiculosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Placa</TableHead>
-                <TableHead>Modelo</TableHead>
-                <TableHead>Motorista Atual</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Próxima Manutenção</TableHead>
-                <TableHead>
-                  <span className="sr-only">Ações</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                 <TableRow>
-                    <TableCell colSpan={6}>
-                        <Skeleton className="h-24 w-full" />
-                    </TableCell>
-                  </TableRow>
-              ) : vehicles.length > 0 ? (
-                vehicles.map((vehicle) => (
-                    <TableRow key={vehicle.id}>
-                    <TableCell className="font-medium">{vehicle.plate}</TableCell>
-                    <TableCell>{vehicle.model}</TableCell>
-                    <TableCell>{vehicle.driver || "N/A"}</TableCell>
-                    <TableCell>
-                        <Badge variant={statusVariant[vehicle.status] || "default"}>
-                        {vehicle.status}
-                        </Badge>
-                    </TableCell>
-                    <TableCell>{vehicle.nextMaintenance || 'N/A'}</TableCell>
-                    <TableCell>
-                         <AlertDialog>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem>
-                                <Car className="mr-2 h-4 w-4" /> Ver Detalhes
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                <Link href="/manutencoes">
-                                    <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
-                                </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                <User className="mr-2 h-4 w-4" /> Atribuir Motorista
-                                </DropdownMenuItem>
-                                <AlertDialogTrigger asChild>
-                                     <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta ação não pode ser desfeita. O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteVehicle(vehicle.id)} className={cn(buttonVariants({ variant: "destructive" }))}>
-                                        Sim, Excluir
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
-                    </TableRow>
-                ))
-              ) : (
+          <Dialog open={!!dialogType} onOpenChange={() => setDialogType(null)}>
+            <Table>
+                <TableHeader>
                 <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                        Nenhum veículo cadastrado.
-                    </TableCell>
+                    <TableHead>Placa</TableHead>
+                    <TableHead>Modelo</TableHead>
+                    <TableHead>Motorista Atual</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Próxima Manutenção</TableHead>
+                    <TableHead>
+                    <span className="sr-only">Ações</span>
+                    </TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {isLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={6}>
+                            <Skeleton className="h-24 w-full" />
+                        </TableCell>
+                    </TableRow>
+                ) : vehicles.length > 0 ? (
+                    vehicles.map((vehicle) => (
+                        <TableRow key={vehicle.id}>
+                        <TableCell className="font-medium">{vehicle.plate}</TableCell>
+                        <TableCell>{vehicle.model}</TableCell>
+                        <TableCell>{vehicle.driver || "N/A"}</TableCell>
+                        <TableCell>
+                            <Badge variant={statusVariant[vehicle.status] || "default"}>
+                            {vehicle.status}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>{vehicle.nextMaintenance || 'N/A'}</TableCell>
+                        <TableCell>
+                            <AlertDialog>
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("details"); }}>
+                                        <Car className="mr-2 h-4 w-4" /> Ver Detalhes
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                    <Link href="/manutencoes">
+                                        <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
+                                    </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("assign"); }}>
+                                        <User className="mr-2 h-4 w-4" /> Atribuir Motorista
+                                    </DropdownMenuItem>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta ação não pode ser desfeita. O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteVehicle(vehicle.id)} className={cn(buttonVariants({ variant: "destructive" }))}>
+                                            Sim, Excluir
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                            Nenhum veículo cadastrado.
+                        </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+            {dialogType === "details" && <VehicleDetailsDialog vehicle={selectedVehicle} />}
+            {dialogType === "assign" && <AssignDriverDialog vehicle={selectedVehicle} onAssign={handleAssignDriver} />}
+           </Dialog>
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
