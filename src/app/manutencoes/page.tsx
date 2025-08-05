@@ -385,7 +385,7 @@ export default function ManutencoesPage() {
                     <Button type="button" variant="ghost" onClick={() => setOpenCompleteDialog(false)}>Cancelar</Button>
                     <Button type="submit" disabled={completeMaintenanceForm.formState.isSubmitting}>
                          {completeMaintenanceForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Concluir Serviço
+                         {completeMaintenanceForm.formState.isSubmitting ? 'Salvando...' : 'Concluir Serviço'}
                     </Button>
                 </DialogFooter>
             </form>

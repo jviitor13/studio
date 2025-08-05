@@ -331,7 +331,7 @@ export default function VeiculosPage() {
                 <Button type="button" variant="ghost" onClick={() => setOpenNewVehicleDialog(false)}>Cancelar</Button>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Salvar Veículo
+                    {isSubmitting ? "Salvando..." : "Salvar Veículo"}
                 </Button>
                 </DialogFooter>
             </form>

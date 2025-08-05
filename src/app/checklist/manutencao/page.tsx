@@ -45,7 +45,7 @@ const checklistSchema = z.object({
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
-  questions: z.array(checklistItemSchema)
+  questions: z.array(checklistItemSchema),
 }).refine(data => data.questions.every(item => item.status !== 'N/A'), {
     message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
     path: ["questions"],
