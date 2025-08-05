@@ -182,27 +182,6 @@ export default function ChecklistCompletedPage() {
             </Card>
 
             <Card>
-                 <CardHeader>
-                    <CardTitle>Ações</CardTitle>
-                    <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
-                </CardHeader>
-                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Button onClick={handleExport} size="lg" className="h-auto py-4">
-                        <Download className="mr-3 h-5 w-5" />
-                        Gerar PDF
-                    </Button>
-                     <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4">
-                        <Printer className="mr-3 h-5 w-5" />
-                        Imprimir
-                    </Button>
-                     <Button onClick={handleShare} variant="outline" size="lg" className="h-auto py-4">
-                        <Share2 className="mr-3 h-5 w-5" />
-                        Compartilhar
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Card>
                 <CardHeader>
                     <CardTitle>Detalhes Completos</CardTitle>
                     <CardDescription>Visualização completa do checklist submetido.</CardDescription>
@@ -253,6 +232,27 @@ export default function ChecklistCompletedPage() {
                             )}
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                 <CardHeader>
+                    <CardTitle>Ações</CardTitle>
+                    <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
+                </CardHeader>
+                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Button onClick={handleExport} size="lg" className="h-auto py-4">
+                        <Download className="mr-3 h-5 w-5" />
+                        Gerar PDF
+                    </Button>
+                     <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4">
+                        <Printer className="mr-3 h-5 w-5" />
+                        Imprimir
+                    </Button>
+                     <Button onClick={handleShare} variant="outline" size="lg" className="h-auto py-4">
+                        <Share2 className="mr-3 h-5 w-5" />
+                        Compartilhar
+                    </Button>
                 </CardContent>
             </Card>
 
