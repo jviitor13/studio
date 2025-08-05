@@ -223,9 +223,27 @@ const TirePosition = ({ position, tireData, vehicleId, onAction, onInspect, onSw
   );
 };
 
-const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId, stockTires }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (position: string, tire: Tire) => void, position: string, vehicleId: string, stockTires: Tire[] }) => {
+const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (position: string, tire: Tire) => void, position: string, vehicleId: string }) => {
     const { toast } = useToast();
     const [selectedTireId, setSelectedTireId] = useState('');
+    const [stockTires, setStockTires] = useState<Tire[]>([]);
+
+    useEffect(() => {
+        if (open) {
+            const q = query(
+                collection(db, "pneus"),
+                where("status", "in", ["Em Estoque", "Novo"])
+            );
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
+                setStockTires(tiresData);
+            }, (error) => {
+                console.error("Error fetching stock tires:", error);
+                toast({ variant: 'destructive', title: "Erro ao buscar pneus", description: "Não foi possível carregar os pneus do estoque." });
+            });
+            return () => unsubscribe();
+        }
+    }, [open, toast]);
 
     const handleInstall = async () => {
         if (!selectedTireId) {
@@ -388,8 +406,6 @@ export default function PneusVisualizacaoPage() {
       traseiro2: ["T2EI", "T2EE", "T2DI", "T2DE"]
   }
   
-  const stockTires = allTires.filter(t => t.status === 'Em Estoque' || t.status === 'Novo');
-
   return (
     <>
       <InstallTireDialog 
@@ -398,7 +414,6 @@ export default function PneusVisualizacaoPage() {
         onInstall={handleInstallTire} 
         position={installPosition}
         vehicleId={selectedVehicle} 
-        stockTires={stockTires}
       />
       <div className="flex flex-col gap-6">
         <PageHeader
