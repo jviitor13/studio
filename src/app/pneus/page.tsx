@@ -273,7 +273,18 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
         }
     };
 
-    const tirePositions = ["DDE", "DDD", "T1EI", "T1EE", "T1DI", "T1DE", "T2EI", "T2EE", "T2DI", "T2DE"];
+    const tirePositions = [
+        { value: "DDE", label: "Dianteiro Direito Externo" },
+        { value: "DDD", label: "Dianteiro Direito Interno" },
+        { value: "T1EI", label: "1º Eixo Traseiro - Esquerdo Interno" },
+        { value: "T1EE", label: "1º Eixo Traseiro - Esquerdo Externo" },
+        { value: "T1DI", label: "1º Eixo Traseiro - Direito Interno" },
+        { value: "T1DE", label: "1º Eixo Traseiro - Direito Externo" },
+        { value: "T2EI", label: "2º Eixo Traseiro - Esquerdo Interno" },
+        { value: "T2EE", label: "2º Eixo Traseiro - Esquerdo Externo" },
+        { value: "T2DI", label: "2º Eixo Traseiro - Direito Interno" },
+        { value: "T2DE", label: "2º Eixo Traseiro - Direito Externo" },
+    ];
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -304,7 +315,7 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
                         <Select value={selectedPosition} onValueChange={setSelectedPosition}>
                             <SelectTrigger id="position-select"><SelectValue placeholder="Selecione uma posição..." /></SelectTrigger>
                             <SelectContent>
-                                {tirePositions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                {tirePositions.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>

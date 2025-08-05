@@ -34,6 +34,19 @@ interface Vehicle {
     model: string;
 }
 
+const tirePositionsMap = [
+    { value: "DDE", label: "Dianteiro Direito Externo" },
+    { value: "DDD", label: "Dianteiro Direito Interno" },
+    { value: "T1EI", label: "1º Eixo Traseiro - Esquerdo Interno" },
+    { value: "T1EE", label: "1º Eixo Traseiro - Esquerdo Externo" },
+    { value: "T1DI", label: "1º Eixo Traseiro - Direito Interno" },
+    { value: "T1DE", label: "1º Eixo Traseiro - Direito Externo" },
+    { value: "T2EI", label: "2º Eixo Traseiro - Esquerdo Interno" },
+    { value: "T2EE", label: "2º Eixo Traseiro - Esquerdo Externo" },
+    { value: "T2DI", label: "2º Eixo Traseiro - Direito Interno" },
+    { value: "T2DE", label: "2º Eixo Traseiro - Direito Externo" },
+];
+
 const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap: (newTire: Tire) => void, currentTireId: string, position: string, vehicleId: string }) => {
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
