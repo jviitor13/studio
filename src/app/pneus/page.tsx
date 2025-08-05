@@ -295,7 +295,7 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
                         <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
                             <SelectTrigger id="vehicle-select"><SelectValue placeholder="Selecione um veículo..." /></SelectTrigger>
                             <SelectContent>
-                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>)}
+                                {vehicles.map(v => <SelectItem key={v.id} value={v.plate}>{v.plate} - {v.model}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
