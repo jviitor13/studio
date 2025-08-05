@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportToExcel, generateReportPdf } from "@/lib/report-generator";
 import { Report } from "@/lib/types";
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, Timestamp, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 
@@ -61,19 +61,32 @@ export default function RelatoriosPage() {
         const q = query(
             checklistsRef,
             where('status', '==', 'Pendente'),
-            where('createdAt', '>=', Timestamp.fromDate(startOfDay(from))),
-            where('createdAt', '<=', Timestamp.fromDate(endOfDay(to)))
+            orderBy('createdAt', 'desc')
         );
 
         const querySnapshot = await getDocs(q);
-        const incidents = querySnapshot.docs.flatMap(doc => {
-            const checklistData = doc.data();
+        
+        const allIncidents = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                createdAt: data.createdAt.toDate(), // Convert Timestamp to Date
+            };
+        });
+        
+        // Filter by date on the client side
+        const filteredByDate = allIncidents.filter(incident => {
+            const incidentDate = incident.createdAt;
+            return incidentDate >= startOfDay(from) && incidentDate <= endOfDay(to);
+        });
+
+        const incidents = filteredByDate.flatMap(checklistData => {
             return checklistData.questions
                 .filter((q: any) => q.status === 'Não OK')
                 .map((q: any) => ({
                     Veículo: checklistData.vehicle,
                     Motorista: checklistData.driver,
-                    Data: format(checklistData.createdAt.toDate(), 'dd/MM/yyyy'),
+                    Data: format(checklistData.createdAt, 'dd/MM/yyyy'),
                     'Item com Problema': q.text,
                     Observação: q.observation || 'N/A',
                 }));
