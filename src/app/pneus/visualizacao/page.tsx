@@ -263,7 +263,7 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId,
     };
     
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(isOpen) => { if(!isOpen) setSelectedTireId(''); onOpenChange(isOpen);}}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Instalar Pneu na Posição {position}</DialogTitle>
