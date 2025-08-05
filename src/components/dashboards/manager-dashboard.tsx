@@ -207,7 +207,7 @@ export function ManagerDashboard() {
             <p className="text-xs text-muted-foreground">Total em manutenção</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Custo Manutenção (Mês)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
