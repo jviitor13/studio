@@ -52,7 +52,7 @@ const checklistSchema = z.object({
 }).refine(data => data.questions.every(item => {
     const needsPhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK');
     return !needsPhoto || (needsPhoto && !!item.photo);
-}, {
+}), {
     message: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens marcados.",
     path: ["questions"],
 });
@@ -481,5 +481,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
