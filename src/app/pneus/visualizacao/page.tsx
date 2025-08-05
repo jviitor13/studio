@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { Grip, Repeat, Trash2, PlusCircle, Thermometer, Gauge, Search } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { collection, doc, onSnapshot, query, updateDoc, where, getDocs } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, updateDoc, where, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -36,7 +36,7 @@ interface Vehicle {
 
 const tirePositionsMap = [
     { value: "DDE", label: "Dianteiro Direito Externo" },
-    { value: "DDD", label: "Dianteiro Direito Interno" },
+    { value: "DDD", label: "Dianteiro Esquerdo Externo" },
     { value: "T1EI", label: "1º Eixo Traseiro - Esquerdo Interno" },
     { value: "T1EE", label: "1º Eixo Traseiro - Esquerdo Externo" },
     { value: "T1DI", label: "1º Eixo Traseiro - Direito Interno" },
@@ -220,7 +220,7 @@ const TirePosition = ({ position, tireData, vehicleId, onAction, onInspect, onSw
   );
 };
 
-const InstallTireDialog = ({ open, onOpenChange, onInstall, position }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (tire: Tire) => void, position: string }) => {
+const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (tire: Tire) => void, position: string, vehicleId: string }) => {
     const { toast } = useToast();
     const [stockTires, setStockTires] = useState<Tire[]>([]);
     const [selectedTire, setSelectedTire] = useState('');
@@ -236,15 +236,39 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position }: { open: 
         }
     }, [open]);
 
-    const handleInstall = () => {
+    const handleInstall = async () => {
         if (!selectedTire) {
             toast({ variant: 'destructive', title: "Erro", description: "Selecione um pneu para instalar." });
             return;
         }
+        
         const tireToInstall = stockTires.find(t => t.id === selectedTire);
         if (tireToInstall) {
-            onInstall(tireToInstall);
-            onOpenChange(false);
+             try {
+                // Check if position is occupied on the DB one last time
+                const q = query(collection(db, 'pneus'), where('vehicleId', '==', vehicleId), where('position', '==', position));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    toast({ variant: 'destructive', title: "Posição Ocupada", description: `A posição ${position} foi ocupada enquanto você selecionava. Tente outra.` });
+                    return;
+                }
+
+                const tireRef = doc(db, 'pneus', tireToInstall.id);
+                await updateDoc(tireRef, {
+                    status: 'Em Uso',
+                    vehicleId: vehicleId,
+                    position: position,
+                });
+                
+                await setDoc(doc(db, 'vehicles', vehicleId), { status: 'Disponível' }, { merge: true });
+
+                onInstall(tireToInstall);
+                toast({ title: "Pneu Instalado!", description: `O pneu ${tireToInstall.fireId} foi instalado na posição ${position}.` });
+                onOpenChange(false);
+            } catch (error) {
+                console.error("Error installing tire:", error)
+                toast({ variant: 'destructive', title: "Erro", description: "Não foi possível instalar o pneu." });
+            }
         }
     };
     
@@ -289,13 +313,18 @@ export default function PneusVisualizacaoPage() {
         setVehicles(vehiclesData);
         if (vehiclesData.length > 0 && !selectedVehicle) {
             setSelectedVehicle(vehiclesData[0].id);
+        } else if (vehiclesData.length === 0) {
+            setIsLoading(false);
         }
     });
     return () => unsubscribe();
-  }, []);
+  }, [selectedVehicle]);
 
   useEffect(() => {
-    if (!selectedVehicle) return;
+    if (!selectedVehicle) {
+        setCurrentTires({});
+        return;
+    };
 
     setIsLoading(true);
     const q = query(collection(db, "pneus"), where("vehicleId", "==", selectedVehicle));
@@ -336,27 +365,8 @@ export default function PneusVisualizacaoPage() {
     }
   };
   
-  const handleInstallTire = async (tire: Tire) => {
-      try {
-          // Check if position is occupied on the DB one last time
-          const q = query(collection(db, 'pneus'), where('vehicleId', '==', selectedVehicle), where('position', '==', installPosition));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-              toast({ variant: 'destructive', title: "Posição Ocupada", description: `A posição ${installPosition} foi ocupada enquanto você selecionava. Tente outra.` });
-              return;
-          }
-
-          const tireRef = doc(db, 'pneus', tire.id);
-          await updateDoc(tireRef, {
-              status: 'Em Uso',
-              vehicleId: selectedVehicle,
-              position: installPosition,
-          });
-          setCurrentTires(prev => ({ ...prev, [installPosition]: { ...tire, vehicleId: selectedVehicle, position: installPosition, status: 'Em Uso' } as Tire }));
-          toast({ title: "Pneu Instalado!", description: `O pneu ${tire.fireId} foi instalado na posição ${installPosition}.` });
-      } catch (error) {
-          toast({ variant: 'destructive', title: "Erro", description: "Não foi possível instalar o pneu." });
-      }
+  const handleInstallTire = (tire: Tire) => {
+      setCurrentTires(prev => ({ ...prev, [installPosition]: { ...tire, vehicleId: selectedVehicle, position: installPosition, status: 'Em Uso' } as Tire }));
   }
 
   const handleInspectionUpdate = (position: string, updates: Partial<Tire>) => {
@@ -381,7 +391,13 @@ export default function PneusVisualizacaoPage() {
 
   return (
     <>
-      <InstallTireDialog open={isInstallDialogOpen} onOpenChange={setIsInstallDialogOpen} onInstall={handleInstallTire} position={installPosition} />
+      <InstallTireDialog 
+        open={isInstallDialogOpen} 
+        onOpenChange={setIsInstallDialogOpen} 
+        onInstall={handleInstallTire} 
+        position={installPosition}
+        vehicleId={selectedVehicle} 
+      />
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Visualização de Pneus por Veículo"
@@ -405,6 +421,10 @@ export default function PneusVisualizacaoPage() {
           <CardContent>
             {isLoading ? (
                 <Skeleton className="h-96 w-full" />
+            ) : !selectedVehicle ? (
+                <div className="h-96 w-full flex items-center justify-center text-muted-foreground">
+                    <p>Selecione um veículo para começar.</p>
+                </div>
             ) : (
             <div className="bg-muted/30 p-4 rounded-lg border-2 border-dashed flex flex-col items-center gap-8">
               {/* Eixo Dianteiro */}
@@ -446,5 +466,3 @@ export default function PneusVisualizacaoPage() {
     </>
   );
 }
-
-    
