@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   Bell,
   Settings,
+  Package,
 } from "lucide-react";
 import { Logo } from "@/components/icons";
 import {
@@ -48,6 +49,7 @@ const getMenuItems = (role: string) => {
   
   const roleItems: Record<string, { href: string; label: string; icon: React.ElementType, group: string }[]> = {
     motorista: [
+      { href: "/carga", label: "Controle de Carga", icon: Package, group: 'operacao' },
       { href: "/ocorrencias", label: "Registrar Ocorrência", icon: Bell, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'gerenciamento' },
       { href: "/documentos", label: "Meus Documentos", icon: FileText, group: 'gerenciamento' },
@@ -55,6 +57,7 @@ const getMenuItems = (role: string) => {
     gestor: [
       // Operação
       { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck, group: 'operacao' },
+      { href: "/carga", label: "Controle de Carga", icon: Package, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'operacao' },
       // Gerenciamento
       { href: "/manutencoes", label: "Manutenções", icon: Wrench, group: 'gerenciamento' },
@@ -86,7 +89,7 @@ const getBottomNavItems = (role: string) => {
     const gestorItems = [
         { href: "/dashboard", label: "Início", icon: Home },
         { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
-        { href: "/veiculos", label: "Frota", icon: Truck },
+        { href: "/carga", label: "Carga", icon: Package },
         { href: "/consultas", label: "Busca", icon: Search },
         { href: "/manutencoes", label: "Serviços", icon: Wrench },
     ];
@@ -94,8 +97,8 @@ const getBottomNavItems = (role: string) => {
     const motoristaItems = [
         { href: "/dashboard", label: "Início", icon: Home },
         { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
+        { href: "/carga", label: "Carga", icon: Package },
         { href: "/ocorrencias", label: "Ocorrências", icon: Bell },
-        { href: "/consultas", label: "Consultar", icon: Search },
         { href: "/documentos", label: "Docs", icon: FileText },
     ];
 
