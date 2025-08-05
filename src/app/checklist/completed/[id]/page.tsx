@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { CheckCircle, Download, Home, Printer, Share2 } from 'lucide-react';
 import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
@@ -219,17 +220,31 @@ export default function ChecklistCompletedPage() {
                             ))}
                             {(checklist.assinaturaResponsavel || checklist.assinaturaMotorista) && (
                                 <div className="p-3 border rounded-lg bg-muted/30">
-                                    <p className="font-medium">Assinaturas</p>
+                                    <p className="font-medium">Validação e Assinaturas</p>
                                      <div className="flex flex-col md:flex-row gap-8 mt-2">
+                                        {checklist.selfieResponsavel && (
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Selfie Responsável: {checklist.responsibleName}</p>
+                                                <Image src={checklist.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                            </div>
+                                        )}
                                         {checklist.assinaturaResponsavel && (
                                             <div>
-                                                <p className="text-sm text-muted-foreground">Responsável: {checklist.responsibleName}</p>
+                                                <p className="text-sm text-muted-foreground">Assinatura Responsável</p>
                                                 <img src={checklist.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                            </div>
+                                        )}
+                                     </div>
+                                      <div className="flex flex-col md:flex-row gap-8 mt-4">
+                                        {checklist.selfieMotorista && (
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">Selfie Motorista: {checklist.driver}</p>
+                                                <Image src={checklist.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
                                             </div>
                                         )}
                                         {checklist.assinaturaMotorista && (
                                             <div>
-                                                <p className="text-sm text-muted-foreground">Motorista: {checklist.driver}</p>
+                                                <p className="text-sm text-muted-foreground">Assinatura Motorista</p>
                                                 <img src={checklist.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
                                             </div>
                                         )}

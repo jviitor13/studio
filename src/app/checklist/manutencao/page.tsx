@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { ChecklistTemplate } from '@/lib/checklist-templates-data';
 import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
 import { SignaturePad } from '@/components/signature-pad';
+import { SelfieCapture } from '@/components/selfie-capture';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,8 @@ const checklistSchema = z.object({
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
   assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
+  selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
+  selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
   questions: z.array(checklistItemSchema)
 }).refine(data => data.questions.every(item => item.status !== 'N/A'), {
     message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
@@ -114,6 +117,8 @@ export default function MaintenanceChecklistPage() {
       mileage: 0,
       assinaturaResponsavel: '',
       assinaturaMotorista: '',
+      selfieResponsavel: '',
+      selfieMotorista: '',
       questions: [],
     },
     mode: 'onChange',
@@ -168,10 +173,11 @@ export default function MaintenanceChecklistPage() {
     if(isValid) {
         setIsReviewing(true);
     } else {
+        console.log(errors)
         toast({
             variant: "destructive",
             title: "Campos Inválidos",
-            description: "Por favor, preencha todos os campos obrigatórios e avalie todos os itens antes de finalizar.",
+            description: "Por favor, preencha todos os campos obrigatórios, incluindo assinaturas e selfies, e avalie todos os itens antes de finalizar.",
         });
     }
   }
@@ -380,15 +386,23 @@ export default function MaintenanceChecklistPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Assinaturas</CardTitle>
-                    <CardDescription>O responsável e o motorista devem assinar abaixo.</CardDescription>
-                     {(errors.assinaturaResponsavel || errors.assinaturaMotorista) && (
-                        <p className="text-sm text-destructive mt-2">Ambas as assinaturas são obrigatórias.</p>
+                    <CardTitle>Validação e Assinaturas</CardTitle>
+                    <CardDescription>O responsável e o motorista devem registrar a selfie e assinar abaixo para validar o checklist.</CardDescription>
+                     {(errors.assinaturaResponsavel || errors.assinaturaMotorista || errors.selfieResponsavel || errors.selfieMotorista) && (
+                        <p className="text-sm text-destructive mt-2">Selfie e assinatura de ambos são obrigatórias.</p>
                      )}
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-8">
-                     <div className="grid gap-2">
+                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
+                     <div className="grid gap-4">
                         <Label>Responsável Técnico: {watch('responsibleName')}</Label>
+                        <Controller
+                            name="selfieResponsavel"
+                            control={control}
+                            render={({ field }) => (
+                                <SelfieCapture onCapture={field.onChange} />
+                            )}
+                        />
+                         {errors.selfieResponsavel && <p className="text-sm text-destructive -mt-2">{errors.selfieResponsavel.message}</p>}
                         <Controller
                             name="assinaturaResponsavel"
                             control={control}
@@ -396,9 +410,18 @@ export default function MaintenanceChecklistPage() {
                                 <SignaturePad onEnd={field.onChange} />
                             )}
                         />
+                         {errors.assinaturaResponsavel && <p className="text-sm text-destructive -mt-2">{errors.assinaturaResponsavel.message}</p>}
                      </div>
-                     <div className="grid gap-2">
+                     <div className="grid gap-4">
                          <Label>Motorista: {watch('driverName')}</Label>
+                        <Controller
+                            name="selfieMotorista"
+                            control={control}
+                            render={({ field }) => (
+                                <SelfieCapture onCapture={field.onChange} />
+                            )}
+                        />
+                         {errors.selfieMotorista && <p className="text-sm text-destructive -mt-2">{errors.selfieMotorista.message}</p>}
                         <Controller
                             name="assinaturaMotorista"
                             control={control}
@@ -406,6 +429,7 @@ export default function MaintenanceChecklistPage() {
                                 <SignaturePad onEnd={field.onChange} />
                             )}
                         />
+                         {errors.assinaturaMotorista && <p className="text-sm text-destructive -mt-2">{errors.assinaturaMotorista.message}</p>}
                      </div>
                 </CardContent>
             </Card>

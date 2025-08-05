@@ -12,6 +12,8 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     questions: (Omit<ChecklistItem, 'status'> & { status: 'OK' | 'Não OK' | 'N/A' })[];
     assinaturaResponsavel?: string;
     assinaturaMotorista?: string;
+    selfieResponsavel?: string;
+    selfieMotorista?: string;
     vehicleImages?: string[];
     generalObservations?: string;
 };
