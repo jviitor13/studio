@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Wrench, History, MoreHorizontal, Play, Ban, CheckCircle, Upload, FileText, Loader2 } from "lucide-react";
+import { PlusCircle, Wrench, History, MoreHorizontal, Play, Ban, CheckCircle, Upload, FileText, Loader2, Download, Eye } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -111,10 +111,62 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
   "Cancelada": "destructive",
 };
 
+const HistoryDetailsDialog = ({ maintenance }: { maintenance: Maintenance | null }) => {
+    if (!maintenance) return null;
+    return (
+        <DialogContent className="max-w-xl">
+            <DialogHeader>
+                <DialogTitle>Detalhes da Manutenção: {maintenance.id.substring(0,8)}</DialogTitle>
+                <DialogDescription>
+                    Serviço de "{maintenance.serviceType}" no veículo {maintenance.vehicleId}, concluído em {format(new Date(maintenance.completedAt!.toDate()), 'dd/MM/yyyy')}.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto px-2 text-sm">
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-base">Resumo do Serviço</h4>
+                    <p className="p-2 border rounded-md bg-muted/50 text-muted-foreground">{maintenance.serviceSummary}</p>
+                </div>
+                 <div className="space-y-2">
+                    <h4 className="font-semibold text-base">Custos e Descontos</h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md">
+                        <div><span className="font-medium text-muted-foreground">Custo Total:</span> {maintenance.cost?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+                        <div><span className="font-medium text-muted-foreground">Descontado do Motorista:</span> {maintenance.discountFromDriver === 'sim' ? 'Sim' : 'Não'}</div>
+                         {maintenance.discountFromDriver === 'sim' && <div><span className="font-medium text-muted-foreground">Motorista:</span> {maintenance.driverName}</div>}
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <h4 className="font-semibold text-base">Validação do Técnico</h4>
+                    <div className="p-2 border rounded-md flex justify-center bg-white">
+                        <img src={maintenance.technicianSignature} alt="Assinatura do Técnico" className="h-24" />
+                    </div>
+                </div>
+                {maintenance.attachments && maintenance.attachments.length > 0 && (
+                     <div className="space-y-2">
+                        <h4 className="font-semibold text-base">Anexos</h4>
+                        <ul className="p-2 border rounded-md space-y-1">
+                            {maintenance.attachments.map((file, index) => (
+                                <li key={index} className="flex items-center gap-2 text-primary hover:underline">
+                                    <FileText className="h-4 w-4" /> <a href={file.url} target="_blank" rel="noopener noreferrer">{file.name}</a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+             <DialogFooter className="mt-4 pt-4 border-t">
+                <DialogClose asChild>
+                    <Button type="button">Fechar</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    );
+};
+
 export default function ManutencoesPage() {
     const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
     const [openCompleteDialog, setOpenCompleteDialog] = React.useState(false);
+    const [openHistoryDetails, setOpenHistoryDetails] = React.useState(false);
     const [selectedMaintenance, setSelectedMaintenance] = React.useState<Maintenance | null>(null);
 
     const [maintenances, setMaintenances] = React.useState<Maintenance[]>([]);
@@ -290,6 +342,11 @@ export default function ManutencoesPage() {
         if (!dateString) return 'N/A';
         return format(new Date(dateString), "dd/MM/yyyy");
     };
+
+    const handleGeneratePdf = (maintenance: Maintenance) => {
+        toast({ title: 'Função em desenvolvimento', description: 'A geração de PDF para manutenções será implementada em breve.' });
+        // Logic to generate PDF will go here
+    }
     
     const scheduledMaintenances = maintenances.filter(m => m.status === 'Agendada' || m.status === 'Em Andamento');
     const historyMaintenances = maintenances.filter(m => m.status === 'Concluída' || m.status === 'Cancelada');
@@ -297,6 +354,10 @@ export default function ManutencoesPage() {
 
   return (
     <>
+    <Dialog open={openHistoryDetails} onOpenChange={setOpenHistoryDetails}>
+        <HistoryDetailsDialog maintenance={selectedMaintenance} />
+    </Dialog>
+
     <Dialog open={openCompleteDialog} onOpenChange={(isOpen) => {setOpenCompleteDialog(isOpen); if (!isOpen) completeMaintenanceForm.reset();}}>
         <DialogContent className="max-w-2xl">
              <DialogHeader>
@@ -569,24 +630,40 @@ export default function ManutencoesPage() {
                       <TableHead>Data</TableHead>
                       <TableHead>Custo</TableHead>
                       <TableHead>Status</TableHead>
+                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow><TableCell colSpan={5}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
                     ) : historyMaintenances.length > 0 ? (
                       historyMaintenances.map((item) => (
                           <TableRow key={item.id}>
                               <TableCell className="font-medium">{item.vehicleId}</TableCell>
                               <TableCell>{item.serviceType}</TableCell>
-                              <TableCell>{formatDate(item.scheduledDate)}</TableCell>
+                              <TableCell>{formatDate(item.completedAt ? item.completedAt.toDate().toISOString() : item.scheduledDate)}</TableCell>
                               <TableCell>{item.cost ? item.cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'N/D'}</TableCell>
                               <TableCell><Badge variant={statusVariant[item.status]}>{item.status}</Badge></TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <DropdownMenuItem onSelect={() => { setSelectedMaintenance(item); setOpenHistoryDetails(true); }}>
+                                            <Eye className="mr-2 h-4 w-4"/>Ver Detalhes
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => handleGeneratePdf(item)}>
+                                            <Download className="mr-2 h-4 w-4"/>Gerar PDF
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
                           </TableRow>
                       ))
                     ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         Nenhum histórico de manutenção encontrado.
                       </TableCell>
                     </TableRow>
