@@ -205,10 +205,10 @@ export default function ManutencoesPage() {
 
             if (status === 'Em Andamento') {
                 updates.startedAt = Timestamp.now();
-                 await updateDoc(vehicleRef, { status: 'Em Manutenção' });
+                await setDoc(vehicleRef, { status: 'Em Manutenção' }, { merge: true });
             }
             if (status === 'Cancelada' || status === 'Concluída') {
-                 await updateDoc(vehicleRef, { status: 'Disponível' });
+                await setDoc(vehicleRef, { status: 'Disponível' }, { merge: true });
             }
             await updateDoc(docRef, updates);
             toast({
@@ -249,7 +249,7 @@ export default function ManutencoesPage() {
             await updateDoc(maintenanceRef, dataToSave as any);
             
             const vehicleRef = doc(db, 'vehicles', selectedMaintenance.vehicleId);
-            await updateDoc(vehicleRef, { status: 'Disponível' });
+            await setDoc(vehicleRef, { status: 'Disponível' }, { merge: true });
 
             toast({
                 title: "Manutenção Concluída!",
