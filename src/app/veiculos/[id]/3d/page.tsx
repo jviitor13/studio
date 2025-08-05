@@ -129,7 +129,7 @@ export default function Vehicle3DViewPage() {
             <main className="flex-1 flex items-center justify-center p-4">
                 <div className="relative w-full max-w-5xl mx-auto aspect-[16/9]">
                     <Image 
-                        src="https://placehold.co/1280x720.png" 
+                        src="https://placehold.co/1280x720/1a1a1a/ffffff.png" 
                         alt="Visualização do caminhão" 
                         layout="fill" 
                         className="object-contain"
