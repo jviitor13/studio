@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { Fuel, Gauge, Wrench, Calendar, Truck } from "lucide-react";
-import Image from "next/image";
+import Vehicle3DViewer from "@/components/vehicle-3d-viewer";
+
 
 // Mock data types - in a real app, these would come from your types file
 interface Vehicle {
@@ -127,14 +128,8 @@ export default function Vehicle3DViewPage() {
 
             {/* 3D View Area */}
             <main className="flex-1 flex items-center justify-center p-4">
-                <div className="relative w-full max-w-5xl mx-auto aspect-[16/9]">
-                    <Image 
-                        src="https://placehold.co/1280x720/1a1a1a/ffffff.png" 
-                        alt="Visualização do caminhão" 
-                        layout="fill" 
-                        className="object-contain"
-                        data-ai-hint="side view truck"
-                    />
+                <div className="relative w-full h-full max-w-5xl mx-auto">
+                    <Vehicle3DViewer />
                     {maintenancePoints.map(point => (
                         <Popover key={point.id}>
                             <PopoverTrigger asChild>
@@ -207,4 +202,3 @@ export default function Vehicle3DViewPage() {
         </div>
     );
 }
-
