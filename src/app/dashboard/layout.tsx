@@ -20,8 +20,9 @@ import {
   Bell,
   Settings,
   Package,
+  MapPin,
 } from "lucide-react";
-import { Logo } from "@/components/icons";
+import { Logo, ShipWheel } from "@/components/icons";
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +60,7 @@ const getMenuItems = (role: string) => {
       { href: "/checklist/manutencao", label: "Checklist de Manutenção", icon: ClipboardCheck, group: 'operacao' },
       { href: "/carga", label: "Controle de Carga", icon: Package, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'operacao' },
+      { href: "/posicao-frota", label: "Posição da Frota", icon: ShipWheel, group: 'operacao' },
       // Gerenciamento
       { href: "/manutencoes", label: "Manutenções", icon: Wrench, group: 'gerenciamento' },
       { href: "/pneus", label: "Pneus", icon: CircleDot, group: 'gerenciamento' },
@@ -88,7 +90,7 @@ const getMenuItems = (role: string) => {
 const getBottomNavItems = (role: string) => {
     const gestorItems = [
         { href: "/dashboard", label: "Início", icon: Home },
-        { href: "/checklist/manutencao", label: "Checklist", icon: ClipboardCheck },
+        { href: "/posicao-frota", label: "Frota", icon: ShipWheel },
         { href: "/carga", label: "Carga", icon: Package },
         { href: "/consultas", label: "Busca", icon: Search },
         { href: "/manutencoes", label: "Serviços", icon: Wrench },
