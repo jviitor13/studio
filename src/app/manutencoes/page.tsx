@@ -74,12 +74,17 @@ const maintenanceSchema = z.object({
 
 type MaintenanceFormValues = z.infer<typeof maintenanceSchema>;
 
+const attachmentSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+});
+
 const completeMaintenanceSchema = z.object({
   cost: z.coerce.number().min(0.01, "O custo deve ser maior que zero."),
   serviceSummary: z.string().min(10, "O resumo do serviço deve ter pelo menos 10 caracteres."),
   technicianSignature: z.string().min(1, "A assinatura do técnico é obrigatória."),
   discountFromDriver: z.enum(['sim', 'nao'], { required_error: "Selecione se o valor deve ser descontado." }),
-  attachments: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
+  attachments: z.array(attachmentSchema).optional(),
 });
 type CompleteMaintenanceValues = z.infer<typeof completeMaintenanceSchema>;
 
