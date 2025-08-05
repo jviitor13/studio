@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MoreHorizontal, Eye, Truck, Settings, Wrench, Calendar as CalendarIcon, Ban } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Eye, Truck, Settings, Wrench, Calendar as CalendarIcon, Ban, Paperclip, Trash2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -62,7 +62,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { compressImage } from "@/lib/image-compressor";
+import Image from "next/image";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+
 
 interface Tire {
     id: string;
@@ -81,6 +86,7 @@ interface Tire {
     position?: string;
     pressure?: string;
     depth?: string;
+    photoUrl?: string;
 }
 
 interface Vehicle {
@@ -108,6 +114,11 @@ const TireDetailsDialog = ({ tire, open, onOpenChange }: { tire: Tire | null, op
                     <DialogDescription>{tire.brand} {tire.model} - {tire.size}</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto px-2 text-sm">
+                    {tire.photoUrl && (
+                        <div className="relative w-full aspect-video rounded-md overflow-hidden border">
+                            <Image src={tire.photoUrl} alt={`Foto do pneu ${tire.fireId}`} layout="fill" className="object-contain" />
+                        </div>
+                    )}
                     <div className="space-y-2">
                         <h4 className="font-semibold text-base">Identificação</h4>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md">
@@ -388,6 +399,199 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
     );
 };
 
+const NewTireDialog = ({ open, onOpenChange, onSave }: { open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: any) => Promise<void> }) => {
+    const [photo, setPhoto] = React.useState<string | undefined>(undefined);
+    const [isCompressing, setIsCompressing] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const photoInputRef = React.useRef<HTMLInputElement>(null);
+    const formRef = React.useRef<HTMLFormElement>(null);
+    const { toast } = useToast();
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            setIsCompressing(true);
+            try {
+                const compressedImage = await compressImage(file);
+                setPhoto(compressedImage);
+                setError(null);
+            } catch (err) {
+                toast({
+                    variant: "destructive",
+                    title: "Erro ao comprimir imagem",
+                });
+            } finally {
+                setIsCompressing(false);
+            }
+            e.target.value = "";
+        }
+    };
+    
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        
+        if (!photo) {
+            setError("A foto do pneu é obrigatória.");
+            return;
+        }
+
+        const formData = new FormData(event.currentTarget);
+        const data = Object.fromEntries(formData.entries());
+        
+        const newTire = {
+            ...data,
+            photoUrl: photo,
+        };
+
+        await onSave(newTire);
+        // Reset state on successful save
+        setPhoto(undefined);
+        setError(null);
+        formRef.current?.reset();
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-3xl">
+                <form onSubmit={handleSubmit} ref={formRef}>
+                    <DialogHeader>
+                        <DialogTitle>Cadastro Detalhado de Pneu</DialogTitle>
+                        <DialogDescription>
+                            Preencha todos os dados para um controle preciso do pneu.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Dados de Identificação</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="id">ID / Fogo 🔥 *</Label>
+                                    <Input id="id" name="id" placeholder="Ex: PNEU-006" required/>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="serial">Número de Série</Label>
+                                    <Input id="serial" name="serial" placeholder="Ex: Y78SDFG89" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="brand">Marca *</Label>
+                                    <Input id="brand" name="brand" placeholder="Ex: Michelin" required/>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="model">Modelo *</Label>
+                                    <Input id="model" name="model" placeholder="Ex: X Multi Z" required/>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="mfg-date">Data de Fabricação</Label>
+                                    <Input id="mfg-date" name="mfg-date" type="week" />
+                                </div>
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="size">Medida *</Label>
+                                    <Input id="size" name="size" placeholder="Ex: 275/80 R22.5" required />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="indices">Índice Carga/Velocidade</Label>
+                                    <Input id="indices" name="indices" placeholder="Ex: 149/146L" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="type">Tipo (Construção)</Label>
+                                    <Select name="type" defaultValue="radial">
+                                        <SelectTrigger id="type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="radial">Radial</SelectItem>
+                                            <SelectItem value="diagonal">Diagonal</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                        <Separator />
+                         <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Foto do Pneu</h3>
+                            <div className="grid gap-2">
+                                <Label>Anexar Foto *</Label>
+                                {photo ? (
+                                    <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
+                                        <Image src={photo} alt="Foto do pneu" layout="fill" className="object-cover" />
+                                        <Button
+                                            variant="destructive"
+                                            size="icon"
+                                            className="absolute top-2 right-2 h-7 w-7"
+                                            onClick={() => setPhoto(undefined)}
+                                            disabled={isCompressing}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Input
+                                            id="photo-tire"
+                                            type="file"
+                                            className="hidden"
+                                            accept="image/*"
+                                            capture="environment"
+                                            onChange={handleImageUpload}
+                                            ref={photoInputRef}
+                                            disabled={isCompressing}
+                                        />
+                                        <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isCompressing}>
+                                            {isCompressing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Paperclip className="mr-2 h-4 w-4" />}
+                                            {isCompressing ? 'Processando...' : 'Anexar arquivo'}
+                                        </Button>
+                                    </>
+                                )}
+                                {error && (
+                                    <Alert variant="destructive" className="mt-2">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>{error}</AlertTitle>
+                                    </Alert>
+                                )}
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-lg">Status e Vida Útil</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="status">Situação Atual</Label>
+                                    <Select name="status" defaultValue="Novo">
+                                        <SelectTrigger id="status"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Novo">Novo (em estoque)</SelectItem>
+                                            <SelectItem value="Em Estoque">Em Estoque</SelectItem>
+                                            <SelectItem value="Em Uso">Em uso</SelectItem>
+                                            <SelectItem value="Em Manutenção">Em manutenção</SelectItem>
+                                            <SelectItem value="Sucateado">Sucateado</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="retreads">Número de Reformas</Label>
+                                    <Input id="retreads" name="retreads" type="number" defaultValue={0} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="lifespan">Vida Útil Estimada (%)</Label>
+                                    <Input id="lifespan" name="lifespan" type="number" placeholder="Ex: 85" defaultValue={100} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter className="mt-4 pt-4 border-t">
+                        <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                        <Button type="submit">Salvar Pneu</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+};
+
 export default function PneusPage() {
     const { toast } = useToast();
     const [openNewTireDialog, setOpenNewTireDialog] = React.useState(false);
@@ -405,11 +609,7 @@ export default function PneusPage() {
         return () => unsubscribe();
     }, []);
 
-    const handleSaveNewTire = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        const data = Object.fromEntries(formData.entries());
-
+    const handleSaveNewTire = async (data: any) => {
         const newTire = {
             fireId: data.id as string,
             serial: data.serial as string,
@@ -424,6 +624,7 @@ export default function PneusPage() {
             lifespan: Number(data.lifespan),
             vehicleId: '',
             position: '',
+            photoUrl: data.photoUrl,
         };
 
         if (!newTire.fireId || !newTire.brand || !newTire.model || !newTire.size) {
@@ -444,6 +645,7 @@ export default function PneusPage() {
   return (
     <>
       <TireDetailsDialog tire={selectedTire} open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen} />
+      <NewTireDialog open={openNewTireDialog} onOpenChange={setOpenNewTireDialog} onSave={handleSaveNewTire} />
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Gestão de Pneus"
@@ -462,107 +664,10 @@ export default function PneusPage() {
                   Acompanhar Manutenções
               </Button>
             </Link>
-              <Dialog open={openNewTireDialog} onOpenChange={setOpenNewTireDialog}>
-                  <DialogTrigger asChild>
-                      <Button className="w-full sm:w-auto">
-                          <PlusCircle className="mr-2 h-4 w-4" />
-                          Adicionar Pneu
-                      </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-3xl">
-                    <form onSubmit={handleSaveNewTire}>
-                      <DialogHeader>
-                          <DialogTitle>Cadastro Detalhado de Pneu</DialogTitle>
-                          <DialogDescription>
-                              Preencha todos os dados para um controle preciso do pneu.
-                          </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
-                          <div className="space-y-4">
-                              <h3 className="font-semibold text-lg">Dados de Identificação</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="id">ID / Fogo 🔥 *</Label>
-                                      <Input id="id" name="id" placeholder="Ex: PNEU-006" required/>
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="serial">Número de Série</Label>
-                                      <Input id="serial" name="serial" placeholder="Ex: Y78SDFG89" />
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="brand">Marca *</Label>
-                                      <Input id="brand" name="brand" placeholder="Ex: Michelin" required/>
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="model">Modelo *</Label>
-                                      <Input id="model" name="model" placeholder="Ex: X Multi Z" required/>
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="mfg-date">Data de Fabricação</Label>
-                                      <Input id="mfg-date" name="mfg-date" type="week" />
-                                  </div>
-                              </div>
-                          </div>
-                          <Separator />
-                          <div className="space-y-4">
-                              <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="size">Medida *</Label>
-                                      <Input id="size" name="size" placeholder="Ex: 275/80 R22.5" required />
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="indices">Índice Carga/Velocidade</Label>
-                                      <Input id="indices" name="indices" placeholder="Ex: 149/146L" />
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="type">Tipo (Construção)</Label>
-                                      <Select name="type" defaultValue="radial">
-                                          <SelectTrigger id="type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                          <SelectContent>
-                                              <SelectItem value="radial">Radial</SelectItem>
-                                              <SelectItem value="diagonal">Diagonal</SelectItem>
-                                          </SelectContent>
-                                      </Select>
-                                  </div>
-                              </div>
-                          </div>
-                          <Separator />
-                          <div className="space-y-4">
-                              <h3 className="font-semibold text-lg">Status e Vida Útil</h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="status">Situação Atual</Label>
-                                      <Select name="status" defaultValue="Novo">
-                                          <SelectTrigger id="status"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                          <SelectContent>
-                                              <SelectItem value="Novo">Novo (em estoque)</SelectItem>
-                                              <SelectItem value="Em Estoque">Em Estoque</SelectItem>
-                                              <SelectItem value="Em Uso">Em uso</SelectItem>
-                                              <SelectItem value="Em Manutenção">Em manutenção</SelectItem>
-                                              <SelectItem value="Sucateado">Sucateado</SelectItem>
-                                          </SelectContent>
-                                      </Select>
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="retreads">Número de Reformas</Label>
-                                      <Input id="retreads" name="retreads" type="number" defaultValue={0} />
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="lifespan">Vida Útil Estimada (%)</Label>
-                                      <Input id="lifespan" name="lifespan" type="number" placeholder="Ex: 85" defaultValue={100} />
-                                  </div>
-                              </div>
-                          </div>
-
-                      </div>
-                      <DialogFooter className="mt-4 pt-4 border-t">
-                          <Button type="button" variant="ghost" onClick={() => setOpenNewTireDialog(false)}>Cancelar</Button>
-                          <Button type="submit">Salvar Pneu</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-              </Dialog>
+            <Button className="w-full sm:w-auto" onClick={() => setOpenNewTireDialog(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Adicionar Pneu
+            </Button>
           </div>
         </PageHeader>
         <Card>
@@ -651,3 +756,4 @@ export default function PneusPage() {
     </>
   );
 }
+
