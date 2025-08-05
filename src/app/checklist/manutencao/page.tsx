@@ -5,7 +5,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
-import { collection, Timestamp, onSnapshot, query, where, addDoc } from 'firebase/firestore';
+import { collection, Timestamp, onSnapshot, query, where, addDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,7 @@ const checklistSchema = z.object({
 }).refine(data => data.questions.every(item => {
     const needsPhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK');
     return !needsPhoto || (needsPhoto && !!item.photo);
-}), {
+}, {
     message: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens marcados.",
     path: ["questions"],
 });
@@ -60,7 +60,11 @@ const checklistSchema = z.object({
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 type ChecklistItemData = z.infer<typeof checklistItemSchema>;
-
+interface Vehicle {
+    id: string; // This is the plate
+    plate: string;
+    model: string;
+}
 
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
@@ -68,7 +72,9 @@ export default function MaintenanceChecklistPage() {
   const [user, setUser] = useState(auth.currentUser);
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
 
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -93,6 +99,26 @@ export default function MaintenanceChecklistPage() {
         });
         setIsLoadingTemplates(false);
     });
+
+    const fetchVehicles = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "vehicles"));
+            const vehiclesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
+            setVehicles(vehiclesData);
+        } catch (error) {
+            console.error("Error fetching vehicles: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Carregar Veículos",
+                description: "Não foi possível buscar a lista de veículos.",
+            });
+        } finally {
+            setIsLoadingVehicles(false);
+        }
+    };
+
+    fetchVehicles();
+
     return () => unsubscribe();
   }, [toast]);
 
@@ -300,22 +326,24 @@ export default function MaintenanceChecklistPage() {
                 <CardContent className="grid md:grid-cols-2 gap-6">
                      <div className="grid gap-2">
                         <Label htmlFor="vehicleId">Veículo *</Label>
-                        <Controller
-                            name="vehicleId"
-                            control={control}
-                            render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
-                                <SelectValue placeholder="Selecione a placa" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="RDO1A12">RDO1A12 - Scania R450</SelectItem>
-                                    <SelectItem value="RDO2C24">RDO2C24 - MB Actros</SelectItem>
-                                    <SelectItem value="RDO3B45">RDO3B45 - Volvo FH 540</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            )}
-                        />
+                        {isLoadingVehicles ? <Skeleton className="h-10 w-full" /> : (
+                            <Controller
+                                name="vehicleId"
+                                control={control}
+                                render={({ field }) => (
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
+                                    <SelectValue placeholder="Selecione a placa" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {vehicles.map(v => (
+                                            <SelectItem key={v.id} value={v.plate}>{v.plate} - {v.model}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                )}
+                            />
+                        )}
                         {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
                     </div>
                      <div className="grid gap-2">
@@ -453,3 +481,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    

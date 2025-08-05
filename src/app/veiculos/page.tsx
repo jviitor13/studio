@@ -10,7 +10,6 @@ import {
   User,
   Trash2,
   Loader2,
-  View,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -396,11 +395,6 @@ export default function VeiculosPage() {
                                             <Car className="mr-2 h-4 w-4" /> Ver Detalhes
                                         </DropdownMenuItem>
                                     </DialogTrigger>
-                                     <DropdownMenuItem asChild>
-                                        <Link href={`/veiculos/${vehicle.id}/3d`}>
-                                            <View className="mr-2 h-4 w-4" /> Visualização 3D
-                                        </Link>
-                                    </DropdownMenuItem>
                                     <DropdownMenuItem asChild>
                                     <Link href="/manutencoes">
                                         <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
