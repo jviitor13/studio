@@ -282,7 +282,7 @@ export default function VeiculosPage() {
               Adicionar Veículo
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-md">
             <form onSubmit={handleSubmit(onSubmit)}>
                 <DialogHeader>
                 <DialogTitle>Adicionar Novo Veículo</DialogTitle>
@@ -291,22 +291,22 @@ export default function VeiculosPage() {
                 </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="plate">Placa</Label>
                     <Input id="plate" placeholder="RDO1A12" {...register("plate")} />
                     {errors.plate && <p className="text-sm text-destructive">{errors.plate.message}</p>}
                 </div>
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="model">Modelo</Label>
                     <Input id="model" placeholder="Scania R450" {...register("model")} />
                      {errors.model && <p className="text-sm text-destructive">{errors.model.message}</p>}
                 </div>
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="year">Ano</Label>
                     <Input id="year" type="number" placeholder="2023" {...register("year")} />
                     {errors.year && <p className="text-sm text-destructive">{errors.year.message}</p>}
                 </div>
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="fuel">Combustível</Label>
                      <Controller
                         name="fuel"
@@ -347,98 +347,100 @@ export default function VeiculosPage() {
         </CardHeader>
         <CardContent>
           <Dialog open={!!dialogType} onOpenChange={() => setDialogType(null)}>
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Placa</TableHead>
-                    <TableHead>Modelo</TableHead>
-                    <TableHead>Motorista Atual</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Próxima Manutenção</TableHead>
-                    <TableHead>
-                    <span className="sr-only">Ações</span>
-                    </TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {isLoading ? (
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={6}>
-                            <Skeleton className="h-24 w-full" />
-                        </TableCell>
+                        <TableHead>Placa</TableHead>
+                        <TableHead>Modelo</TableHead>
+                        <TableHead>Motorista Atual</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Próxima Manutenção</TableHead>
+                        <TableHead>
+                        <span className="sr-only">Ações</span>
+                        </TableHead>
                     </TableRow>
-                ) : vehicles.length > 0 ? (
-                    vehicles.map((vehicle) => (
-                        <TableRow key={vehicle.id}>
-                        <TableCell className="font-medium">{vehicle.plate}</TableCell>
-                        <TableCell>{vehicle.model}</TableCell>
-                        <TableCell>{vehicle.driver || "N/A"}</TableCell>
-                        <TableCell>
-                            <Badge variant={statusVariant[vehicle.status] || "default"}>
-                            {vehicle.status}
-                            </Badge>
-                        </TableCell>
-                        <TableCell>{vehicle.nextMaintenance || 'N/A'}</TableCell>
-                        <TableCell>
-                            <AlertDialog>
-                                <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                    <DialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("details"); }}>
-                                            <Car className="mr-2 h-4 w-4" /> Ver Detalhes
-                                        </DropdownMenuItem>
-                                    </DialogTrigger>
-                                    <DropdownMenuItem asChild>
-                                    <Link href="/manutencoes">
-                                        <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
-                                    </Link>
-                                    </DropdownMenuItem>
-                                    <DialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("assign"); }}>
-                                            <User className="mr-2 h-4 w-4" /> Atribuir Motorista
-                                        </DropdownMenuItem>
-                                    </DialogTrigger>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                        </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                </DropdownMenuContent>
-                                </DropdownMenu>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteVehicle(vehicle.id)} className={cn(buttonVariants({ variant: "destructive" }))}>
-                                            Sim, Excluir
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </TableCell>
+                    </TableHeader>
+                    <TableBody>
+                    {isLoading ? (
+                        <TableRow>
+                            <TableCell colSpan={6}>
+                                <Skeleton className="h-24 w-full" />
+                            </TableCell>
                         </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                            Nenhum veículo cadastrado.
-                        </TableCell>
-                    </TableRow>
-                )}
-                </TableBody>
-            </Table>
+                    ) : vehicles.length > 0 ? (
+                        vehicles.map((vehicle) => (
+                            <TableRow key={vehicle.id}>
+                            <TableCell className="font-medium">{vehicle.plate}</TableCell>
+                            <TableCell>{vehicle.model}</TableCell>
+                            <TableCell>{vehicle.driver || "N/A"}</TableCell>
+                            <TableCell>
+                                <Badge variant={statusVariant[vehicle.status] || "default"}>
+                                {vehicle.status}
+                                </Badge>
+                            </TableCell>
+                            <TableCell>{vehicle.nextMaintenance || 'N/A'}</TableCell>
+                            <TableCell>
+                                <AlertDialog>
+                                    <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("details"); }}>
+                                                <Car className="mr-2 h-4 w-4" /> Ver Detalhes
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <DropdownMenuItem asChild>
+                                        <Link href="/manutencoes">
+                                            <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
+                                        </Link>
+                                        </DropdownMenuItem>
+                                        <DialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={() => { setSelectedVehicle(vehicle); setDialogType("assign"); }}>
+                                                <User className="mr-2 h-4 w-4" /> Atribuir Motorista
+                                            </DropdownMenuItem>
+                                        </DialogTrigger>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteVehicle(vehicle.id)} className={cn(buttonVariants({ variant: "destructive" }))}>
+                                                Sim, Excluir
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                Nenhum veículo cadastrado.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                    </TableBody>
+                </Table>
+            </div>
             {dialogType === "details" && <VehicleDetailsDialog vehicle={selectedVehicle} />}
             {dialogType === "assign" && <AssignDriverDialog vehicle={selectedVehicle} onAssign={handleAssignDriver} />}
            </Dialog>

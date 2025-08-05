@@ -113,7 +113,7 @@ export default function ChecklistCompletedPage() {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <Skeleton className="h-16 w-1/2" />
+                <Skeleton className="h-16 w-full md:w-1/2" />
                 <Card>
                     <CardHeader><Skeleton className="h-8 w-1/3" /></CardHeader>
                     <CardContent className="space-y-4">
@@ -140,7 +140,7 @@ export default function ChecklistCompletedPage() {
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
-                title="Checklist Finalizado com Sucesso!"
+                title="Checklist Finalizado!"
                 description="O seu checklist foi enviado e está salvo no sistema."
             />
             
@@ -151,7 +151,7 @@ export default function ChecklistCompletedPage() {
                         Resumo do Envio
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                     <div className="flex flex-col gap-1">
                         <span className="font-semibold">ID do Checklist:</span>
                         <span className="text-muted-foreground break-all">{checklist.id}</span>

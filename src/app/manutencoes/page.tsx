@@ -404,7 +404,7 @@ export default function ManutencoesPage() {
                 Agendar Manutenção
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <form onSubmit={newMaintenanceForm.handleSubmit(onNewMaintenanceSubmit)}>
                 <DialogHeader>
                 <DialogTitle>Agendar Nova Manutenção</DialogTitle>
@@ -413,7 +413,7 @@ export default function ManutencoesPage() {
                 </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="vehicleId">Veículo *</Label>
                     <Controller
                         name="vehicleId"
@@ -431,12 +431,12 @@ export default function ManutencoesPage() {
                     />
                     {newMaintenanceForm.formState.errors.vehicleId && <p className="text-sm text-destructive mt-1">{newMaintenanceForm.formState.errors.vehicleId.message}</p>}
                 </div>
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="serviceType">Tipo de Serviço *</Label>
                     <Input id="serviceType" placeholder="Ex: Troca de óleo, Revisão de freios" {...newMaintenanceForm.register("serviceType")} className={cn(newMaintenanceForm.formState.errors.serviceType && "border-destructive")} />
                     {newMaintenanceForm.formState.errors.serviceType && <p className="text-sm text-destructive mt-1">{newMaintenanceForm.formState.errors.serviceType.message}</p>}
                 </div>
-                <div className="grid items-center gap-2">
+                <div className="grid gap-2">
                     <Label htmlFor="scheduledDate">Data do Agendamento *</Label>
                     <Controller
                         name="scheduledDate"
@@ -497,63 +497,65 @@ export default function ManutencoesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Veículo</TableHead>
-                    <TableHead>Serviço</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                     <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow><TableCell colSpan={5}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
-                  ) : scheduledMaintenances.length > 0 ? (
-                    scheduledMaintenances.map((item) => (
-                        <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.vehicleId}</TableCell>
-                            <TableCell>{item.serviceType}</TableCell>
-                            <TableCell>{formatDate(item.scheduledDate)}</TableCell>
-                            <TableCell><Badge variant={statusVariant[item.status]}>{item.status}</Badge></TableCell>
-                            <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        {item.status === 'Agendada' && (
-                                            <DropdownMenuItem onSelect={() => updateMaintenanceStatus(item, 'Em Andamento')}>
-                                                <Play className="mr-2 h-4 w-4" /> Iniciar Serviço
-                                            </DropdownMenuItem>
-                                        )}
-                                        {item.status === 'Em Andamento' && (
-                                            <DropdownMenuItem onSelect={() => {
-                                                setSelectedMaintenance(item);
-                                                setOpenCompleteDialog(true);
-                                            }}>
-                                                <CheckCircle className="mr-2 h-4 w-4" /> Concluir Serviço
-                                            </DropdownMenuItem>
-                                        )}
-                                         <DropdownMenuItem className="text-destructive" onSelect={() => updateMaintenanceStatus(item, 'Cancelada')}>
-                                            <Ban className="mr-2 h-4 w-4" /> Cancelar Agendamento
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    ))
-                  ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Nenhuma manutenção agendada.
-                    </TableCell>
-                  </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Veículo</TableHead>
+                      <TableHead>Serviço</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow><TableCell colSpan={5}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
+                    ) : scheduledMaintenances.length > 0 ? (
+                      scheduledMaintenances.map((item) => (
+                          <TableRow key={item.id}>
+                              <TableCell className="font-medium">{item.vehicleId}</TableCell>
+                              <TableCell>{item.serviceType}</TableCell>
+                              <TableCell>{formatDate(item.scheduledDate)}</TableCell>
+                              <TableCell><Badge variant={statusVariant[item.status]}>{item.status}</Badge></TableCell>
+                              <TableCell className="text-right">
+                                  <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent>
+                                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                          {item.status === 'Agendada' && (
+                                              <DropdownMenuItem onSelect={() => updateMaintenanceStatus(item, 'Em Andamento')}>
+                                                  <Play className="mr-2 h-4 w-4" /> Iniciar Serviço
+                                              </DropdownMenuItem>
+                                          )}
+                                          {item.status === 'Em Andamento' && (
+                                              <DropdownMenuItem onSelect={() => {
+                                                  setSelectedMaintenance(item);
+                                                  setOpenCompleteDialog(true);
+                                              }}>
+                                                  <CheckCircle className="mr-2 h-4 w-4" /> Concluir Serviço
+                                              </DropdownMenuItem>
+                                          )}
+                                          <DropdownMenuItem className="text-destructive" onSelect={() => updateMaintenanceStatus(item, 'Cancelada')}>
+                                              <Ban className="mr-2 h-4 w-4" /> Cancelar Agendamento
+                                          </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                  </DropdownMenu>
+                              </TableCell>
+                          </TableRow>
+                      ))
+                    ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Nenhuma manutenção agendada.
+                      </TableCell>
+                    </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -566,38 +568,40 @@ export default function ManutencoesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Veículo</TableHead>
-                    <TableHead>Serviço Realizado</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Custo</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                   {isLoading ? (
-                    <TableRow><TableCell colSpan={5}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
-                   ) : historyMaintenances.length > 0 ? (
-                    historyMaintenances.map((item) => (
-                        <TableRow key={item.id}>
-                             <TableCell className="font-medium">{item.vehicleId}</TableCell>
-                            <TableCell>{item.serviceType}</TableCell>
-                            <TableCell>{formatDate(item.scheduledDate)}</TableCell>
-                             <TableCell>{item.cost ? item.cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'N/D'}</TableCell>
-                            <TableCell><Badge variant={statusVariant[item.status]}>{item.status}</Badge></TableCell>
-                        </TableRow>
-                    ))
-                   ) : (
-                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Nenhum histórico de manutenção encontrado.
-                    </TableCell>
-                  </TableRow>
-                   )}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Veículo</TableHead>
+                      <TableHead>Serviço Realizado</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Custo</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow><TableCell colSpan={5}><Skeleton className="h-24 w-full" /></TableCell></TableRow>
+                    ) : historyMaintenances.length > 0 ? (
+                      historyMaintenances.map((item) => (
+                          <TableRow key={item.id}>
+                              <TableCell className="font-medium">{item.vehicleId}</TableCell>
+                              <TableCell>{item.serviceType}</TableCell>
+                              <TableCell>{formatDate(item.scheduledDate)}</TableCell>
+                              <TableCell>{item.cost ? item.cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'N/D'}</TableCell>
+                              <TableCell><Badge variant={statusVariant[item.status]}>{item.status}</Badge></TableCell>
+                          </TableRow>
+                      ))
+                    ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Nenhum histórico de manutenção encontrado.
+                      </TableCell>
+                    </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

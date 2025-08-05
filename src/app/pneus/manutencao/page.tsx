@@ -62,9 +62,9 @@ export default function PneusManutencaoPage() {
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
           <CardDescription>Filtre os pneus por status ou fornecedor.</CardDescription>
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col md:flex-row gap-4 pt-4">
               <Select>
-                <SelectTrigger className="w-[240px]">
+                <SelectTrigger className="w-full md:w-[240px]">
                     <SelectValue placeholder="Filtrar por status..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -74,56 +74,58 @@ export default function PneusManutencaoPage() {
                     <SelectItem value="reprovado">Reprovado</SelectItem>
                 </SelectContent>
             </Select>
-            <Input className="max-w-xs" placeholder="Buscar por fornecedor..." />
-            <Button><Filter className="mr-2 h-4 w-4" />Aplicar</Button>
+            <Input className="w-full md:max-w-xs" placeholder="Buscar por fornecedor..." />
+            <Button className="w-full md:w-auto"><Filter className="mr-2 h-4 w-4" />Aplicar</Button>
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID/Fogo</TableHead>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Tipo de Serviço</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Previsão de Retorno</TableHead>
-                <TableHead>
-                  <span className="sr-only">Ações</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {maintenanceTires.map((tire) => (
-                <TableRow key={tire.id}>
-                  <TableCell className="font-medium">{tire.id}</TableCell>
-                  <TableCell>{tire.supplier}</TableCell>
-                   <TableCell>{tire.service}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[tire.status] || 'secondary'}>
-                      {tire.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{tire.returnDate}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>Ver Detalhes</DropdownMenuItem>
-                        <DropdownMenuItem>Alterar Status</DropdownMenuItem>
-                        <DropdownMenuItem>Anexar Nota Fiscal</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID/Fogo</TableHead>
+                  <TableHead>Fornecedor</TableHead>
+                  <TableHead>Tipo de Serviço</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Previsão de Retorno</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Ações</span>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {maintenanceTires.map((tire) => (
+                  <TableRow key={tire.id}>
+                    <TableCell className="font-medium">{tire.id}</TableCell>
+                    <TableCell>{tire.supplier}</TableCell>
+                    <TableCell>{tire.service}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant[tire.status] || 'secondary'}>
+                        {tire.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{tire.returnDate}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem>Ver Detalhes</DropdownMenuItem>
+                          <DropdownMenuItem>Alterar Status</DropdownMenuItem>
+                          <DropdownMenuItem>Anexar Nota Fiscal</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

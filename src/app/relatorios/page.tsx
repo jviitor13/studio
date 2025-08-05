@@ -174,7 +174,7 @@ export default function RelatoriosPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid items-center gap-2">
+              <div className="grid gap-2">
                 <Label htmlFor="report-type">Tipo de Relatório</Label>
                 <Select value={reportType} onValueChange={setReportType}>
                   <SelectTrigger id="report-type">
@@ -188,7 +188,7 @@ export default function RelatoriosPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid items-center gap-2">
+              <div className="grid gap-2">
                 <Label htmlFor="date-range">Período</Label>
                 <Popover>
                     <PopoverTrigger asChild>
@@ -247,37 +247,39 @@ export default function RelatoriosPage() {
         </CardHeader>
         <CardContent>
            {reports.length > 0 ? (
-            <ul className="space-y-3">
-                {reports.map((report) => (
-                    <li key={report.id} className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <FileText className="h-6 w-6 text-primary" />
-                            <div>
-                                <p className="font-semibold">{report.title}</p>
-                                <p className="text-sm text-muted-foreground">{report.category} - Gerado em {report.date}</p>
-                            </div>
-                        </div>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Abrir menu</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleDownloadPdf(report)}>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Baixar PDF
-                                </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => handleDownloadExcel(report)}>
-                                    <SheetIcon className="mr-2 h-4 w-4" />
-                                    Baixar Excel
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </li>
-                ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <ul className="space-y-3 min-w-[500px]">
+                  {reports.map((report) => (
+                      <li key={report.id} className="flex items-center justify-between p-4 rounded-md border bg-card hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-4">
+                              <FileText className="h-6 w-6 text-primary" />
+                              <div>
+                                  <p className="font-semibold">{report.title}</p>
+                                  <p className="text-sm text-muted-foreground">{report.category} - Gerado em {report.date}</p>
+                              </div>
+                          </div>
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                      <span className="sr-only">Abrir menu</span>
+                                      <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleDownloadPdf(report)}>
+                                      <Download className="mr-2 h-4 w-4" />
+                                      Baixar PDF
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDownloadExcel(report)}>
+                                      <SheetIcon className="mr-2 h-4 w-4" />
+                                      Baixar Excel
+                                  </DropdownMenuItem>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                      </li>
+                  ))}
+              </ul>
+            </div>
            ) : (
             <div className="text-center py-10 text-muted-foreground">
                 <FileText className="mx-auto h-12 w-12" />

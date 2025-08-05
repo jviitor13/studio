@@ -135,7 +135,7 @@ export default function UsuariosPage() {
                     Adicionar Usuário
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-md">
               <form onSubmit={handleSubmit(onSubmit)}>
                 <DialogHeader>
                     <DialogTitle>Adicionar Novo Usuário</DialogTitle>
@@ -144,48 +144,40 @@ export default function UsuariosPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Nome</Label>
-                        <div className="col-span-3">
-                          <Input id="name" placeholder="Nome Completo" {...register("name")} />
-                          {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
-                        </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="name">Nome</Label>
+                        <Input id="name" placeholder="Nome Completo" {...register("name")} />
+                        {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="email" className="text-right">E-mail</Label>
-                        <div className="col-span-3">
-                          <Input id="email" type="email" placeholder="usuario@email.com" {...register("email")} />
-                          {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
-                        </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="email">E-mail</Label>
+                        <Input id="email" type="email" placeholder="usuario@email.com" {...register("email")} />
+                        {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
                     </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="password" className="text-right">Senha</Label>
-                        <div className="col-span-3">
-                          <Input id="password" type="password" placeholder="Senha inicial" {...register("password")} />
-                          {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
-                        </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="password">Senha</Label>
+                        <Input id="password" type="password" placeholder="Senha inicial" {...register("password")} />
+                        {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="role" className="text-right">Função</Label>
-                        <div className="col-span-3">
-                           <Controller
-                              name="role"
-                              control={control}
-                              render={({ field }) => (
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <SelectTrigger id="role">
-                                        <SelectValue placeholder="Selecione a função" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Gestor">Gestor</SelectItem>
-                                        <SelectItem value="Motorista">Motorista</SelectItem>
-                                        <SelectItem value="Mecânico">Mecânico</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                              )}
-                            />
-                            {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
-                        </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="role">Função</Label>
+                        <Controller
+                          name="role"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger id="role">
+                                    <SelectValue placeholder="Selecione a função" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Gestor">Gestor</SelectItem>
+                                    <SelectItem value="Motorista">Motorista</SelectItem>
+                                    <SelectItem value="Mecânico">Mecânico</SelectItem>
+                                </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
                     </div>
                 </div>
                 <DialogFooter>
@@ -207,57 +199,59 @@ export default function UsuariosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Função</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data de Cadastro</TableHead>
-                <TableHead>
-                  <span className="sr-only">Ações</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.email}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={roleVariant[user.role] || 'secondary'}>
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                     <Badge variant={user.status === 'Ativo' ? 'secondary' : 'destructive'} className={user.status === 'Ativo' ? 'bg-green-500 hover:bg-green-600' : ''}>
-                      {user.status}
-                    </Badge>
-                  </TableCell>
-                   <TableCell>{formatDate(user.createdAt)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Resetar Senha</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Desativar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead>Função</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data de Cadastro</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Ações</span>
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.email}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={roleVariant[user.role] || 'secondary'}>
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.status === 'Ativo' ? 'secondary' : 'destructive'} className={user.status === 'Ativo' ? 'bg-green-500 hover:bg-green-600' : ''}>
+                        {user.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(user.createdAt)}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuItem>Editar</DropdownMenuItem>
+                          <DropdownMenuItem>Resetar Senha</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            Desativar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

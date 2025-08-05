@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -10,12 +11,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, children }: PageHeaderProps) {
     return (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
                 <h1 className="text-2xl font-headline font-semibold">{title}</h1>
-                <p className="text-muted-foreground">{description}</p>
+                <p className="text-muted-foreground mt-1">{description}</p>
             </div>
-            {children && <div>{children}</div>}
+            {children && <div className="w-full md:w-auto">{children}</div>}
         </div>
     );
 }

@@ -449,22 +449,22 @@ export default function PneusPage() {
           title="Gestão de Pneus"
           description="Gerencie o ciclo de vida completo dos pneus da sua frota."
         >
-          <div className="flex gap-2">
-            <Link href="/pneus/visualizacao">
-              <Button variant="outline">
+          <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0">
+            <Link href="/pneus/visualizacao" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full">
                   <Eye className="mr-2 h-4 w-4" />
                   Visualizar por Veículo
               </Button>
             </Link>
-            <Link href="/pneus/manutencao">
-              <Button variant="outline">
+            <Link href="/pneus/manutencao" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full">
                   <Wrench className="mr-2 h-4 w-4" />
                   Acompanhar Manutenções
               </Button>
             </Link>
               <Dialog open={openNewTireDialog} onOpenChange={setOpenNewTireDialog}>
                   <DialogTrigger asChild>
-                      <Button>
+                      <Button className="w-full sm:w-auto">
                           <PlusCircle className="mr-2 h-4 w-4" />
                           Adicionar Pneu
                       </Button>
@@ -573,76 +573,78 @@ export default function PneusPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID/Fogo</TableHead>
-                  <TableHead>Marca/Modelo</TableHead>
-                  <TableHead>Medida</TableHead>
-                  <TableHead>Vida Útil</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Veículo/Posição</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Ações</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7}>
-                          <Skeleton className="h-24 w-full" />
-                      </TableCell>
-                    </TableRow>
-                ) : (
-                  tires.map((tire) => (
-                      <TableRow key={tire.id}>
-                      <TableCell className="font-medium">{tire.fireId}</TableCell>
-                      <TableCell>{tire.brand} {tire.model}</TableCell>
-                      <TableCell>{tire.size}</TableCell>
-                      <TableCell>
-                              <Badge variant={tire.lifespan > 75 ? 'default' : tire.lifespan < 25 ? 'destructive' : 'secondary'} className={tire.lifespan > 75 ? 'bg-green-500 hover:bg-green-600' : ''}>
-                                  {tire.lifespan}%
-                              </Badge>
-                          </TableCell>
-                      <TableCell>
-                          <Badge variant={statusVariant[tire.status] || 'secondary'}>
-                          {tire.status}
-                          </Badge>
-                      </TableCell>
-                      <TableCell>{tire.vehicleId ? `${tire.vehicleId} / ${tire.position}` : 'Em Estoque'}</TableCell>
-                      <TableCell>
-                          <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                              </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => { setSelectedTire(tire); setIsDetailsDialogOpen(true); }}>
-                                <Eye className="mr-2 h-4 w-4"/>Ver Detalhes
-                              </DropdownMenuItem>
-                              <TireMovementDialog tire={tire} />
-                              <DropdownMenuSeparator />
-                              <MaintenanceDialog tire={tire} />
-                              <ScrapDialog tire={tire} />
-                          </DropdownMenuContent>
-                          </DropdownMenu>
-                      </TableCell>
-                      </TableRow>
-                  ))
-                )}
-                {!isLoading && tires.length === 0 && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID/Fogo</TableHead>
+                    <TableHead>Marca/Modelo</TableHead>
+                    <TableHead>Medida</TableHead>
+                    <TableHead>Vida Útil</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Veículo/Posição</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Ações</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
                       <TableRow>
-                          <TableCell colSpan={7} className="text-center h-24">
-                              Nenhum pneu cadastrado.
-                          </TableCell>
+                        <TableCell colSpan={7}>
+                            <Skeleton className="h-24 w-full" />
+                        </TableCell>
                       </TableRow>
+                  ) : (
+                    tires.map((tire) => (
+                        <TableRow key={tire.id}>
+                        <TableCell className="font-medium">{tire.fireId}</TableCell>
+                        <TableCell>{tire.brand} {tire.model}</TableCell>
+                        <TableCell>{tire.size}</TableCell>
+                        <TableCell>
+                                <Badge variant={tire.lifespan > 75 ? 'default' : tire.lifespan < 25 ? 'destructive' : 'secondary'} className={tire.lifespan > 75 ? 'bg-green-500 hover:bg-green-600' : ''}>
+                                    {tire.lifespan}%
+                                </Badge>
+                            </TableCell>
+                        <TableCell>
+                            <Badge variant={statusVariant[tire.status] || 'secondary'}>
+                            {tire.status}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>{tire.vehicleId ? `${tire.vehicleId} / ${tire.position}` : 'Em Estoque'}</TableCell>
+                        <TableCell>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => { setSelectedTire(tire); setIsDetailsDialogOpen(true); }}>
+                                  <Eye className="mr-2 h-4 w-4"/>Ver Detalhes
+                                </DropdownMenuItem>
+                                <TireMovementDialog tire={tire} />
+                                <DropdownMenuSeparator />
+                                <MaintenanceDialog tire={tire} />
+                                <ScrapDialog tire={tire} />
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                    ))
                   )}
-              </TableBody>
-            </Table>
+                  {!isLoading && tires.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={7} className="text-center h-24">
+                                Nenhum pneu cadastrado.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
