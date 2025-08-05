@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2 } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2 } from "lucide-react"
 import { format, startOfDay, endOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy } from "firebase/firestore"
+import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy, getDocs } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
@@ -44,9 +44,9 @@ const statusBadgeColor : {[key:string]: string} = {
 
 
 export default function ConsultasPage() {
-    const [allChecklists, setAllChecklists] = React.useState<CompletedChecklist[]>([]);
-    const [filteredChecklists, setFilteredChecklists] = React.useState<CompletedChecklist[]>([]);
+    const [checklists, setChecklists] = React.useState<CompletedChecklist[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [isSearching, setIsSearching] = React.useState(false);
     
     // Filter states
     const [date, setDate] = React.useState<DateRange | undefined>()
@@ -59,6 +59,7 @@ export default function ConsultasPage() {
     const { toast } = useToast()
 
     React.useEffect(() => {
+        setIsLoading(true);
         const q = query(collection(db, "completed-checklists"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
           const checklistsData: CompletedChecklist[] = [];
@@ -70,39 +71,55 @@ export default function ConsultasPage() {
               createdAt: data.createdAt.toDate().toISOString(),
             } as CompletedChecklist);
           });
-          setAllChecklists(checklistsData);
-          setFilteredChecklists(checklistsData);
+          setChecklists(checklistsData);
           setIsLoading(false);
         });
     
         return () => unsubscribe();
       }, []);
       
-    const handleSearch = () => {
-        let results = [...allChecklists];
+    const handleSearch = async () => {
+        setIsSearching(true);
+        try {
+            let q = query(collection(db, "completed-checklists"), orderBy("createdAt", "desc"));
 
-        if (date?.from && date?.to) {
-            const from = startOfDay(date.from);
-            const to = endOfDay(date.to);
-            results = results.filter(c => {
-                const createdAt = new Date(c.createdAt);
-                return createdAt >= from && createdAt <= to;
+            if (date?.from && date?.to) {
+                q = query(q, where('createdAt', '>=', Timestamp.fromDate(startOfDay(date.from))));
+                q = query(q, where('createdAt', '<=', Timestamp.fromDate(endOfDay(date.to))));
+            }
+
+            if (type) {
+                q = query(q, where('type', '==', type));
+            }
+
+            if (plate) {
+                // As Firestore doesn't support partial string search natively, 
+                // we use a range query which works for "starts-with" behavior.
+                q = query(q, where('vehicle', '>=', plate.toUpperCase()), where('vehicle', '<=', plate.toUpperCase() + '\uf8ff'));
+            }
+            
+            if (status) {
+                q = query(q, where('status', '==', status));
+            }
+
+            const querySnapshot = await getDocs(q);
+            const results: CompletedChecklist[] = querySnapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id,
+                createdAt: doc.data().createdAt.toDate().toISOString(),
+            } as CompletedChecklist));
+
+            setChecklists(results);
+        } catch (error) {
+            console.error("Error searching checklists: ", error);
+            toast({
+                variant: "destructive",
+                title: "Erro na Busca",
+                description: "Não foi possível realizar a busca. Tente novamente.",
             });
+        } finally {
+            setIsSearching(false);
         }
-
-        if (type) {
-            results = results.filter(c => c.type === type);
-        }
-
-        if (plate) {
-            results = results.filter(c => c.vehicle.toLowerCase().includes(plate.toLowerCase()));
-        }
-        
-        if (status) {
-            results = results.filter(c => c.status === status);
-        }
-
-        setFilteredChecklists(results);
     };
 
 
@@ -239,9 +256,9 @@ export default function ConsultasPage() {
                             </div>
                         </div>
                         <div className="flex justify-end mt-4">
-                            <Button onClick={handleSearch}>
-                                <Search className="mr-2 h-4 w-4"/>
-                                Buscar
+                            <Button onClick={handleSearch} disabled={isSearching}>
+                                {isSearching ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}
+                                {isSearching ? 'Buscando...' : 'Buscar'}
                             </Button>
                         </div>
                     </CardContent>
@@ -251,7 +268,7 @@ export default function ConsultasPage() {
                     <CardHeader>
                         <CardTitle>Resultados</CardTitle>
                         <CardDescription>
-                            Foram encontrados {filteredChecklists.length} checklists.
+                            Foram encontrados {checklists.length} checklists.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -274,7 +291,7 @@ export default function ConsultasPage() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    filteredChecklists.map((item) => (
+                                    checklists.map((item) => (
                                         <TableRow key={item.id}>
                                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
@@ -327,7 +344,7 @@ export default function ConsultasPage() {
                                         </TableRow>
                                     ))
                                 )}
-                                 {!isLoading && filteredChecklists.length === 0 && (
+                                 {!isLoading && checklists.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center h-24">
                                             Nenhum checklist encontrado com os filtros aplicados.
