@@ -3,16 +3,20 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import { Fuel, Gauge, Wrench, Calendar, Truck } from "lucide-react";
+import { Fuel, Gauge, Wrench, Calendar } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const Vehicle3DViewer = dynamic(() => import('@/components/vehicle-3d-viewer'), { 
+    ssr: false,
+    loading: () => <Skeleton className="w-full h-full" />
+});
 
 
 // Mock data types - in a real app, these would come from your types file
@@ -77,20 +81,6 @@ export default function Vehicle3DViewPage() {
             setIsLoading(false);
         }, 1000);
 
-        // In a real app, you would use onSnapshot here:
-        /*
-        const unsubVehicle = onSnapshot(doc(db, "vehicles", vehicleId), (docSnap) => {
-            if(docSnap.exists()) setVehicle(docSnap.data() as Vehicle);
-            else console.error("Vehicle not found");
-        });
-        const unsubMaint = onSnapshot(query(collection(db, "maintenances"), where("vehicleId", "==", vehicleId), where("status", "!=", "Concluída")), (snapshot) => {
-            const points = snapshot.docs.map(d => mapMaintenanceToPoint(d.data()));
-            setMaintenancePoints(points);
-        });
-        setIsLoading(false);
-        return () => { unsubVehicle(); unsubMaint(); };
-        */
-
     }, [vehicleId]);
 
     if (isLoading) {
@@ -129,14 +119,7 @@ export default function Vehicle3DViewPage() {
             {/* View Area */}
             <main className="flex-1 flex items-center justify-center p-4">
                 <div className="relative w-full h-full max-w-5xl mx-auto">
-                    <Image
-                        src="https://placehold.co/1280x720.png"
-                        alt="Visualização do Caminhão"
-                        layout="fill"
-                        objectFit="contain"
-                        className="rounded-md"
-                        data-ai-hint="side view truck"
-                    />
+                    <Vehicle3DViewer />
                     {maintenancePoints.map(point => (
                         <Popover key={point.id}>
                             <PopoverTrigger asChild>
