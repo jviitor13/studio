@@ -35,7 +35,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, onSnapshot, doc, updateDoc, Timestamp, query, orderBy, setDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, doc, updateDoc, Timestamp, query, orderBy, setDoc, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,7 @@ interface Maintenance {
     completedAt?: Timestamp;
     serviceSummary?: string;
     discountFromDriver?: 'sim' | 'nao';
+    driverId?: string;
     technicianSignature?: string;
     attachments?: { name: string; url: string }[];
 }
@@ -64,6 +65,11 @@ interface Vehicle {
     id: string;
     plate: string;
     model: string;
+}
+
+interface User {
+    id: string;
+    name: string;
 }
 
 const maintenanceSchema = z.object({
@@ -85,6 +91,15 @@ const completeMaintenanceSchema = z.object({
   technicianSignature: z.string().min(1, "A assinatura do técnico é obrigatória."),
   discountFromDriver: z.enum(['sim', 'nao'], { required_error: "Selecione se o valor deve ser descontado." }),
   attachments: z.array(attachmentSchema).optional(),
+  driverId: z.string().optional(),
+}).refine(data => {
+    if (data.discountFromDriver === 'sim') {
+        return !!data.driverId;
+    }
+    return true;
+}, {
+    message: "A seleção do motorista é obrigatória quando o desconto for aplicado.",
+    path: ['driverId']
 });
 type CompleteMaintenanceValues = z.infer<typeof completeMaintenanceSchema>;
 
@@ -104,6 +119,7 @@ export default function ManutencoesPage() {
 
     const [maintenances, setMaintenances] = React.useState<Maintenance[]>([]);
     const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+    const [drivers, setDrivers] = React.useState<User[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     
     const [isUploading, setIsUploading] = React.useState(false);
@@ -120,9 +136,11 @@ export default function ManutencoesPage() {
             technicianSignature: '',
             discountFromDriver: 'nao',
             attachments: [],
+            driverId: ''
         },
     });
 
+    const watchDiscount = completeMaintenanceForm.watch('discountFromDriver');
 
     React.useEffect(() => {
         const q = query(collection(db, "manutencoes"), orderBy("createdAt", "desc"));
@@ -142,9 +160,16 @@ export default function ManutencoesPage() {
             setVehicles(data);
         });
 
+        const qDrivers = query(collection(db, "users"), where("role", "==", "Motorista"));
+        const unsubscribeDrivers = onSnapshot(qDrivers, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as User));
+            setDrivers(data);
+        });
+
         return () => {
           unsubscribe();
           unsubscribeVehicles();
+          unsubscribeDrivers();
         };
     }, []);
 
@@ -205,7 +230,8 @@ export default function ManutencoesPage() {
 
         try {
             const maintenanceRef = doc(db, 'manutencoes', selectedMaintenance.id);
-            await updateDoc(maintenanceRef, {
+            
+            const dataToSave: Partial<Maintenance> = {
                 status: 'Concluída',
                 completedAt: Timestamp.now(),
                 cost: data.cost,
@@ -213,7 +239,14 @@ export default function ManutencoesPage() {
                 technicianSignature: data.technicianSignature,
                 discountFromDriver: data.discountFromDriver,
                 attachments: data.attachments || [],
-            });
+            };
+
+            if (data.discountFromDriver === 'sim' && data.driverId) {
+                dataToSave.driverId = data.driverId;
+            }
+
+
+            await updateDoc(maintenanceRef, dataToSave);
             
             const vehicleRef = doc(db, 'vehicles', selectedMaintenance.vehicleId);
             await updateDoc(vehicleRef, { status: 'Disponível' });
@@ -300,6 +333,29 @@ export default function ManutencoesPage() {
                              {completeMaintenanceForm.formState.errors.discountFromDriver && <p className="text-sm text-destructive">{completeMaintenanceForm.formState.errors.discountFromDriver.message}</p>}
                         </div>
                     </div>
+
+                    {watchDiscount === 'sim' && (
+                        <div className="grid gap-2">
+                            <Label htmlFor="driverId">Motorista a ser Descontado *</Label>
+                             <Controller
+                                name="driverId"
+                                control={completeMaintenanceForm.control}
+                                render={({ field }) => (
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <SelectTrigger id="driverId" className={cn(completeMaintenanceForm.formState.errors.driverId && "border-destructive")}>
+                                            <SelectValue placeholder="Selecione o motorista" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                            />
+                            {completeMaintenanceForm.formState.errors.driverId && <p className="text-sm text-destructive mt-1">{completeMaintenanceForm.formState.errors.driverId.message}</p>}
+                        </div>
+                    )}
+
+
                      <div className="grid gap-2">
                          <Label>Assinatura do Técnico Responsável *</Label>
                         <Controller
