@@ -208,9 +208,10 @@ export default function VeiculosPage() {
 
     const onSubmit = async (data: VehicleFormValues) => {
         try {
-            const vehicleRef = doc(db, "vehicles", data.plate.toUpperCase());
+            const vehicleId = data.plate.toUpperCase();
+            const vehicleRef = doc(db, "vehicles", vehicleId);
             await setDoc(vehicleRef, {
-                plate: data.plate.toUpperCase(),
+                plate: vehicleId,
                 model: data.model,
                 year: data.year,
                 fuel: data.fuel,
@@ -220,7 +221,7 @@ export default function VeiculosPage() {
 
             toast({
                 title: "Veículo Adicionado!",
-                description: `O veículo ${data.model} (${data.plate}) foi cadastrado com sucesso.`,
+                description: `O veículo ${data.model} (${vehicleId}) foi cadastrado com sucesso.`,
             });
             setOpenNewVehicleDialog(false);
             reset();
