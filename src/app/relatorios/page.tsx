@@ -60,33 +60,24 @@ export default function RelatoriosPage() {
         const checklistsRef = collection(db, 'completed-checklists');
         const q = query(
             checklistsRef,
-            where('status', '==', 'Pendente'),
+            where('createdAt', '>=', Timestamp.fromDate(startOfDay(from))),
+            where('createdAt', '<=', Timestamp.fromDate(endOfDay(to))),
             orderBy('createdAt', 'desc')
         );
 
         const querySnapshot = await getDocs(q);
         
-        const allIncidents = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                ...data,
-                createdAt: data.createdAt.toDate(), // Convert Timestamp to Date
-            };
-        });
-        
-        // Filter by date on the client side
-        const filteredByDate = allIncidents.filter(incident => {
-            const incidentDate = incident.createdAt;
-            return incidentDate >= startOfDay(from) && incidentDate <= endOfDay(to);
-        });
+        const allIncidents = querySnapshot.docs
+            .map(doc => doc.data())
+            .filter(data => data.status === 'Pendente');
 
-        const incidents = filteredByDate.flatMap(checklistData => {
+        const incidents = allIncidents.flatMap(checklistData => {
             return checklistData.questions
                 .filter((q: any) => q.status === 'Não OK')
                 .map((q: any) => ({
                     Veículo: checklistData.vehicle,
                     Motorista: checklistData.driver,
-                    Data: format(checklistData.createdAt, 'dd/MM/yyyy'),
+                    Data: format(checklistData.createdAt.toDate(), 'dd/MM/yyyy'),
                     'Item com Problema': q.text,
                     Observação: q.observation || 'N/A',
                 }));
