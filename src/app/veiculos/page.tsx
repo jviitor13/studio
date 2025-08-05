@@ -61,7 +61,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from "@/lib/utils";
 
 interface Vehicle {
-    id: string;
+    id: string; // This is the plate
     plate: string;
     model: string;
     year: number;

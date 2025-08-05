@@ -29,7 +29,8 @@ interface Tire {
 }
 
 interface Vehicle {
-    id: string;
+    id: string; // This is the plate
+    plate: string;
     model: string;
 }
 
@@ -383,7 +384,7 @@ export default function PneusVisualizacaoPage() {
                   <SelectValue placeholder="Selecione a placa" />
                   </SelectTrigger>
                   <SelectContent>
-                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.id} - {v.model}</SelectItem>)}
+                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>)}
                   </SelectContent>
               </Select>
             </div>
@@ -421,7 +422,7 @@ export default function PneusVisualizacaoPage() {
                   </div>
               </div>
               <div className="w-full text-center text-xs text-muted-foreground pt-4">
-                  <p>DDE: Dianteiro Direito Externo | DDD: Dianteiro Esquerdo Externo (corrigido)</p>
+                  <p>DDE: Dianteiro Direito Externo | DDD: Dianteiro Esquerdo Externo</p>
                   <p>T1/T2: Eixo Traseiro 1/2 | E/D: Esquerdo/Direito | I/E: Interno/Externo</p>
               </div>
             </div>

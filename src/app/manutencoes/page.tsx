@@ -62,7 +62,7 @@ interface Maintenance {
 }
 
 interface Vehicle {
-    id: string;
+    id: string; // This is the plate
     plate: string;
     model: string;
 }
@@ -207,7 +207,7 @@ export default function ManutencoesPage() {
                 updates.startedAt = Timestamp.now();
                  await updateDoc(vehicleRef, { status: 'Em Manutenção' });
             }
-            if (status === 'Cancelada') {
+            if (status === 'Cancelada' || status === 'Concluída') {
                  await updateDoc(vehicleRef, { status: 'Disponível' });
             }
             await updateDoc(docRef, updates);
@@ -246,7 +246,7 @@ export default function ManutencoesPage() {
             }
 
 
-            await updateDoc(maintenanceRef, dataToSave);
+            await updateDoc(maintenanceRef, dataToSave as any);
             
             const vehicleRef = doc(db, 'vehicles', selectedMaintenance.vehicleId);
             await updateDoc(vehicleRef, { status: 'Disponível' });
@@ -424,7 +424,7 @@ export default function ManutencoesPage() {
                                     <SelectValue placeholder="Selecione a placa" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.id} - {v.model}</SelectItem>)}
+                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}

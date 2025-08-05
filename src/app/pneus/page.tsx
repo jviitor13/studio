@@ -84,7 +84,8 @@ interface Tire {
 }
 
 interface Vehicle {
-  id: string;
+  id: string; // This is the plate
+  plate: string;
   model: string;
 }
 
@@ -277,7 +278,7 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <DropdownMenuItem disabled={tire.status !== 'Em Estoque'} onSelect={(e) => e.preventDefault()}>
+                <DropdownMenuItem disabled={tire.status !== 'Em Estoque' && tire.status !== 'Novo'} onSelect={(e) => e.preventDefault()}>
                     <Truck className="mr-2 h-4 w-4"/>Movimentar
                 </DropdownMenuItem>
             </DialogTrigger>
@@ -294,7 +295,7 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
                         <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
                             <SelectTrigger id="vehicle-select"><SelectValue placeholder="Selecione um veículo..." /></SelectTrigger>
                             <SelectContent>
-                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.id} - {v.model}</SelectItem>)}
+                                {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
