@@ -56,6 +56,31 @@ export default function RelatoriosPage() {
         return { data, summary: { totalCost } };
     };
 
+    const fetchIncidentsReportData = async (from: Date, to: Date) => {
+        const checklistsRef = collection(db, 'completed-checklists');
+        const q = query(
+            checklistsRef,
+            where('status', '==', 'Pendente'),
+            where('createdAt', '>=', Timestamp.fromDate(startOfDay(from))),
+            where('createdAt', '<=', Timestamp.fromDate(endOfDay(to)))
+        );
+
+        const querySnapshot = await getDocs(q);
+        const incidents = querySnapshot.docs.flatMap(doc => {
+            const checklistData = doc.data();
+            return checklistData.questions
+                .filter((q: any) => q.status === 'Não OK')
+                .map((q: any) => ({
+                    Veículo: checklistData.vehicle,
+                    Motorista: checklistData.driver,
+                    Data: format(checklistData.createdAt.toDate(), 'dd/MM/yyyy'),
+                    'Item com Problema': q.text,
+                    Observação: q.observation || 'N/A',
+                }));
+        });
+        return { data: incidents };
+    };
+
     const handleGenerateReport = async () => {
         if (!reportType) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Por favor, selecione um tipo de relatório.' });
@@ -77,10 +102,16 @@ export default function RelatoriosPage() {
                 const { data, summary } = await fetchCostReportData(date.from, date.to);
                 reportData = data;
                 reportSummary = summary;
-            } else {
+            } else if (reportType === 'Ocorrências') {
+                const { data } = await fetchIncidentsReportData(date.from, date.to);
+                reportData = data;
+            }
+             else {
                 // Placeholder for other reports
                 reportData = [];
                 toast({ variant: 'destructive', title: 'Tipo de relatório não implementado', description: 'A busca de dados para este relatório ainda não foi implementada.' });
+                setIsGenerating(false);
+                return;
             }
 
             const newReport: Report = {
@@ -147,9 +178,9 @@ export default function RelatoriosPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Custos">Relatório de Custos</SelectItem>
+                    <SelectItem value="Ocorrências">Relatório de Ocorrências</SelectItem>
                     <SelectItem value="Performance da Frota" disabled>Performance da Frota</SelectItem>
                     <SelectItem value="Consumo de Combustível" disabled>Consumo de Combustível</SelectItem>
-                    <SelectItem value="Ocorrências" disabled>Relatório de Ocorrências</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
