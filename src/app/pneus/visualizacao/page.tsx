@@ -57,9 +57,7 @@ const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap
         if (open) {
             const q = query(
                 collection(db, "pneus"),
-                where("status", "!=", "Em Uso"),
-                where("status", "!=", "Em Manutenção"),
-                where("status", "!=", "Sucateado")
+                where("status", "in", ["Em Estoque", "Novo"])
             );
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
@@ -234,17 +232,22 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
         if (open) {
             const q = query(
                 collection(db, "pneus"),
-                where("status", "!=", "Em Uso"),
-                where("status", "!=", "Em Manutenção"),
-                where("status", "!=", "Sucateado")
+                where("status", "in", ["Em Estoque", "Novo"])
             );
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
                 setStockTires(tiresData);
+            }, (error) => {
+                console.error("Firestore query error:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Erro ao buscar pneus",
+                    description: "Não foi possível carregar os pneus do estoque. Verifique os índices do Firestore."
+                });
             });
             return () => unsubscribe();
         }
-    }, [open]);
+    }, [open, toast]);
 
     const handleInstall = async () => {
         if (!selectedTire) {
