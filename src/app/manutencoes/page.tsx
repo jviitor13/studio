@@ -2,8 +2,8 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, Wrench, History, MoreHorizontal, Play, Ban, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PlusCircle, Wrench, History, MoreHorizontal, Play, Ban, CheckCircle, Upload, FileText, Loader2 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -29,7 +29,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,6 +39,9 @@ import { collection, addDoc, onSnapshot, doc, updateDoc, Timestamp, query, order
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { SignaturePad } from "@/components/signature-pad";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 interface Maintenance {
@@ -51,6 +54,10 @@ interface Maintenance {
     cost?: number;
     startedAt?: Timestamp;
     completedAt?: Timestamp;
+    serviceSummary?: string;
+    discountFromDriver?: 'sim' | 'nao';
+    technicianSignature?: string;
+    attachments?: { name: string; url: string }[];
 }
 
 interface Vehicle {
@@ -67,6 +74,15 @@ const maintenanceSchema = z.object({
 
 type MaintenanceFormValues = z.infer<typeof maintenanceSchema>;
 
+const completeMaintenanceSchema = z.object({
+  cost: z.coerce.number().min(0.01, "O custo deve ser maior que zero."),
+  serviceSummary: z.string().min(10, "O resumo do serviço deve ter pelo menos 10 caracteres."),
+  technicianSignature: z.string().min(1, "A assinatura do técnico é obrigatória."),
+  discountFromDriver: z.enum(['sim', 'nao'], { required_error: "Selecione se o valor deve ser descontado." }),
+  attachments: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
+});
+type CompleteMaintenanceValues = z.infer<typeof completeMaintenanceSchema>;
+
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
   "Agendada": "secondary",
@@ -80,15 +96,28 @@ export default function ManutencoesPage() {
     const [open, setOpen] = React.useState(false);
     const [openCompleteDialog, setOpenCompleteDialog] = React.useState(false);
     const [selectedMaintenance, setSelectedMaintenance] = React.useState<Maintenance | null>(null);
-    const [maintenanceCost, setMaintenanceCost] = React.useState<string>("");
 
     const [maintenances, setMaintenances] = React.useState<Maintenance[]>([]);
     const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    
+    const [isUploading, setIsUploading] = React.useState(false);
 
-    const { control, handleSubmit, register, formState: { errors, isSubmitting }, reset } = useForm<MaintenanceFormValues>({
+    const newMaintenanceForm = useForm<MaintenanceFormValues>({
       resolver: zodResolver(maintenanceSchema),
     });
+    
+    const completeMaintenanceForm = useForm<CompleteMaintenanceValues>({
+      resolver: zodResolver(completeMaintenanceSchema),
+       defaultValues: {
+            cost: 0,
+            serviceSummary: '',
+            technicianSignature: '',
+            discountFromDriver: 'nao',
+            attachments: [],
+        },
+    });
+
 
     React.useEffect(() => {
         const q = query(collection(db, "manutencoes"), orderBy("createdAt", "desc"));
@@ -114,7 +143,7 @@ export default function ManutencoesPage() {
         };
     }, []);
 
-    const onSubmit = async (data: MaintenanceFormValues) => {
+    const onNewMaintenanceSubmit = async (data: MaintenanceFormValues) => {
         try {
             await addDoc(collection(db, "manutencoes"), {
                 ...data,
@@ -127,7 +156,7 @@ export default function ManutencoesPage() {
                 description: "A manutenção foi adicionada à agenda.",
             });
             setOpen(false);
-            reset();
+            newMaintenanceForm.reset();
         } catch (error) {
             console.error("Error creating maintenance:", error);
             toast({
@@ -166,18 +195,19 @@ export default function ManutencoesPage() {
         }
     }
     
-     const handleCompleteMaintenance = async () => {
-        if (!selectedMaintenance || !maintenanceCost) {
-            toast({ variant: 'destructive', title: "Erro", description: "O custo da manutenção é obrigatório." });
-            return;
-        }
+     const handleCompleteMaintenance = async (data: CompleteMaintenanceValues) => {
+        if (!selectedMaintenance) return;
 
         try {
             const maintenanceRef = doc(db, 'manutencoes', selectedMaintenance.id);
             await updateDoc(maintenanceRef, {
                 status: 'Concluída',
                 completedAt: Timestamp.now(),
-                cost: parseFloat(maintenanceCost.replace(',', '.')),
+                cost: data.cost,
+                serviceSummary: data.serviceSummary,
+                technicianSignature: data.technicianSignature,
+                discountFromDriver: data.discountFromDriver,
+                attachments: data.attachments || [],
             });
             
             const vehicleRef = doc(db, 'vehicles', selectedMaintenance.vehicleId);
@@ -189,10 +219,32 @@ export default function ManutencoesPage() {
             });
             setOpenCompleteDialog(false);
             setSelectedMaintenance(null);
-            setMaintenanceCost("");
+            completeMaintenanceForm.reset();
         } catch (error) {
             console.error("Error completing maintenance:", error);
             toast({ variant: 'destructive', title: "Erro", description: "Não foi possível finalizar a manutenção." });
+        }
+    };
+    
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            setIsUploading(true);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                const newAttachment = { name: file.name, url: reader.result as string };
+                const currentAttachments = completeMaintenanceForm.getValues('attachments') || [];
+                completeMaintenanceForm.setValue('attachments', [...currentAttachments, newAttachment]);
+                setIsUploading(false);
+                toast({ title: 'Anexo adicionado!', description: file.name });
+            };
+            reader.onerror = () => {
+                setIsUploading(false);
+                toast({ variant: 'destructive', title: 'Erro de Leitura', description: 'Não foi possível ler o arquivo.' });
+            };
         }
     };
     
@@ -207,31 +259,75 @@ export default function ManutencoesPage() {
 
   return (
     <>
-    {/* Dialog for completing maintenance */}
-    <Dialog open={openCompleteDialog} onOpenChange={setOpenCompleteDialog}>
-        <DialogContent>
+    <Dialog open={openCompleteDialog} onOpenChange={(isOpen) => {setOpenCompleteDialog(isOpen); if (!isOpen) completeMaintenanceForm.reset();}}>
+        <DialogContent className="max-w-2xl">
              <DialogHeader>
                 <DialogTitle>Concluir Manutenção</DialogTitle>
                 <DialogDescription>
-                    Informe o custo final para concluir o serviço no veículo <span className="font-bold">{selectedMaintenance?.vehicleId}</span>.
+                    Informe os detalhes e valide a conclusão do serviço no veículo <span className="font-bold">{selectedMaintenance?.vehicleId}</span>.
                 </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-                 <div className="grid items-center gap-2">
-                    <Label htmlFor="cost">Custo Total (R$)</Label>
-                    <Input 
-                        id="cost" 
-                        type="text" 
-                        placeholder="Ex: 1500,50" 
-                        value={maintenanceCost} 
-                        onChange={(e) => setMaintenanceCost(e.target.value)} 
-                    />
+            <form onSubmit={completeMaintenanceForm.handleSubmit(handleCompleteMaintenance)}>
+                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                     <div className="grid gap-2">
+                        <Label htmlFor="serviceSummary">Resumo do Serviço Realizado *</Label>
+                        <Textarea id="serviceSummary" placeholder="Descreva o que foi feito, peças trocadas, etc." {...completeMaintenanceForm.register('serviceSummary')} />
+                        {completeMaintenanceForm.formState.errors.serviceSummary && <p className="text-sm text-destructive">{completeMaintenanceForm.formState.errors.serviceSummary.message}</p>}
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                         <div className="grid gap-2">
+                            <Label htmlFor="cost">Custo Total (R$) *</Label>
+                            <Input id="cost" type="number" step="0.01" placeholder="Ex: 1500,50" {...completeMaintenanceForm.register('cost')} />
+                             {completeMaintenanceForm.formState.errors.cost && <p className="text-sm text-destructive">{completeMaintenanceForm.formState.errors.cost.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Descontar do Motorista? *</Label>
+                            <Controller
+                                name="discountFromDriver"
+                                control={completeMaintenanceForm.control}
+                                render={({ field }) => (
+                                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2">
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="nao" /><Label htmlFor="nao">Não</Label></div>
+                                        <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="sim" /><Label htmlFor="sim">Sim</Label></div>
+                                    </RadioGroup>
+                                )}
+                            />
+                             {completeMaintenanceForm.formState.errors.discountFromDriver && <p className="text-sm text-destructive">{completeMaintenanceForm.formState.errors.discountFromDriver.message}</p>}
+                        </div>
+                    </div>
+                     <div className="grid gap-2">
+                         <Label>Assinatura do Técnico Responsável *</Label>
+                        <Controller
+                            name="technicianSignature"
+                            control={completeMaintenanceForm.control}
+                            render={({ field }) => <SignaturePad onEnd={field.onChange} />}
+                        />
+                        {completeMaintenanceForm.formState.errors.technicianSignature && <p className="text-sm text-destructive">{completeMaintenanceForm.formState.errors.technicianSignature.message}</p>}
+                    </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="attachments">Anexar NFs / Recibos</Label>
+                        <Input id="attachments-input" type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} />
+                        <Button type="button" variant="outline" onClick={() => document.getElementById('attachments-input')?.click()} disabled={isUploading}>
+                            {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Upload className="mr-2 h-4 w-4"/>}
+                            {isUploading ? 'Enviando...' : 'Adicionar Anexo'}
+                        </Button>
+                        <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                            {completeMaintenanceForm.watch('attachments')?.map((file, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4" /> <span>{file.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setOpenCompleteDialog(false)}>Cancelar</Button>
-                <Button type="button" onClick={handleCompleteMaintenance}>Concluir Serviço</Button>
-            </DialogFooter>
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setOpenCompleteDialog(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={completeMaintenanceForm.formState.isSubmitting}>
+                         {completeMaintenanceForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Concluir Serviço
+                    </Button>
+                </DialogFooter>
+            </form>
         </DialogContent>
     </Dialog>
     
@@ -240,7 +336,7 @@ export default function ManutencoesPage() {
         title="Manutenções"
         description="Acompanhe e agende as manutenções da frota."
       >
-        <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) reset(); }}>
+        <Dialog open={open} onOpenChange={(isOpen) => { setOpen(isOpen); if (!isOpen) newMaintenanceForm.reset(); }}>
           <DialogTrigger asChild>
              <Button>
                 <PlusCircle className="mr-2" />
@@ -248,7 +344,7 @@ export default function ManutencoesPage() {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={newMaintenanceForm.handleSubmit(onNewMaintenanceSubmit)}>
                 <DialogHeader>
                 <DialogTitle>Agendar Nova Manutenção</DialogTitle>
                 <DialogDescription>
@@ -260,10 +356,10 @@ export default function ManutencoesPage() {
                     <Label htmlFor="vehicleId">Veículo *</Label>
                     <Controller
                         name="vehicleId"
-                        control={control}
+                        control={newMaintenanceForm.control}
                         render={({ field }) => (
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
+                                <SelectTrigger id="vehicleId" className={cn(newMaintenanceForm.formState.errors.vehicleId && "border-destructive")}>
                                     <SelectValue placeholder="Selecione a placa" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -272,18 +368,18 @@ export default function ManutencoesPage() {
                             </Select>
                         )}
                     />
-                    {errors.vehicleId && <p className="text-sm text-destructive mt-1">{errors.vehicleId.message}</p>}
+                    {newMaintenanceForm.formState.errors.vehicleId && <p className="text-sm text-destructive mt-1">{newMaintenanceForm.formState.errors.vehicleId.message}</p>}
                 </div>
                 <div className="grid items-center gap-2">
                     <Label htmlFor="serviceType">Tipo de Serviço *</Label>
-                    <Input id="serviceType" placeholder="Ex: Troca de óleo, Revisão de freios" {...register("serviceType")} className={cn(errors.serviceType && "border-destructive")} />
-                    {errors.serviceType && <p className="text-sm text-destructive mt-1">{errors.serviceType.message}</p>}
+                    <Input id="serviceType" placeholder="Ex: Troca de óleo, Revisão de freios" {...newMaintenanceForm.register("serviceType")} className={cn(newMaintenanceForm.formState.errors.serviceType && "border-destructive")} />
+                    {newMaintenanceForm.formState.errors.serviceType && <p className="text-sm text-destructive mt-1">{newMaintenanceForm.formState.errors.serviceType.message}</p>}
                 </div>
                 <div className="grid items-center gap-2">
                     <Label htmlFor="scheduledDate">Data do Agendamento *</Label>
                     <Controller
                         name="scheduledDate"
-                        control={control}
+                        control={newMaintenanceForm.control}
                         render={({ field }) => (
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -293,7 +389,7 @@ export default function ManutencoesPage() {
                                     className={cn(
                                         "w-full justify-start text-left font-normal",
                                         !field.value && "text-muted-foreground",
-                                        errors.scheduledDate && "border-destructive"
+                                        newMaintenanceForm.formState.errors.scheduledDate && "border-destructive"
                                     )}
                                     >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -311,14 +407,14 @@ export default function ManutencoesPage() {
                             </Popover>
                         )}
                     />
-                    {errors.scheduledDate && <p className="text-sm text-destructive mt-1">{errors.scheduledDate.message}</p>}
+                    {newMaintenanceForm.formState.errors.scheduledDate && <p className="text-sm text-destructive mt-1">{newMaintenanceForm.formState.errors.scheduledDate.message}</p>}
                 </div>
                 </div>
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isSubmitting ? 'Agendando...' : 'Agendar'}
+                    <Button type="submit" disabled={newMaintenanceForm.formState.isSubmitting}>
+                        {newMaintenanceForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {newMaintenanceForm.formState.isSubmitting ? 'Agendando...' : 'Agendar'}
                     </Button>
                 </DialogFooter>
             </form>
@@ -449,10 +545,3 @@ export default function ManutencoesPage() {
     </>
   );
 }
-
-
-    
-
-    
-
-    
