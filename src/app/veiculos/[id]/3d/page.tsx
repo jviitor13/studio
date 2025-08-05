@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { Fuel, Gauge, Wrench, Calendar, Truck } from "lucide-react";
-import Vehicle3DViewer from "@/components/vehicle-3d-viewer";
 
 
 // Mock data types - in a real app, these would come from your types file
@@ -126,10 +126,17 @@ export default function Vehicle3DViewPage() {
                 </div>
             </header>
 
-            {/* 3D View Area */}
+            {/* View Area */}
             <main className="flex-1 flex items-center justify-center p-4">
                 <div className="relative w-full h-full max-w-5xl mx-auto">
-                    <Vehicle3DViewer />
+                    <Image
+                        src="https://placehold.co/1280x720.png"
+                        alt="Visualização do Caminhão"
+                        layout="fill"
+                        objectFit="contain"
+                        className="rounded-md"
+                        data-ai-hint="side view truck"
+                    />
                     {maintenancePoints.map(point => (
                         <Popover key={point.id}>
                             <PopoverTrigger asChild>

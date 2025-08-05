@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { collection, doc, onSnapshot, query, updateDoc, where, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
@@ -94,9 +94,7 @@ const TireSwapDialog = ({ onSwap, currentTire, position, vehicleId }: { onSwap: 
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpen(true); }}><Repeat className="mr-2 h-4 w-4" />Trocar Pneu</Button>
-            </DialogTrigger>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpen(true); }}><Repeat className="mr-2 h-4 w-4" />Trocar Pneu</Button>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Trocar Pneu - Posição {position}</DialogTitle>
@@ -143,9 +141,7 @@ const TireInspectionDialog = ({ tire, onInspect }: { tire: Tire, onInspect: (pos
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpen(true); }}><Search className="mr-2 h-4 w-4" />Inspecionar</Button>
-            </DialogTrigger>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setOpen(true); }}><Search className="mr-2 h-4 w-4" />Inspecionar</Button>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Inspecionar Pneu: {tire.fireId}</DialogTitle>
@@ -483,4 +479,3 @@ export default function PneusVisualizacaoPage() {
     </>
   );
 }
-
