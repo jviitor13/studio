@@ -26,6 +26,7 @@ interface Tire {
     depth?: string;
     vehicleId?: string;
     position?: string;
+    status: "Em Uso" | "Em Estoque" | "Em Manutenção" | "Sucateado" | "Novo";
 }
 
 interface Vehicle {
@@ -47,11 +48,11 @@ const tirePositionsMap = [
     { value: "T2DE", label: "2º Eixo Traseiro - Direito Externo" },
 ];
 
-const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap: (newTire: Tire) => void, currentTireId: string, position: string, vehicleId: string }) => {
+const TireSwapDialog = ({ onSwap, currentTire, position, vehicleId }: { onSwap: (position: string, newTire: Tire) => void, currentTire: Tire, position: string, vehicleId: string }) => {
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
     const [stockTires, setStockTires] = useState<Tire[]>([]);
-    const [selectedTire, setSelectedTire] = useState('');
+    const [selectedTireId, setSelectedTireId] = useState('');
 
     useEffect(() => {
         if (open) {
@@ -68,22 +69,20 @@ const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap
     }, [open]);
 
     const handleSwap = async () => {
-        if (!selectedTire) {
+        if (!selectedTireId) {
             toast({ variant: 'destructive', title: "Erro", description: "Selecione um pneu para instalar." });
             return;
         }
 
         try {
-            // Update new tire
-            const newTireRef = doc(db, 'pneus', selectedTire);
+            const newTireRef = doc(db, 'pneus', selectedTireId);
             await updateDoc(newTireRef, { status: 'Em Uso', vehicleId, position });
             
-            // Update old tire
-            const oldTireRef = doc(db, 'pneus', currentTireId);
+            const oldTireRef = doc(db, 'pneus', currentTire.id);
             await updateDoc(oldTireRef, { status: 'Em Estoque', vehicleId: '', position: '' });
             
-            const newTireData = stockTires.find(t => t.id === selectedTire);
-            if(newTireData) onSwap(newTireData);
+            const newTireData = stockTires.find(t => t.id === selectedTireId);
+            if(newTireData) onSwap(position, newTireData);
 
             toast({ title: "Sucesso!", description: `Pneu trocado na posição ${position}.` });
             setOpen(false);
@@ -101,11 +100,11 @@ const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Trocar Pneu - Posição {position}</DialogTitle>
-                    <DialogDescription>Selecione um pneu do estoque para instalar no lugar do pneu atual ({currentTireId}).</DialogDescription>
+                    <DialogDescription>Selecione um pneu do estoque para instalar no lugar do pneu atual ({currentTire.fireId}).</DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="tire-select">Pneu do Estoque</Label>
-                    <Select value={selectedTire} onValueChange={setSelectedTire}>
+                    <Select value={selectedTireId} onValueChange={setSelectedTireId}>
                         <SelectTrigger id="tire-select"><SelectValue placeholder="Selecione um pneu..." /></SelectTrigger>
                         <SelectContent>
                             {stockTires.map(t => <SelectItem key={t.id} value={t.id}>{t.fireId} - {t.brand} {t.model}</SelectItem>)}
@@ -121,18 +120,19 @@ const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap
     );
 }
 
-const TireInspectionDialog = ({ tire, onInspect }: { tire: Tire, onInspect: (updates: Partial<Tire>) => void }) => {
+const TireInspectionDialog = ({ tire, onInspect }: { tire: Tire, onInspect: (position: string, updates: Partial<Tire>) => void }) => {
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
     const [pressure, setPressure] = useState(tire.pressure || '');
     const [depth, setDepth] = useState(tire.depth || '');
 
     const handleSaveInspection = async () => {
+        if(!tire.position) return;
         try {
             const tireRef = doc(db, 'pneus', tire.id);
             const updates = { pressure, depth };
             await updateDoc(tireRef, updates);
-            onInspect(updates);
+            onInspect(tire.position, updates);
             toast({ title: "Inspeção Salva", description: "Os dados do pneu foram atualizados." });
             setOpen(false);
         } catch (error) {
@@ -206,8 +206,8 @@ const TirePosition = ({ position, tireData, vehicleId, onAction, onInspect, onSw
             </div>
             <Separator />
              <div className="flex flex-col gap-2">
-                <TireInspectionDialog tire={tireData} onInspect={(updates) => onInspect(position, updates)} />
-                <TireSwapDialog currentTireId={tireData.id} position={position} vehicleId={vehicleId} onSwap={(newTire) => onSwap(position, newTire)} />
+                <TireInspectionDialog tire={tireData} onInspect={onInspect} />
+                <TireSwapDialog currentTire={tireData} position={position} vehicleId={vehicleId} onSwap={onSwap} />
                 <Button size="sm" variant="destructive" onClick={() => onAction('retirar', position, tireData.id)}><Trash2 className="mr-2 h-4 w-4" />Retirar Pneu</Button>
              </div>
           </div>
@@ -223,10 +223,10 @@ const TirePosition = ({ position, tireData, vehicleId, onAction, onInspect, onSw
   );
 };
 
-const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (tire: Tire) => void, position: string, vehicleId: string }) => {
+const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (position: string, tire: Tire) => void, position: string, vehicleId: string }) => {
     const { toast } = useToast();
     const [stockTires, setStockTires] = useState<Tire[]>([]);
-    const [selectedTire, setSelectedTire] = useState('');
+    const [selectedTireId, setSelectedTireId] = useState('');
 
     useEffect(() => {
         if (open) {
@@ -242,7 +242,7 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
                 toast({
                     variant: "destructive",
                     title: "Erro ao buscar pneus",
-                    description: "Não foi possível carregar os pneus do estoque. Verifique os índices do Firestore."
+                    description: "Não foi possível carregar os pneus do estoque."
                 });
             });
             return () => unsubscribe();
@@ -250,15 +250,14 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
     }, [open, toast]);
 
     const handleInstall = async () => {
-        if (!selectedTire) {
+        if (!selectedTireId) {
             toast({ variant: 'destructive', title: "Erro", description: "Selecione um pneu para instalar." });
             return;
         }
         
-        const tireToInstall = stockTires.find(t => t.id === selectedTire);
+        const tireToInstall = stockTires.find(t => t.id === selectedTireId);
         if (tireToInstall) {
              try {
-                // Check if position is occupied on the DB one last time
                 const q = query(collection(db, 'pneus'), where('vehicleId', '==', vehicleId), where('position', '==', position));
                 const querySnapshot = await getDocs(q);
                 if (!querySnapshot.empty) {
@@ -275,7 +274,7 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
                 
                 await setDoc(doc(db, 'vehicles', vehicleId), { status: 'Disponível' }, { merge: true });
 
-                onInstall(tireToInstall);
+                onInstall(position, tireToInstall);
                 toast({ title: "Pneu Instalado!", description: `O pneu ${tireToInstall.fireId} foi instalado na posição ${position}.` });
                 onOpenChange(false);
             } catch (error) {
@@ -294,16 +293,20 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
                 </DialogHeader>
                 <div className="py-4">
                     <Label htmlFor="install-tire-select">Pneu do Estoque</Label>
-                    <Select value={selectedTire} onValueChange={setSelectedTire}>
+                    <Select value={selectedTireId} onValueChange={setSelectedTireId}>
                         <SelectTrigger id="install-tire-select"><SelectValue placeholder="Selecione um pneu..." /></SelectTrigger>
                         <SelectContent>
-                            {stockTires.map(t => <SelectItem key={t.id} value={t.id}>{t.fireId} - {t.brand} {t.model}</SelectItem>)}
+                            {stockTires.length > 0 ? (
+                                stockTires.map(t => <SelectItem key={t.id} value={t.id}>{t.fireId} - {t.brand} {t.model}</SelectItem>)
+                            ) : (
+                                <p className="p-4 text-sm text-muted-foreground">Nenhum pneu em estoque.</p>
+                            )}
                         </SelectContent>
                     </Select>
                 </div>
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleInstall}>Confirmar Instalação</Button>
+                    <Button onClick={handleInstall} disabled={!selectedTireId}>Confirmar Instalação</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -365,9 +368,7 @@ export default function PneusVisualizacaoPage() {
                 vehicleId: '',
                 position: '',
             });
-            const newTires = { ...currentTires };
-            delete newTires[position];
-            setCurrentTires(newTires);
+            // State will update via onSnapshot
             toast({ title: "Pneu Retirado!", description: `O pneu foi movido para o estoque.` });
         } catch (error) {
             toast({ variant: 'destructive', title: "Erro", description: "Não foi possível retirar o pneu." });
@@ -378,8 +379,9 @@ export default function PneusVisualizacaoPage() {
     }
   };
   
-  const handleInstallTire = (tire: Tire) => {
-      setCurrentTires(prev => ({ ...prev, [installPosition]: { ...tire, vehicleId: selectedVehicle, position: installPosition, status: 'Em Uso' } as Tire }));
+  const handleInstallTire = (position: string, tire: Tire) => {
+      // Optimistic update
+      setCurrentTires(prev => ({ ...prev, [position]: { ...tire, vehicleId: selectedVehicle, position: position, status: 'Em Uso' } as Tire }));
   }
 
   const handleInspectionUpdate = (position: string, updates: Partial<Tire>) => {
