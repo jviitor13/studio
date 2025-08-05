@@ -18,4 +18,14 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     generalObservations?: string;
 };
 
-    
+export type Report = {
+    id: string;
+    title: string;
+    category: string;
+    date: string;
+    period?: { from: Date; to: Date };
+    data: any[];
+    summary?: {
+        totalCost: number;
+    };
+};

@@ -1,18 +1,10 @@
-
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import type { Report } from './types';
 
-type Report = {
-    id: string;
-    title: string;
-    category: string;
-    date: string;
-    period?: { from: Date; to: Date };
-    data: any[];
-};
 
 const addHeader = (doc: jsPDF, title: string) => {
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -66,12 +58,18 @@ export function generateReportPdf(report: Report) {
     currentY += 10;
     
     if (report.data.length > 0) {
-        const head = [Object.keys(report.data[0]).map(key => key.charAt(0).toUpperCase() + key.slice(1))];
-        const body = report.data.map(row => Object.values(row));
+        const headers = Object.keys(report.data[0]).map(key => key.charAt(0).toUpperCase() + key.slice(1));
+        const body = report.data.map(row => Object.values(row).map(value => {
+             // Format numbers as currency for the PDF
+            if (typeof value === 'number') {
+                return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            }
+            return value;
+        }));
 
         autoTable(doc, {
             startY: currentY,
-            head: head,
+            head: [headers],
             body: body,
             theme: 'striped',
             headStyles: {
@@ -85,6 +83,20 @@ export function generateReportPdf(report: Report) {
             },
             margin: { left: 15, right: 15 },
         });
+        
+        let finalY = (doc as any).lastAutoTable.finalY;
+
+        if (report.summary) {
+            finalY += 10;
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Resumo do Relatório', 15, finalY);
+            finalY += 7;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Custo Total: ${report.summary.totalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`, 15, finalY);
+        }
+
     } else {
         doc.text("Nenhum dado encontrado para este relatório.", 15, currentY);
     }
@@ -96,10 +108,26 @@ export function generateReportPdf(report: Report) {
 }
 
 
-export function exportToExcel(data: any[], fileName: string) {
-    const worksheet = XLSX.utils.json_to_sheet(data);
+export function exportToExcel(report: Report) {
+    const dataToExport = [...report.data];
+    if (report.summary) {
+        dataToExport.push({}); // Add empty line
+        dataToExport.push({ Item: 'Custo Total', Valor: report.summary.totalCost });
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    
+    // Auto-fit columns
+    const objectMaxLength = Object.keys(report.data[0] || {}).map(key => {
+        const maxLength = Math.max(...(report.data.map(item => String(item[key]).length)));
+        return { wch: Math.max(key.length, maxLength) + 2 };
+    });
+    worksheet["!cols"] = objectMaxLength;
+    
     const workbook = { Sheets: { 'data': worksheet }, SheetNames: ['data'] };
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" });
-    saveAs(blob, `${fileName}.xlsx`);
+    
+    const safeFilename = `${report.title.toLowerCase().replace(/ /g, '_')}_${report.date.replace(/\//g, '-')}.xlsx`;
+    saveAs(blob, safeFilename);
 }

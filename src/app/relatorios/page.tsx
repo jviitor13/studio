@@ -5,72 +5,107 @@ import * as React from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileText, PlusCircle, Calendar as CalendarIcon, MoreHorizontal, Eye, Sheet as SheetIcon } from "lucide-react";
+import { Download, FileText, PlusCircle, Calendar as CalendarIcon, MoreHorizontal, Sheet as SheetIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportToExcel, generateReportPdf } from "@/lib/report-generator";
+import { Report } from "@/lib/types";
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-
-type Report = {
-    id: string;
-    title: string;
-    category: string;
-    date: string;
-    period?: { from: Date; to: Date };
-    // In a real scenario, this would hold the actual data for the report
-    data: any[]; 
-};
-
-// Mock data for demonstration purposes
-const mockReportData = [
-    { item: 'Custo com Combustível', valor: 'R$ 15.234,00', veiculo: 'RDO1A12', data: '2024-07-15' },
-    { item: 'Manutenção Pneus', valor: 'R$ 3.500,00', veiculo: 'RDO2C24', data: '2024-07-25' },
-    { item: 'Troca de Óleo', valor: 'R$ 850,00', veiculo: 'RDO1A12', data: '2024-08-01' },
-];
 
 export default function RelatoriosPage() {
     const { toast } = useToast();
     const [reports, setReports] = React.useState<Report[]>([]);
     const [open, setOpen] = React.useState(false);
+    const [isGenerating, setIsGenerating] = React.useState(false);
+
     const [date, setDate] = React.useState<DateRange | undefined>();
     const [reportType, setReportType] = React.useState('');
 
-    const handleGenerateReport = () => {
+    const fetchCostReportData = async (from: Date, to: Date) => {
+        const maintenancesRef = collection(db, 'manutencoes');
+        const q = query(
+            maintenancesRef,
+            where('status', '==', 'Concluída'),
+            where('completedAt', '>=', Timestamp.fromDate(startOfDay(from))),
+            where('completedAt', '<=', Timestamp.fromDate(endOfDay(to)))
+        );
+
+        const querySnapshot = await getDocs(q);
+        const data = querySnapshot.docs.map(doc => {
+            const docData = doc.data();
+            return {
+                Veículo: docData.vehicleId,
+                Serviço: docData.serviceType,
+                'Data Conclusão': format(docData.completedAt.toDate(), 'dd/MM/yyyy'),
+                Custo: docData.cost || 0,
+            };
+        });
+        
+        const totalCost = data.reduce((acc, item) => acc + item.Custo, 0);
+
+        return { data, summary: { totalCost } };
+    };
+
+    const handleGenerateReport = async () => {
         if (!reportType) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro',
-                description: 'Por favor, selecione um tipo de relatório.',
-            });
+            toast({ variant: 'destructive', title: 'Erro', description: 'Por favor, selecione um tipo de relatório.' });
+            return;
+        }
+        if (!date || !date.from || !date.to) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Por favor, selecione um período completo.' });
             return;
         }
 
-        const newReport: Report = {
-            id: `REP-${Date.now()}`,
-            title: `Relatório de ${reportType}`,
-            category: reportType,
-            date: format(new Date(), 'dd/MM/yyyy'),
-            period: (date?.from && date.to) ? { from: date.from, to: date.to } : undefined,
-            data: mockReportData, // Using mock data for now
-        };
+        setIsGenerating(true);
+        toast({ title: "Gerando relatório...", description: "Buscando e processando os dados." });
+        
+        try {
+            let reportData;
+            let reportSummary;
 
-        setReports(prevReports => [newReport, ...prevReports]);
-        setOpen(false);
-        setReportType('');
-        setDate(undefined);
+            if (reportType === 'Custos') {
+                const { data, summary } = await fetchCostReportData(date.from, date.to);
+                reportData = data;
+                reportSummary = summary;
+            } else {
+                // Placeholder for other reports
+                reportData = [];
+                toast({ variant: 'destructive', title: 'Tipo de relatório não implementado', description: 'A busca de dados para este relatório ainda não foi implementada.' });
+            }
 
-        toast({
-            title: "Relatório Gerado!",
-            description: "Seu relatório está pronto e disponível para download.",
-        });
+            const newReport: Report = {
+                id: `REP-${Date.now()}`,
+                title: `Relatório de ${reportType}`,
+                category: reportType,
+                date: format(new Date(), 'dd/MM/yyyy'),
+                period: { from: date.from, to: date.to },
+                data: reportData,
+                summary: reportSummary as any,
+            };
+
+            setReports(prevReports => [newReport, ...prevReports]);
+            setOpen(false);
+            setReportType('');
+            setDate(undefined);
+
+            toast({ title: "Relatório Gerado!", description: "Seu relatório está pronto e disponível para download." });
+
+        } catch (error) {
+            console.error("Error generating report:", error);
+            toast({ variant: 'destructive', title: 'Erro ao gerar relatório', description: 'Não foi possível buscar os dados. Tente novamente.' });
+        } finally {
+            setIsGenerating(false);
+        }
     }
     
     const handleDownloadPdf = (report: Report) => {
@@ -80,7 +115,7 @@ export default function RelatoriosPage() {
 
     const handleDownloadExcel = (report: Report) => {
         toast({ title: "Gerando Excel...", description: "Seu download começará em breve." });
-        exportToExcel(report.data, `relatorio_${report.category.toLowerCase().replace(' ', '_')}_${report.date.replace(/\//g, '-')}`);
+        exportToExcel(report);
     };
 
   return (
@@ -112,9 +147,9 @@ export default function RelatoriosPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Custos">Relatório de Custos</SelectItem>
-                    <SelectItem value="Performance da Frota">Performance da Frota</SelectItem>
-                    <SelectItem value="Consumo de Combustível">Consumo de Combustível</SelectItem>
-                    <SelectItem value="Ocorrências">Relatório de Ocorrências</SelectItem>
+                    <SelectItem value="Performance da Frota" disabled>Performance da Frota</SelectItem>
+                    <SelectItem value="Consumo de Combustível" disabled>Consumo de Combustível</SelectItem>
+                    <SelectItem value="Ocorrências" disabled>Relatório de Ocorrências</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -160,7 +195,9 @@ export default function RelatoriosPage() {
             </div>
             <DialogFooter>
                 <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={handleGenerateReport} type="submit">Gerar</Button>
+                <Button onClick={handleGenerateReport} type="submit" disabled={isGenerating}>
+                  {isGenerating ? "Gerando..." : "Gerar"}
+                </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -192,10 +229,6 @@ export default function RelatoriosPage() {
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => alert('Visualização não implementada.')}>
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    Visualizar
-                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDownloadPdf(report)}>
                                     <Download className="mr-2 h-4 w-4" />
                                     Baixar PDF
