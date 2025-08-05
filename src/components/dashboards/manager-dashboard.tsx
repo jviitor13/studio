@@ -331,9 +331,4 @@ export function ManagerDashboard() {
       </Card>
     </div>
   );
-
-    
-
-    
-
-    
+}
