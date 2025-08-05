@@ -1,0 +1,42 @@
+
+import Link from "next/link";
+import { Logo } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+
+export default function Veiculo3DLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen w-full flex-col">
+      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
+        <nav className="flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-lg font-semibold md:text-base"
+          >
+            <Logo className="h-7 w-7 text-primary" />
+            <span className="sr-only">RodoCheck</span>
+          </Link>
+           <Link
+            href="/veiculos"
+            className="text-foreground transition-colors hover:text-foreground"
+          >
+            <Button variant="outline" size="sm" className="h-8 gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              <span>
+                Voltar para Veículos
+              </span>
+            </Button>
+          </Link>
+        </nav>
+      </header>
+      <main className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40">
+        {children}
+      </main>
+    </div>
+  );
+}
+

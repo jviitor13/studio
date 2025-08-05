@@ -10,6 +10,7 @@ import {
   User,
   Trash2,
   Loader2,
+  View,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -395,6 +396,11 @@ export default function VeiculosPage() {
                                             <Car className="mr-2 h-4 w-4" /> Ver Detalhes
                                         </DropdownMenuItem>
                                     </DialogTrigger>
+                                     <DropdownMenuItem asChild>
+                                        <Link href={`/veiculos/${vehicle.id}/3d`}>
+                                            <View className="mr-2 h-4 w-4" /> Visualização 3D
+                                        </Link>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem asChild>
                                     <Link href="/manutencoes">
                                         <Wrench className="mr-2 h-4 w-4" /> Agendar Manutenção
@@ -416,7 +422,7 @@ export default function VeiculosPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Esta ação não pode ser desfeita. O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
+                                            O veículo <span className="font-bold">{vehicle.plate}</span> será excluído permanentemente.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -447,5 +453,3 @@ export default function VeiculosPage() {
     </>
   );
 }
-
-    
