@@ -56,7 +56,7 @@ interface Maintenance {
     completedAt?: Timestamp;
     serviceSummary?: string;
     discountFromDriver?: 'sim' | 'nao';
-    driverId?: string;
+    driverName?: string;
     technicianSignature?: string;
     attachments?: { name: string; url: string }[];
 }
@@ -91,15 +91,15 @@ const completeMaintenanceSchema = z.object({
   technicianSignature: z.string().min(1, "A assinatura do técnico é obrigatória."),
   discountFromDriver: z.enum(['sim', 'nao'], { required_error: "Selecione se o valor deve ser descontado." }),
   attachments: z.array(attachmentSchema).optional(),
-  driverId: z.string().optional(),
+  driverName: z.string().optional(),
 }).refine(data => {
     if (data.discountFromDriver === 'sim') {
-        return !!data.driverId;
+        return !!data.driverName && data.driverName.length > 0;
     }
     return true;
 }, {
-    message: "A seleção do motorista é obrigatória quando o desconto for aplicado.",
-    path: ['driverId']
+    message: "O nome do motorista é obrigatório quando o desconto for aplicado.",
+    path: ['driverName']
 });
 type CompleteMaintenanceValues = z.infer<typeof completeMaintenanceSchema>;
 
@@ -136,7 +136,7 @@ export default function ManutencoesPage() {
             technicianSignature: '',
             discountFromDriver: 'nao',
             attachments: [],
-            driverId: ''
+            driverName: ''
         },
     });
 
@@ -241,8 +241,8 @@ export default function ManutencoesPage() {
                 attachments: data.attachments || [],
             };
 
-            if (data.discountFromDriver === 'sim' && data.driverId) {
-                dataToSave.driverId = data.driverId;
+            if (data.discountFromDriver === 'sim' && data.driverName) {
+                dataToSave.driverName = data.driverName;
             }
 
 
@@ -336,22 +336,14 @@ export default function ManutencoesPage() {
 
                     {watchDiscount === 'sim' && (
                         <div className="grid gap-2">
-                            <Label htmlFor="driverId">Motorista a ser Descontado *</Label>
-                             <Controller
-                                name="driverId"
-                                control={completeMaintenanceForm.control}
-                                render={({ field }) => (
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <SelectTrigger id="driverId" className={cn(completeMaintenanceForm.formState.errors.driverId && "border-destructive")}>
-                                            <SelectValue placeholder="Selecione o motorista" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {drivers.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                )}
+                            <Label htmlFor="driverName">Motorista a ser Descontado *</Label>
+                             <Input 
+                                id="driverName" 
+                                placeholder="Digite o nome do motorista" 
+                                {...completeMaintenanceForm.register('driverName')} 
+                                className={cn(completeMaintenanceForm.formState.errors.driverName && "border-destructive")}
                             />
-                            {completeMaintenanceForm.formState.errors.driverId && <p className="text-sm text-destructive mt-1">{completeMaintenanceForm.formState.errors.driverId.message}</p>}
+                            {completeMaintenanceForm.formState.errors.driverName && <p className="text-sm text-destructive mt-1">{completeMaintenanceForm.formState.errors.driverName.message}</p>}
                         </div>
                     )}
 
@@ -404,7 +396,7 @@ export default function ManutencoesPage() {
                 Agendar Manutenção
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-[425px] md:max-w-md">
             <form onSubmit={newMaintenanceForm.handleSubmit(onNewMaintenanceSubmit)}>
                 <DialogHeader>
                 <DialogTitle>Agendar Nova Manutenção</DialogTitle>
