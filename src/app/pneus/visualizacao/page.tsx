@@ -55,7 +55,12 @@ const TireSwapDialog = ({ onSwap, currentTireId, position, vehicleId }: { onSwap
 
     useEffect(() => {
         if (open) {
-            const q = query(collection(db, "pneus"), where("status", "in", ["Em Estoque", "Novo"]));
+            const q = query(
+                collection(db, "pneus"),
+                where("status", "!=", "Em Uso"),
+                where("status", "!=", "Em Manutenção"),
+                where("status", "!=", "Sucateado")
+            );
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
                 setStockTires(tiresData);
@@ -227,7 +232,12 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
 
     useEffect(() => {
         if (open) {
-            const q = query(collection(db, "pneus"), where("status", "in", ["Em Estoque", "Novo"]));
+            const q = query(
+                collection(db, "pneus"),
+                where("status", "!=", "Em Uso"),
+                where("status", "!=", "Em Manutenção"),
+                where("status", "!=", "Sucateado")
+            );
             const unsubscribe = onSnapshot(q, (snapshot) => {
                 const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
                 setStockTires(tiresData);
