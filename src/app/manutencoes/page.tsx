@@ -424,7 +424,7 @@ export default function ManutencoesPage() {
                                     <SelectValue placeholder="Selecione a placa" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>)}
+                                    {vehicles.map(v => <SelectItem key={v.id} value={v.plate}>{v.plate} - {v.model}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
