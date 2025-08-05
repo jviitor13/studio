@@ -31,9 +31,9 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
@@ -50,7 +50,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, updateDoc, addDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, addDoc, query, where, getDocs, setDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -243,6 +243,12 @@ const ScrapDialog = ({ tire }: { tire: Tire }) => {
                 vehicleId: '',
                 position: '',
             });
+            
+            if (tire.vehicleId) {
+                const vehicleRef = doc(db, 'vehicles', tire.vehicleId);
+                await setDoc(vehicleRef, { status: "Disponível" }, { merge: true });
+            }
+
             toast({
                 title: "Pneu Sucateado!",
                 description: `O pneu ${tire.fireId} foi marcado como sucateado.`,
@@ -297,7 +303,6 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
             return;
         }
 
-        // Check if position is already occupied
         const q = query(collection(db, 'pneus'), where('vehicleId', '==', selectedVehicle), where('position', '==', selectedPosition));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -312,6 +317,10 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
                 vehicleId: selectedVehicle,
                 position: selectedPosition,
             });
+
+            const vehicleRef = doc(db, 'vehicles', selectedVehicle);
+            await setDoc(vehicleRef, { status: 'Em Viagem' }, { merge: true });
+
             toast({
                 title: "Pneu Movimentado!",
                 description: `O pneu ${tire.fireId} foi instalado no veículo ${selectedVehicle}, posição ${selectedPosition}.`,
@@ -325,7 +334,7 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
 
     const tirePositions = [
         { value: "DDE", label: "Dianteiro Direito Externo" },
-        { value: "DDI", label: "Dianteiro Direito Interno" },
+        { value: "DDD", label: "Dianteiro Esquerdo Externo" },
         { value: "T1EI", label: "1º Eixo Traseiro - Esquerdo Interno" },
         { value: "T1EE", label: "1º Eixo Traseiro - Esquerdo Externo" },
         { value: "T1DI", label: "1º Eixo Traseiro - Direito Interno" },
@@ -417,7 +426,6 @@ export default function PneusPage() {
             position: '',
         };
 
-        // Basic validation
         if (!newTire.fireId || !newTire.brand || !newTire.model || !newTire.size) {
             toast({ variant: "destructive", title: "Erro", description: "Preencha todos os campos obrigatórios." });
             return;
@@ -470,7 +478,6 @@ export default function PneusPage() {
                           </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
-                          {/* Seção Dados Básicos */}
                           <div className="space-y-4">
                               <h3 className="font-semibold text-lg">Dados de Identificação</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -497,7 +504,6 @@ export default function PneusPage() {
                               </div>
                           </div>
                           <Separator />
-                          {/* Seção Especificações Técnicas */}
                           <div className="space-y-4">
                               <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -522,7 +528,6 @@ export default function PneusPage() {
                               </div>
                           </div>
                           <Separator />
-                          {/* Seção Status e Vida Útil */}
                           <div className="space-y-4">
                               <h3 className="font-semibold text-lg">Status e Vida Útil</h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -644,3 +649,5 @@ export default function PneusPage() {
     </>
   );
 }
+
+    
