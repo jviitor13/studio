@@ -11,6 +11,9 @@ function TruckModel() {
   return <primitive object={scene} scale={1.2} />
 }
 
+// Pré-carrega o modelo para otimizar o carregamento
+useGLTF.preload('/models/caminhao.glb')
+
 // Renderiza a cena 3D
 export default function Vehicle3DViewer() {
   return (
