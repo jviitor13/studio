@@ -61,7 +61,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 interface Tire {
@@ -96,6 +95,56 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
   "Em Manutenção": "outline",
   "Sucateado": "destructive",
 };
+
+const TireDetailsDialog = ({ tire, open, onOpenChange }: { tire: Tire | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
+    if (!tire) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Detalhes do Pneu: {tire.fireId}</DialogTitle>
+                    <DialogDescription>{tire.brand} {tire.model} - {tire.size}</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto px-2 text-sm">
+                    <div className="space-y-2">
+                        <h4 className="font-semibold text-base">Identificação</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md">
+                            <div><span className="font-medium text-muted-foreground">ID/Fogo:</span> {tire.fireId}</div>
+                            <div><span className="font-medium text-muted-foreground">Marca:</span> {tire.brand}</div>
+                            <div><span className="font-medium text-muted-foreground">Nº de Série:</span> {tire.serial || 'N/A'}</div>
+                            <div><span className="font-medium text-muted-foreground">Modelo:</span> {tire.model}</div>
+                            <div><span className="font-medium text-muted-foreground">Data Fab.:</span> {tire.mfgDate || 'N/A'}</div>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <h4 className="font-semibold text-base">Especificações Técnicas</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md">
+                            <div><span className="font-medium text-muted-foreground">Medida:</span> {tire.size}</div>
+                            <div><span className="font-medium text-muted-foreground">Índices:</span> {tire.indices || 'N/A'}</div>
+                            <div><span className="font-medium text-muted-foreground">Tipo:</span> {tire.type || 'N/A'}</div>
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <h4 className="font-semibold text-base">Status e Vida Útil</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-2 border rounded-md">
+                            <div><span className="font-medium text-muted-foreground">Situação:</span> <Badge variant={statusVariant[tire.status]}>{tire.status}</Badge></div>
+                             <div><span className="font-medium text-muted-foreground">Vida Útil:</span> {tire.lifespan}%</div>
+                            <div><span className="font-medium text-muted-foreground">Nº de Reformas:</span> {tire.retreads}</div>
+                            <div>
+                                <span className="font-medium text-muted-foreground">Localização:</span> {tire.vehicleId ? `${tire.vehicleId} / ${tire.position}` : 'Em Estoque'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                 <DialogFooter className="mt-4 pt-4 border-t">
+                    <Button type="button" onClick={() => onOpenChange(false)}>Fechar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 
 const MaintenanceDialog = ({ tire }: { tire: Tire }) => {
     const { toast } = useToast();
@@ -275,7 +324,7 @@ const TireMovementDialog = ({ tire }: { tire: Tire }) => {
 
     const tirePositions = [
         { value: "DDE", label: "Dianteiro Direito Externo" },
-        { value: "DDD", label: "Dianteiro Direito Interno" },
+        { value: "DDI", label: "Dianteiro Direito Interno" },
         { value: "T1EI", label: "1º Eixo Traseiro - Esquerdo Interno" },
         { value: "T1EE", label: "1º Eixo Traseiro - Esquerdo Externo" },
         { value: "T1DI", label: "1º Eixo Traseiro - Direito Interno" },
@@ -334,6 +383,8 @@ export default function PneusPage() {
     const [openNewTireDialog, setOpenNewTireDialog] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(true);
     const [tires, setTires] = React.useState<Tire[]>([]);
+    const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false);
+    const [selectedTire, setSelectedTire] = React.useState<Tire | null>(null);
 
     React.useEffect(() => {
         const unsubscribe = onSnapshot(collection(db, "pneus"), (snapshot) => {
@@ -382,211 +433,213 @@ export default function PneusPage() {
     }
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Gestão de Pneus"
-        description="Gerencie o ciclo de vida completo dos pneus da sua frota."
-      >
-        <div className="flex gap-2">
-           <Link href="/pneus/visualizacao">
-            <Button variant="outline">
-                <Eye className="mr-2 h-4 w-4" />
-                Visualizar por Veículo
-            </Button>
-           </Link>
-           <Link href="/pneus/manutencao">
-            <Button variant="outline">
-                <Wrench className="mr-2 h-4 w-4" />
-                Acompanhar Manutenções
-            </Button>
-           </Link>
-            <Dialog open={openNewTireDialog} onOpenChange={setOpenNewTireDialog}>
-                <DialogTrigger asChild>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Adicionar Pneu
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-3xl">
-                  <form onSubmit={handleSaveNewTire}>
-                    <DialogHeader>
-                        <DialogTitle>Cadastro Detalhado de Pneu</DialogTitle>
-                        <DialogDescription>
-                            Preencha todos os dados para um controle preciso do pneu.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
-                        {/* Seção Dados Básicos */}
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">Dados de Identificação</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="id">ID / Fogo 🔥 *</Label>
-                                    <Input id="id" name="id" placeholder="Ex: PNEU-006" required/>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="serial">Número de Série</Label>
-                                    <Input id="serial" name="serial" placeholder="Ex: Y78SDFG89" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="brand">Marca *</Label>
-                                    <Input id="brand" name="brand" placeholder="Ex: Michelin" required/>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="model">Modelo *</Label>
-                                    <Input id="model" name="model" placeholder="Ex: X Multi Z" required/>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="mfg-date">Data de Fabricação</Label>
-                                    <Input id="mfg-date" name="mfg-date" type="week" />
-                                </div>
-                            </div>
-                        </div>
-                        <Separator />
-                        {/* Seção Especificações Técnicas */}
-                        <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="size">Medida *</Label>
-                                    <Input id="size" name="size" placeholder="Ex: 275/80 R22.5" required />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="indices">Índice Carga/Velocidade</Label>
-                                    <Input id="indices" name="indices" placeholder="Ex: 149/146L" />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="type">Tipo (Construção)</Label>
-                                    <Select name="type" defaultValue="radial">
-                                        <SelectTrigger id="type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="radial">Radial</SelectItem>
-                                            <SelectItem value="diagonal">Diagonal</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                        </div>
-                        <Separator />
-                        {/* Seção Status e Vida Útil */}
-                         <div className="space-y-4">
-                            <h3 className="font-semibold text-lg">Status e Vida Útil</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="status">Situação Atual</Label>
-                                    <Select name="status" defaultValue="Novo">
-                                        <SelectTrigger id="status"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Novo">Novo (em estoque)</SelectItem>
-                                            <SelectItem value="Em Estoque">Em Estoque</SelectItem>
-                                            <SelectItem value="Em Uso">Em uso</SelectItem>
-                                            <SelectItem value="Em Manutenção">Em manutenção</SelectItem>
-                                            <SelectItem value="Sucateado">Sucateado</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="retreads">Número de Reformas</Label>
-                                    <Input id="retreads" name="retreads" type="number" defaultValue={0} />
-                                </div>
-                                 <div className="grid gap-2">
-                                    <Label htmlFor="lifespan">Vida Útil Estimada (%)</Label>
-                                    <Input id="lifespan" name="lifespan" type="number" placeholder="Ex: 85" defaultValue={100} />
-                                </div>
-                            </div>
-                        </div>
+    <>
+      <TireDetailsDialog tire={selectedTire} open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen} />
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Gestão de Pneus"
+          description="Gerencie o ciclo de vida completo dos pneus da sua frota."
+        >
+          <div className="flex gap-2">
+            <Link href="/pneus/visualizacao">
+              <Button variant="outline">
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar por Veículo
+              </Button>
+            </Link>
+            <Link href="/pneus/manutencao">
+              <Button variant="outline">
+                  <Wrench className="mr-2 h-4 w-4" />
+                  Acompanhar Manutenções
+              </Button>
+            </Link>
+              <Dialog open={openNewTireDialog} onOpenChange={setOpenNewTireDialog}>
+                  <DialogTrigger asChild>
+                      <Button>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Adicionar Pneu
+                      </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-3xl">
+                    <form onSubmit={handleSaveNewTire}>
+                      <DialogHeader>
+                          <DialogTitle>Cadastro Detalhado de Pneu</DialogTitle>
+                          <DialogDescription>
+                              Preencha todos os dados para um controle preciso do pneu.
+                          </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
+                          {/* Seção Dados Básicos */}
+                          <div className="space-y-4">
+                              <h3 className="font-semibold text-lg">Dados de Identificação</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="id">ID / Fogo 🔥 *</Label>
+                                      <Input id="id" name="id" placeholder="Ex: PNEU-006" required/>
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="serial">Número de Série</Label>
+                                      <Input id="serial" name="serial" placeholder="Ex: Y78SDFG89" />
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="brand">Marca *</Label>
+                                      <Input id="brand" name="brand" placeholder="Ex: Michelin" required/>
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="model">Modelo *</Label>
+                                      <Input id="model" name="model" placeholder="Ex: X Multi Z" required/>
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="mfg-date">Data de Fabricação</Label>
+                                      <Input id="mfg-date" name="mfg-date" type="week" />
+                                  </div>
+                              </div>
+                          </div>
+                          <Separator />
+                          {/* Seção Especificações Técnicas */}
+                          <div className="space-y-4">
+                              <h3 className="font-semibold text-lg">Especificações Técnicas</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="size">Medida *</Label>
+                                      <Input id="size" name="size" placeholder="Ex: 275/80 R22.5" required />
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="indices">Índice Carga/Velocidade</Label>
+                                      <Input id="indices" name="indices" placeholder="Ex: 149/146L" />
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="type">Tipo (Construção)</Label>
+                                      <Select name="type" defaultValue="radial">
+                                          <SelectTrigger id="type"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                          <SelectContent>
+                                              <SelectItem value="radial">Radial</SelectItem>
+                                              <SelectItem value="diagonal">Diagonal</SelectItem>
+                                          </SelectContent>
+                                      </Select>
+                                  </div>
+                              </div>
+                          </div>
+                          <Separator />
+                          {/* Seção Status e Vida Útil */}
+                          <div className="space-y-4">
+                              <h3 className="font-semibold text-lg">Status e Vida Útil</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="status">Situação Atual</Label>
+                                      <Select name="status" defaultValue="Novo">
+                                          <SelectTrigger id="status"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                          <SelectContent>
+                                              <SelectItem value="Novo">Novo (em estoque)</SelectItem>
+                                              <SelectItem value="Em Estoque">Em Estoque</SelectItem>
+                                              <SelectItem value="Em Uso">Em uso</SelectItem>
+                                              <SelectItem value="Em Manutenção">Em manutenção</SelectItem>
+                                              <SelectItem value="Sucateado">Sucateado</SelectItem>
+                                          </SelectContent>
+                                      </Select>
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="retreads">Número de Reformas</Label>
+                                      <Input id="retreads" name="retreads" type="number" defaultValue={0} />
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="lifespan">Vida Útil Estimada (%)</Label>
+                                      <Input id="lifespan" name="lifespan" type="number" placeholder="Ex: 85" defaultValue={100} />
+                                  </div>
+                              </div>
+                          </div>
 
-                    </div>
-                    <DialogFooter className="mt-4 pt-4 border-t">
-                        <Button type="button" variant="ghost" onClick={() => setOpenNewTireDialog(false)}>Cancelar</Button>
-                        <Button type="submit">Salvar Pneu</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-            </Dialog>
-        </div>
-      </PageHeader>
-      <Card>
-        <CardHeader>
-          <CardTitle>Inventário de Pneus</CardTitle>
-          <CardDescription>
-            Todos os pneus cadastrados no sistema, com seus status e localizações.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID/Fogo</TableHead>
-                <TableHead>Marca/Modelo</TableHead>
-                <TableHead>Medida</TableHead>
-                <TableHead>Vida Útil</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Veículo/Posição</TableHead>
-                <TableHead>
-                  <span className="sr-only">Ações</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                        <Skeleton className="h-24 w-full" />
-                    </TableCell>
-                  </TableRow>
-              ) : (
-                tires.map((tire) => (
-                    <TableRow key={tire.id}>
-                    <TableCell className="font-medium">{tire.fireId}</TableCell>
-                    <TableCell>{tire.brand} {tire.model}</TableCell>
-                    <TableCell>{tire.size}</TableCell>
-                    <TableCell>
-                            <Badge variant={tire.lifespan > 75 ? 'default' : tire.lifespan < 25 ? 'destructive' : 'secondary'} className={tire.lifespan > 75 ? 'bg-green-500 hover:bg-green-600' : ''}>
-                                {tire.lifespan}%
-                            </Badge>
-                        </TableCell>
-                    <TableCell>
-                        <Badge variant={statusVariant[tire.status] || 'secondary'}>
-                        {tire.status}
-                        </Badge>
-                    </TableCell>
-                    <TableCell>{tire.vehicleId ? `${tire.vehicleId} / ${tire.position}` : 'Em Estoque'}</TableCell>
-                    <TableCell>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem disabled><Eye className="mr-2 h-4 w-4"/>Ver Detalhes</DropdownMenuItem>
-                            <TireMovementDialog tire={tire} />
-                            <DropdownMenuSeparator />
-                            <MaintenanceDialog tire={tire} />
-                            <ScrapDialog tire={tire} />
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                ))
-              )}
-               {!isLoading && tires.length === 0 && (
+                      </div>
+                      <DialogFooter className="mt-4 pt-4 border-t">
+                          <Button type="button" variant="ghost" onClick={() => setOpenNewTireDialog(false)}>Cancelar</Button>
+                          <Button type="submit">Salvar Pneu</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+              </Dialog>
+          </div>
+        </PageHeader>
+        <Card>
+          <CardHeader>
+            <CardTitle>Inventário de Pneus</CardTitle>
+            <CardDescription>
+              Todos os pneus cadastrados no sistema, com seus status e localizações.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID/Fogo</TableHead>
+                  <TableHead>Marca/Modelo</TableHead>
+                  <TableHead>Medida</TableHead>
+                  <TableHead>Vida Útil</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Veículo/Posição</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Ações</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center h-24">
-                            Nenhum pneu cadastrado.
-                        </TableCell>
+                      <TableCell colSpan={7}>
+                          <Skeleton className="h-24 w-full" />
+                      </TableCell>
                     </TableRow>
+                ) : (
+                  tires.map((tire) => (
+                      <TableRow key={tire.id}>
+                      <TableCell className="font-medium">{tire.fireId}</TableCell>
+                      <TableCell>{tire.brand} {tire.model}</TableCell>
+                      <TableCell>{tire.size}</TableCell>
+                      <TableCell>
+                              <Badge variant={tire.lifespan > 75 ? 'default' : tire.lifespan < 25 ? 'destructive' : 'secondary'} className={tire.lifespan > 75 ? 'bg-green-500 hover:bg-green-600' : ''}>
+                                  {tire.lifespan}%
+                              </Badge>
+                          </TableCell>
+                      <TableCell>
+                          <Badge variant={statusVariant[tire.status] || 'secondary'}>
+                          {tire.status}
+                          </Badge>
+                      </TableCell>
+                      <TableCell>{tire.vehicleId ? `${tire.vehicleId} / ${tire.position}` : 'Em Estoque'}</TableCell>
+                      <TableCell>
+                          <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuItem onSelect={() => { setSelectedTire(tire); setIsDetailsDialogOpen(true); }}>
+                                <Eye className="mr-2 h-4 w-4"/>Ver Detalhes
+                              </DropdownMenuItem>
+                              <TireMovementDialog tire={tire} />
+                              <DropdownMenuSeparator />
+                              <MaintenanceDialog tire={tire} />
+                              <ScrapDialog tire={tire} />
+                          </DropdownMenuContent>
+                          </DropdownMenu>
+                      </TableCell>
+                      </TableRow>
+                  ))
                 )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                {!isLoading && tires.length === 0 && (
+                      <TableRow>
+                          <TableCell colSpan={7} className="text-center h-24">
+                              Nenhum pneu cadastrado.
+                          </TableCell>
+                      </TableRow>
+                  )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }
-
-
-    
