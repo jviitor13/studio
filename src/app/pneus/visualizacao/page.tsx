@@ -223,31 +223,9 @@ const TirePosition = ({ position, tireData, vehicleId, onAction, onInspect, onSw
   );
 };
 
-const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (position: string, tire: Tire) => void, position: string, vehicleId: string }) => {
+const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId, stockTires }: { open: boolean, onOpenChange: (open: boolean) => void, onInstall: (position: string, tire: Tire) => void, position: string, vehicleId: string, stockTires: Tire[] }) => {
     const { toast } = useToast();
-    const [stockTires, setStockTires] = useState<Tire[]>([]);
     const [selectedTireId, setSelectedTireId] = useState('');
-
-    useEffect(() => {
-        if (open) {
-            const q = query(
-                collection(db, "pneus"),
-                where("status", "in", ["Em Estoque", "Novo"])
-            );
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-                const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
-                setStockTires(tiresData);
-            }, (error) => {
-                console.error("Firestore query error:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Erro ao buscar pneus",
-                    description: "Não foi possível carregar os pneus do estoque."
-                });
-            });
-            return () => unsubscribe();
-        }
-    }, [open, toast]);
 
     const handleInstall = async () => {
         if (!selectedTireId) {
@@ -316,6 +294,7 @@ const InstallTireDialog = ({ open, onOpenChange, onInstall, position, vehicleId 
 export default function PneusVisualizacaoPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState("");
+  const [allTires, setAllTires] = useState<Tire[]>([]);
   const [currentTires, setCurrentTires] = useState<Record<string, Tire>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
@@ -337,27 +316,32 @@ export default function PneusVisualizacaoPage() {
   }, [selectedVehicle]);
 
   useEffect(() => {
+    const unsubscribeTires = onSnapshot(collection(db, "pneus"), (snapshot) => {
+        const tiresData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Tire));
+        setAllTires(tiresData);
+    });
+    return () => unsubscribeTires;
+  }, []);
+
+  useEffect(() => {
     if (!selectedVehicle) {
         setCurrentTires({});
         return;
     };
 
     setIsLoading(true);
-    const q = query(collection(db, "pneus"), where("vehicleId", "==", selectedVehicle));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const tiresData: Record<string, Tire> = {};
-        snapshot.forEach(doc => {
-            const tire = { id: doc.id, ...doc.data() } as Tire;
-            if (tire.position) {
-                tiresData[tire.position] = tire;
-            }
-        });
-        setCurrentTires(tiresData);
-        setIsLoading(false);
+    const tiresOnVehicle = allTires.filter(tire => tire.vehicleId === selectedVehicle);
+    
+    const tiresData: Record<string, Tire> = {};
+    tiresOnVehicle.forEach(tire => {
+        if (tire.position) {
+            tiresData[tire.position] = tire;
+        }
     });
-
-    return () => unsubscribe();
-  }, [selectedVehicle]);
+    
+    setCurrentTires(tiresData);
+    setIsLoading(false);
+  }, [selectedVehicle, allTires]);
 
   const handleTireAction = async (action: string, position: string, tireId?: string) => {
     if (action === 'retirar' && tireId) {
@@ -403,6 +387,8 @@ export default function PneusVisualizacaoPage() {
       traseiro1: ["T1EI", "T1EE", "T1DI", "T1DE"],
       traseiro2: ["T2EI", "T2EE", "T2DI", "T2DE"]
   }
+  
+  const stockTires = allTires.filter(t => t.status === 'Em Estoque' || t.status === 'Novo');
 
   return (
     <>
@@ -412,6 +398,7 @@ export default function PneusVisualizacaoPage() {
         onInstall={handleInstallTire} 
         position={installPosition}
         vehicleId={selectedVehicle} 
+        stockTires={stockTires}
       />
       <div className="flex flex-col gap-6">
         <PageHeader
