@@ -79,6 +79,7 @@ export default function CargaPage() {
 
     useEffect(() => {
         const fetchVehicles = async () => {
+            setIsLoadingVehicles(true);
             try {
                 const querySnapshot = await getDocs(collection(db, "vehicles"));
                 const vehiclesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
@@ -148,7 +149,7 @@ export default function CargaPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         {vehicles.map(v => (
-                                            <SelectItem key={v.id} value={v.plate}>{v.plate} - {v.model}</SelectItem>
+                                            <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
