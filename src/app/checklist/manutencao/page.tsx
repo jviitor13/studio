@@ -38,7 +38,8 @@ const checklistItemSchema = z.object({
 
 const checklistSchema = z.object({
   templateId: z.string().min(1, 'A seleção de um modelo de checklist é obrigatória.'),
-  vehicleId: z.string().min(1, 'A seleção do veículo é obrigatória.'),
+  cavaloPlate: z.string().min(7, 'A placa do cavalo é obrigatória.').max(8, 'Placa inválida.'),
+  carretaPlate: z.string().min(7, 'A placa da carreta é obrigatória.').max(8, 'Placa inválida.'),
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
   driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
@@ -63,11 +64,6 @@ const checklistSchema = z.object({
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 type ChecklistItemData = z.infer<typeof checklistItemSchema>;
-interface Vehicle {
-    id: string; 
-    plate: string;
-    model: string;
-}
 
 export default function MaintenanceChecklistPage() {
   const { toast } = useToast();
@@ -75,9 +71,7 @@ export default function MaintenanceChecklistPage() {
   const [user, setUser] = useState(auth.currentUser);
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
-  const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
 
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -103,26 +97,6 @@ export default function MaintenanceChecklistPage() {
         setIsLoadingTemplates(false);
     });
 
-    const fetchVehicles = async () => {
-        setIsLoadingVehicles(true);
-        try {
-            const querySnapshot = await getDocs(collection(db, "vehicles"));
-            const vehiclesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
-            setVehicles(vehiclesData);
-        } catch (error) {
-            console.error("Error fetching vehicles: ", error);
-            toast({
-                variant: "destructive",
-                title: "Erro ao Carregar Veículos",
-                description: "Não foi possível buscar a lista de veículos.",
-            });
-        } finally {
-            setIsLoadingVehicles(false);
-        }
-    };
-
-    fetchVehicles();
-
     return () => unsubscribe();
   }, [toast]);
 
@@ -141,7 +115,8 @@ export default function MaintenanceChecklistPage() {
     resolver: zodResolver(checklistSchema),
     defaultValues: {
       templateId: '',
-      vehicleId: '',
+      cavaloPlate: '',
+      carretaPlate: '',
       responsibleName: user?.displayName || '',
       driverName: '',
       mileage: 0,
@@ -261,6 +236,7 @@ export default function MaintenanceChecklistPage() {
         
         const submissionData = {
             ...processedData,
+            vehicle: `${processedData.cavaloPlate} / ${processedData.carretaPlate}`,
             name: templates.find(t => t.id === processedData.templateId)?.name || 'Checklist de Manutenção',
             type: "Manutenção",
             category: templates.find(t => t.id === processedData.templateId)?.category || 'nao_aplicavel',
@@ -310,7 +286,8 @@ export default function MaintenanceChecklistPage() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="text-sm space-y-2">
-            <p><strong>Veículo:</strong> {vehicles.find(v => v.id === getValues("vehicleId"))?.plate}</p>
+            <p><strong>Cavalo:</strong> {getValues("cavaloPlate")}</p>
+            <p><strong>Carreta:</strong> {getValues("carretaPlate")}</p>
             <p><strong>Responsável:</strong> {getValues("responsibleName")}</p>
             <p><strong>Motorista:</strong> {getValues("driverName")}</p>
         </div>
@@ -370,26 +347,14 @@ export default function MaintenanceChecklistPage() {
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-6">
                      <div className="grid gap-2">
-                        <Label htmlFor="vehicleId">Veículo *</Label>
-                        {isLoadingVehicles ? <Skeleton className="h-10 w-full" /> : (
-                            <Controller
-                                name="vehicleId"
-                                control={control}
-                                render={({ field }) => (
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <SelectTrigger id="vehicleId" className={cn(errors.vehicleId && "border-destructive")}>
-                                    <SelectValue placeholder="Selecione a placa" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {vehicles.map(v => (
-                                            <SelectItem key={v.id} value={v.id}>{v.plate} - {v.model}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                )}
-                            />
-                        )}
-                        {errors.vehicleId && <p className="text-sm text-destructive">{errors.vehicleId.message}</p>}
+                        <Label htmlFor="cavaloPlate">Placa do Cavalo *</Label>
+                        <Input id="cavaloPlate" placeholder="ABC1D23" {...register('cavaloPlate')} className={cn(errors.cavaloPlate && "border-destructive")} />
+                        {errors.cavaloPlate && <p className="text-sm text-destructive">{errors.cavaloPlate.message}</p>}
+                    </div>
+                     <div className="grid gap-2">
+                        <Label htmlFor="carretaPlate">Placa da Carreta *</Label>
+                        <Input id="carretaPlate" placeholder="ABC1D23" {...register('carretaPlate')} className={cn(errors.carretaPlate && "border-destructive")} />
+                        {errors.carretaPlate && <p className="text-sm text-destructive">{errors.carretaPlate.message}</p>}
                     </div>
                      <div className="grid gap-2">
                         <Label htmlFor="mileage">Quilometragem Atual *</Label>
@@ -401,7 +366,7 @@ export default function MaintenanceChecklistPage() {
                         <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
                          {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 md:col-span-2">
                         <Label htmlFor="driverName">Nome do Motorista *</Label>
                         <Input id="driverName" {...register('driverName')} className={cn(errors.driverName && "border-destructive")} />
                         {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
