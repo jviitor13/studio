@@ -410,48 +410,6 @@ export default function MaintenanceChecklistPage() {
             </Card>
 
             <Card>
-                 <CardHeader>
-                    <CardTitle>Fotos Gerais do Veículo</CardTitle>
-                    <CardDescription>Capture as 6 fotos obrigatórias do conjunto (cavalo e carreta).</CardDescription>
-                     {errors.vehicleImages && <p className="text-sm text-destructive mt-2">Todas as 6 fotos do veículo são obrigatórias.</p>}
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
-                     {/* Fotos do Cavalo */}
-                    <div className="space-y-6">
-                        <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
-                        <div className="grid gap-4">
-                            <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
-                        </div>
-                    </div>
-                    {/* Fotos da Carreta */}
-                     <div className="space-y-6">
-                        <h3 className="font-semibold text-lg text-center">Carreta</h3>
-                        <div className="grid gap-4">
-                            <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            
-            <Card>
                 <CardHeader>
                     <CardTitle>Itens de Verificação</CardTitle>
                     <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
@@ -492,6 +450,48 @@ export default function MaintenanceChecklistPage() {
                             </div>
                          );
                     })}
+                </CardContent>
+            </Card>
+
+            <Card>
+                 <CardHeader>
+                    <CardTitle>Fotos Gerais do Veículo</CardTitle>
+                    <CardDescription>Capture as 6 fotos obrigatórias do conjunto (cavalo e carreta).</CardDescription>
+                     {errors.vehicleImages && <p className="text-sm text-destructive mt-2">Todas as 6 fotos do veículo são obrigatórias.</p>}
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
+                     {/* Fotos do Cavalo */}
+                    <div className="space-y-6">
+                        <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
+                        <div className="grid gap-4">
+                            <Label>Foto Frontal *</Label>
+                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Direita *</Label>
+                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Esquerda *</Label>
+                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                    </div>
+                    {/* Fotos da Carreta */}
+                     <div className="space-y-6">
+                        <h3 className="font-semibold text-lg text-center">Carreta</h3>
+                        <div className="grid gap-4">
+                            <Label>Foto Frontal *</Label>
+                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Direita *</Label>
+                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Esquerda *</Label>
+                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
