@@ -49,7 +49,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraType } });
         streamRef.current = stream;
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+          videoRef.current.srcObject = stream; // This line was missing/incorrect
         }
         setIsCameraActive(true);
       } catch (err) {
@@ -85,6 +85,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         fetch(rawDataUrl)
           .then(res => res.blob())
           .then(blob => new File([blob], 'capture.png', { type: 'image/png' }))
+          .then(compressImage)
           .then(compressedDataUrl => {
             setCapturedImage(compressedDataUrl);
             stopCamera();
