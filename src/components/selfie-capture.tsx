@@ -6,7 +6,6 @@ import { Button } from './ui/button';
 import { Camera, Check, RefreshCw, Loader2, VideoOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { compressImage } from '@/lib/image-compressor';
-import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 interface SelfieCaptureProps {
@@ -43,7 +42,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   }, [stopCamera]);
 
   const startCamera = async () => {
-    if (capturedImage) return;
+    if (isCameraActive || capturedImage) return;
     setError(null);
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
@@ -86,7 +85,6 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         fetch(rawDataUrl)
           .then(res => res.blob())
           .then(blob => new File([blob], 'capture.png', { type: 'image/png' }))
-          .then(file => compressImage(file, 0.8, 800))
           .then(compressedDataUrl => {
             setCapturedImage(compressedDataUrl);
             stopCamera();
@@ -97,6 +95,8 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
             stopCamera();
           })
           .finally(() => setIsProcessing(false));
+      } else {
+        setIsProcessing(false);
       }
     }
   };
