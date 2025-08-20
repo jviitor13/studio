@@ -1,12 +1,11 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
-import { Camera, Check, RefreshCw, AlertTriangle, VideoOff } from 'lucide-react';
+import { Camera, Check, RefreshCw, Loader2, VideoOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { compressImage } from '@/lib/image-compressor';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
@@ -19,54 +18,61 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isActive, setIsActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsActive(false);
+  }, []);
+  
   useEffect(() => {
-    const getCameraPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast({
-          variant: 'destructive',
-          title: 'Câmera não suportada',
-          description: 'Seu navegador não suporta acesso à câmera.',
-        });
-        setHasCameraPermission(false);
-        return;
-      }
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
+  const startCamera = async () => {
+    setError(null);
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraType } });
-        setHasCameraPermission(true);
-
+        streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
+        setIsActive(true);
+      } catch (err) {
+        console.error("Camera access error:", err);
+        setError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
         toast({
-          variant: 'destructive',
-          title: 'Acesso à câmera negado',
-          description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+          variant: "destructive",
+          title: "Acesso à Câmera Negado",
+          description: "Por favor, habilite a permissão da câmera nas configurações do seu navegador e tente novamente.",
         });
+        setIsActive(false);
       }
-    };
-
-    getCameraPermission();
-
-    return () => {
-        // Stop camera stream when component unmounts
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-        }
+    } else {
+      setError("Seu navegador não suporta acesso à câmera.");
+      setIsActive(false);
     }
-  }, [toast, cameraType]);
+  };
 
-  const handleCapture = async () => {
-    if (videoRef.current && canvasRef.current) {
+  const handleCaptureClick = () => {
+    if (capturedImage) return;
+    
+    if (isActive && videoRef.current && canvasRef.current) {
+      setIsProcessing(true);
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
@@ -74,20 +80,34 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       canvas.height = video.videoHeight;
       
       const context = canvas.getContext('2d');
-      context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-      
-      const rawDataUrl = canvas.toDataURL('image/png');
-      const blob = await (await fetch(rawDataUrl)).blob()
-      const file = new File([blob], 'selfie.png', { type: 'image/png' });
-      
-      try {
-        const compressedDataUrl = await compressImage(file, 0.8, 480);
-        setCapturedImage(compressedDataUrl);
-      } catch(error) {
-         toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
-         console.error(error);
+      if (context) {
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        
+        const rawDataUrl = canvas.toDataURL('image/png');
+        fetch(rawDataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], 'capture.png', { type: 'image/png' });
+            return compressImage(file, 0.8, 800);
+          })
+          .then(compressedDataUrl => {
+            setCapturedImage(compressedDataUrl);
+            stopCamera();
+          })
+          .catch(err => {
+            console.error(err);
+            toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
+            stopCamera();
+          })
+          .finally(() => setIsProcessing(false));
       }
     }
+  };
+
+  const handleRetake = () => {
+    setCapturedImage(null);
+    onCapture('');
+    startCamera();
   };
 
   const handleConfirm = () => {
@@ -96,44 +116,57 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     }
   };
 
-  const handleRetake = () => {
-    setCapturedImage(null);
-    onCapture('');
-  };
+  if (!isActive && !capturedImage) {
+    return (
+        <div className="w-full space-y-2">
+            <div className="w-full aspect-video rounded-md overflow-hidden bg-muted border flex flex-col items-center justify-center">
+                 {error ? (
+                    <>
+                        <VideoOff className="h-10 w-10 text-destructive mb-2" />
+                        <p className="text-sm font-semibold text-destructive">{error}</p>
+                    </>
+                ) : (
+                    <>
+                        <Camera className="h-10 w-10 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mt-2">Câmera pronta</p>
+                    </>
+                )}
+            </div>
+            <div className="flex gap-2 justify-center">
+                <Button type="button" onClick={startCamera} disabled={isProcessing}>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Ativar Câmera
+                </Button>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-2">
       <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted border">
-        {hasCameraPermission === false && (
-             <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <VideoOff className="h-10 w-10 text-destructive mb-2" />
-                <p className="font-semibold text-destructive">Câmera indisponível</p>
-                <p className="text-xs text-muted-foreground">Verifique as permissões do navegador e recarregue a página.</p>
-            </div>
-        )}
         <video
           ref={videoRef}
-          className={cn("w-full h-full object-cover", capturedImage || !hasCameraPermission ? "hidden" : "block")}
+          className={cn("w-full h-full object-cover", capturedImage || !isActive ? "hidden" : "block")}
           autoPlay
           playsInline
           muted
-          onCanPlay={() => setIsStreaming(true)}
         />
         {capturedImage && (
-            <Image src={capturedImage} alt="Selfie capturada" layout="fill" className="object-cover" />
+            <Image src={capturedImage} alt="Foto capturada" layout="fill" className="object-cover" />
         )}
-        {hasCameraPermission === null && (
+        {isProcessing && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <p className="text-white">Aguardando permissão da câmera...</p>
+                <Loader2 className="h-8 w-8 text-white animate-spin" />
             </div>
         )}
       </div>
 
       <div className="flex gap-2 justify-center">
         {!capturedImage ? (
-          <Button type="button" onClick={handleCapture} disabled={!isStreaming}>
-            <Camera className="mr-2 h-4 w-4" />
-            Capturar Foto
+          <Button type="button" onClick={handleCaptureClick} disabled={isProcessing}>
+            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+            {isProcessing ? 'Processando...' : 'Capturar Foto'}
           </Button>
         ) : (
           <>
