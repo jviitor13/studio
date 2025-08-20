@@ -25,6 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { uploadImageAndGetURL } from '@/lib/storage';
+import { Progress } from '@/components/ui/progress';
 
 
 const checklistItemSchema = z.object({
@@ -75,6 +76,9 @@ export default function MaintenanceChecklistPage() {
 
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [submissionStatus, setSubmissionStatus] = useState('');
+
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -200,37 +204,51 @@ export default function MaintenanceChecklistPage() {
     const checklistId = `checklist-${Date.now()}`;
     
     try {
-        toast({ title: "Enviando imagens...", description: "Aguarde enquanto as imagens são processadas." });
+        const imagesToUpload: {field: string, content: string}[] = [];
 
-        const processedData = { ...data };
+        if (data.selfieResponsavel) imagesToUpload.push({ field: 'selfieResponsavel', content: data.selfieResponsavel });
+        if (data.selfieMotorista) imagesToUpload.push({ field: 'selfieMotorista', content: data.selfieMotorista });
+        if (data.assinaturaResponsavel) imagesToUpload.push({ field: 'assinaturaResponsavel', content: data.assinaturaResponsavel });
+        if (data.assinaturaMotorista) imagesToUpload.push({ field: 'assinaturaMotorista', content: data.assinaturaMotorista });
 
-        // Upload main images
-        processedData.selfieResponsavel = await uploadImageAndGetURL(data.selfieResponsavel, checklistId, 'selfie-responsavel');
-        processedData.selfieMotorista = await uploadImageAndGetURL(data.selfieMotorista, checklistId, 'selfie-motorista');
-        processedData.assinaturaResponsavel = await uploadImageAndGetURL(data.assinaturaResponsavel, checklistId, 'assinatura-responsavel');
-        processedData.assinaturaMotorista = await uploadImageAndGetURL(data.assinaturaMotorista, checklistId, 'assinatura-motorista');
+        Object.entries(data.vehicleImages).forEach(([key, value]) => {
+            if (value) imagesToUpload.push({ field: `vehicleImages.${key}`, content: value });
+        });
+
+        data.questions.forEach((q, index) => {
+            if (q.photo) imagesToUpload.push({ field: `questions.${index}.photo`, content: q.photo });
+        });
+
+        const totalImages = imagesToUpload.filter(img => img.content.startsWith('data:image')).length;
+        let uploadedCount = 0;
         
-        const vehicleImageEntries = Object.entries(data.vehicleImages);
-        const vehicleImageUploadPromises = vehicleImageEntries.map(([key, value]) => {
-            if (value && value.startsWith('data:image')) {
-                return uploadImageAndGetURL(value, checklistId, `vehicle-${key}`).then(url => {
-                    (processedData.vehicleImages as any)[key] = url;
-                });
+        setUploadProgress(0);
+        setSubmissionStatus('Iniciando envio...');
+
+        const processedData = JSON.parse(JSON.stringify(data));
+
+        const uploadPromises = imagesToUpload.map(async (img) => {
+            if (img.content.startsWith('data:image')) {
+                const url = await uploadImageAndGetURL(img.content, checklistId, img.field.replace('.', '-'));
+                uploadedCount++;
+                const newProgress = totalImages > 0 ? Math.round((uploadedCount / totalImages) * 100) : 100;
+                setUploadProgress(newProgress);
+                setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
+
+                // Update the correct nested field in processedData
+                const fieldParts = img.field.split('.');
+                if (fieldParts.length === 2) {
+                     (processedData as any)[fieldParts[0]][fieldParts[1]] = url;
+                } else if(fieldParts.length === 3) { // for questions.index.photo
+                    (processedData as any)[fieldParts[0]][parseInt(fieldParts[1])][fieldParts[2]] = url;
+                } else {
+                    processedData[img.field as keyof typeof processedData] = url;
+                }
             }
-            return Promise.resolve();
         });
 
-        // Upload question images
-        const questionUploadPromises = data.questions.map((q, index) => {
-            if (q.photo && q.photo.startsWith('data:image')) {
-                return uploadImageAndGetURL(q.photo, checklistId, `item-${q.id}`).then(url => {
-                    processedData.questions[index].photo = url;
-                });
-            }
-            return Promise.resolve();
-        });
-
-        await Promise.all([...vehicleImageUploadPromises, ...questionUploadPromises]);
+        await Promise.all(uploadPromises);
+        setSubmissionStatus('Finalizando...');
 
         const hasIssues = processedData.questions.some(q => q.status === "Não OK");
         
@@ -264,6 +282,8 @@ export default function MaintenanceChecklistPage() {
         });
     } finally {
         setIsReviewing(false);
+        setUploadProgress(0);
+        setSubmissionStatus('');
     }
   };
   
@@ -285,17 +305,24 @@ export default function MaintenanceChecklistPage() {
             Confirme os dados abaixo. Após o envio, uma ordem de serviço será gerada se houver pendências.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="text-sm space-y-2">
-            <p><strong>Cavalo:</strong> {getValues("cavaloPlate")}</p>
-            <p><strong>Carreta:</strong> {getValues("carretaPlate")}</p>
-            <p><strong>Responsável:</strong> {getValues("responsibleName")}</p>
-            <p><strong>Motorista:</strong> {getValues("driverName")}</p>
-        </div>
+        {isSubmitting ? (
+             <div className="space-y-4 py-4">
+                <Progress value={uploadProgress} />
+                <p className="text-sm text-center text-muted-foreground">{submissionStatus}</p>
+            </div>
+        ) : (
+            <div className="text-sm space-y-2">
+                <p><strong>Cavalo:</strong> {getValues("cavaloPlate")}</p>
+                <p><strong>Carreta:</strong> {getValues("carretaPlate")}</p>
+                <p><strong>Responsável:</strong> {getValues("responsibleName")}</p>
+                <p><strong>Motorista:</strong> {getValues("driverName")}</p>
+            </div>
+        )}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
           <AlertDialogAction onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Confirmar e Enviar
+            {isSubmitting ? 'Enviando...' : 'Confirmar e Enviar'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -511,11 +538,11 @@ export default function MaintenanceChecklistPage() {
             </Card>
             
             <CardFooter className="border-t px-6 py-4">
-                <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting}>
+                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting}>
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Finalizando...
+                            Enviando...
                         </>
                     ) : (
                         'Revisar e Finalizar Checklist'
