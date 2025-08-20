@@ -14,7 +14,14 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     assinaturaMotorista?: string;
     selfieResponsavel?: string;
     selfieMotorista?: string;
-    vehicleImages?: string[];
+    vehicleImages?: {
+        cavaloFrontal: string;
+        cavaloLateralDireita: string;
+        cavaloLateralEsquerda: string;
+        carretaFrontal: string;
+        carretaLateralDireita: string;
+        carretaLateralEsquerda: string;
+    };
     generalObservations?: string;
 };
 

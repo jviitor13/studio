@@ -24,6 +24,7 @@ import { SelfieCapture } from '@/components/selfie-capture';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { uploadImageAndGetURL } from '@/lib/storage';
 
 
 const checklistItemSchema = z.object({
@@ -46,14 +47,16 @@ const checklistSchema = z.object({
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
   questions: z.array(checklistItemSchema),
+  vehicleImages: z.object({
+    cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
+    cavaloLateralDireita: z.string().min(1, "A foto da lateral direita do cavalo é obrigatória."),
+    cavaloLateralEsquerda: z.string().min(1, "A foto da lateral esquerda do cavalo é obrigatória."),
+    carretaFrontal: z.string().min(1, "A foto frontal da carreta é obrigatória."),
+    carretaLateralDireita: z.string().min(1, "A foto da lateral direita da carreta é obrigatória."),
+    carretaLateralEsquerda: z.string().min(1, "A foto da lateral esquerda da carreta é obrigatória."),
+  }),
 }).refine(data => data.questions.every(item => item.status !== 'N/A'), {
     message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
-    path: ["questions"],
-}).refine(data => data.questions.every(item => {
-    const needsPhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK');
-    return !needsPhoto || (needsPhoto && !!item.photo);
-}), {
-    message: "Uma ou mais fotos obrigatórias não foram adicionadas. Verifique os itens marcados.",
     path: ["questions"],
 });
 
@@ -61,7 +64,7 @@ const checklistSchema = z.object({
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 type ChecklistItemData = z.infer<typeof checklistItemSchema>;
 interface Vehicle {
-    id: string; // This is the plate
+    id: string; 
     plate: string;
     model: string;
 }
@@ -147,6 +150,14 @@ export default function MaintenanceChecklistPage() {
       selfieResponsavel: '',
       selfieMotorista: '',
       questions: [],
+      vehicleImages: {
+        cavaloFrontal: '',
+        cavaloLateralDireita: '',
+        cavaloLateralEsquerda: '',
+        carretaFrontal: '',
+        carretaLateralDireita: '',
+        carretaLateralEsquerda: '',
+      }
     },
     mode: 'onChange',
   });
@@ -204,25 +215,58 @@ export default function MaintenanceChecklistPage() {
         toast({
             variant: "destructive",
             title: "Campos Inválidos",
-            description: "Por favor, preencha todos os campos obrigatórios, incluindo assinaturas e selfies, e avalie todos os itens antes de finalizar.",
+            description: "Por favor, preencha todos os campos obrigatórios, incluindo assinaturas, selfies, fotos do veículo e avalie todos os itens antes de finalizar.",
         });
     }
   }
   
 
   const onSubmit = async (data: ChecklistFormValues) => {
+    const checklistId = `checklist-${Date.now()}`;
+    
     try {
-        const hasIssues = data.questions.some(q => q.status === "Não OK");
+        toast({ title: "Enviando imagens...", description: "Aguarde enquanto as imagens são processadas." });
+
+        const processedData = { ...data };
+
+        // Upload main images
+        processedData.selfieResponsavel = await uploadImageAndGetURL(data.selfieResponsavel, checklistId, 'selfie-responsavel');
+        processedData.selfieMotorista = await uploadImageAndGetURL(data.selfieMotorista, checklistId, 'selfie-motorista');
+        processedData.assinaturaResponsavel = await uploadImageAndGetURL(data.assinaturaResponsavel, checklistId, 'assinatura-responsavel');
+        processedData.assinaturaMotorista = await uploadImageAndGetURL(data.assinaturaMotorista, checklistId, 'assinatura-motorista');
+        
+        const vehicleImageEntries = Object.entries(data.vehicleImages);
+        const vehicleImageUploadPromises = vehicleImageEntries.map(([key, value]) => {
+            if (value && value.startsWith('data:image')) {
+                return uploadImageAndGetURL(value, checklistId, `vehicle-${key}`).then(url => {
+                    (processedData.vehicleImages as any)[key] = url;
+                });
+            }
+            return Promise.resolve();
+        });
+
+        // Upload question images
+        const questionUploadPromises = data.questions.map((q, index) => {
+            if (q.photo && q.photo.startsWith('data:image')) {
+                return uploadImageAndGetURL(q.photo, checklistId, `item-${q.id}`).then(url => {
+                    processedData.questions[index].photo = url;
+                });
+            }
+            return Promise.resolve();
+        });
+
+        await Promise.all([...vehicleImageUploadPromises, ...questionUploadPromises]);
+
+        const hasIssues = processedData.questions.some(q => q.status === "Não OK");
         
         const submissionData = {
-            ...data,
-            name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
+            ...processedData,
+            name: templates.find(t => t.id === processedData.templateId)?.name || 'Checklist de Manutenção',
             type: "Manutenção",
-            category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
-            driver: data.driverName,
+            category: templates.find(t => t.id === processedData.templateId)?.category || 'nao_aplicavel',
+            driver: processedData.driverName,
             createdAt: Timestamp.now(),
             status: hasIssues ? "Pendente" : "OK",
-            vehicleImages: [],
             generalObservations: '',
         };
 
@@ -266,7 +310,7 @@ export default function MaintenanceChecklistPage() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="text-sm space-y-2">
-            <p><strong>Veículo:</strong> {getValues("vehicleId")}</p>
+            <p><strong>Veículo:</strong> {vehicles.find(v => v.id === getValues("vehicleId"))?.plate}</p>
             <p><strong>Responsável:</strong> {getValues("responsibleName")}</p>
             <p><strong>Motorista:</strong> {getValues("driverName")}</p>
         </div>
@@ -364,6 +408,48 @@ export default function MaintenanceChecklistPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Card>
+                 <CardHeader>
+                    <CardTitle>Fotos Gerais do Veículo</CardTitle>
+                    <CardDescription>Capture as 6 fotos obrigatórias do conjunto (cavalo e carreta).</CardDescription>
+                     {errors.vehicleImages && <p className="text-sm text-destructive mt-2">Todas as 6 fotos do veículo são obrigatórias.</p>}
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
+                     {/* Fotos do Cavalo */}
+                    <div className="space-y-6">
+                        <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
+                        <div className="grid gap-4">
+                            <Label>Foto Frontal *</Label>
+                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Direita *</Label>
+                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Esquerda *</Label>
+                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                    </div>
+                    {/* Fotos da Carreta */}
+                     <div className="space-y-6">
+                        <h3 className="font-semibold text-lg text-center">Carreta</h3>
+                        <div className="grid gap-4">
+                            <Label>Foto Frontal *</Label>
+                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Direita *</Label>
+                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Esquerda *</Label>
+                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
             
             <Card>
                 <CardHeader>
@@ -375,15 +461,12 @@ export default function MaintenanceChecklistPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {fields.map((item, index) => {
-                        const needsPhoto = item.photoRequirement === 'always' || (item.photoRequirement === 'if_not_ok' && item.status === 'Não OK');
-                        const photoMissing = needsPhoto && !item.photo;
                          return (
                             <div
                                 key={item.id}
                                 className={cn(
                                     "p-3 border rounded-lg flex justify-between items-center",
-                                    item.status === 'N/A' && 'border-dashed',
-                                    photoMissing && 'border-destructive'
+                                    item.status === 'N/A' && 'border-dashed'
                                 )}
                             >
                                 <div>
@@ -392,7 +475,6 @@ export default function MaintenanceChecklistPage() {
                                         {item.status === 'N/A' && <Badge variant="outline">Pendente</Badge>}
                                         {item.status === 'OK' && <Badge className="bg-green-600 hover:bg-green-700">OK</Badge>}
                                         {item.status === 'Não OK' && <Badge variant="destructive">Não OK</Badge>}
-                                        {photoMissing && <Badge variant="destructive" className="animate-pulse">Foto Obrigatória</Badge>}
                                     </div>
                                 </div>
                                 <Button
