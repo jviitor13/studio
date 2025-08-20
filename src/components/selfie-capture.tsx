@@ -20,7 +20,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [isActive, setIsActive] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +33,9 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    setIsActive(false);
+    setIsCameraActive(false);
   }, []);
-  
+
   useEffect(() => {
     return () => {
       stopCamera();
@@ -43,6 +43,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   }, [stopCamera]);
 
   const startCamera = async () => {
+    if (capturedImage) return;
     setError(null);
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
@@ -51,7 +52,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-        setIsActive(true);
+        setIsCameraActive(true);
       } catch (err) {
         console.error("Camera access error:", err);
         setError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
@@ -60,18 +61,16 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
           title: "Acesso à Câmera Negado",
           description: "Por favor, habilite a permissão da câmera nas configurações do seu navegador e tente novamente.",
         });
-        setIsActive(false);
+        setIsCameraActive(false);
       }
     } else {
       setError("Seu navegador não suporta acesso à câmera.");
-      setIsActive(false);
+      setIsCameraActive(false);
     }
   };
 
-  const handleCaptureClick = () => {
-    if (capturedImage) return;
-    
-    if (isActive && videoRef.current && canvasRef.current) {
+  const takePhoto = () => {
+    if (isCameraActive && videoRef.current && canvasRef.current) {
       setIsProcessing(true);
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -86,10 +85,8 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         const rawDataUrl = canvas.toDataURL('image/png');
         fetch(rawDataUrl)
           .then(res => res.blob())
-          .then(blob => {
-            const file = new File([blob], 'capture.png', { type: 'image/png' });
-            return compressImage(file, 0.8, 800);
-          })
+          .then(blob => new File([blob], 'capture.png', { type: 'image/png' }))
+          .then(file => compressImage(file, 0.8, 800))
           .then(compressedDataUrl => {
             setCapturedImage(compressedDataUrl);
             stopCamera();
@@ -116,46 +113,37 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     }
   };
 
-  if (!isActive && !capturedImage) {
-    return (
-        <div className="w-full space-y-2">
-            <div className="w-full aspect-video rounded-md overflow-hidden bg-muted border flex flex-col items-center justify-center">
-                 {error ? (
+  return (
+    <div className="w-full space-y-2">
+      <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center">
+        {isCameraActive && !capturedImage && (
+            <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                playsInline
+                muted
+            />
+        )}
+        {capturedImage && (
+            <Image src={capturedImage} alt="Foto capturada" layout="fill" className="object-cover" />
+        )}
+        {!isCameraActive && !capturedImage && (
+            <div className="text-center p-2">
+                {error ? (
                     <>
-                        <VideoOff className="h-10 w-10 text-destructive mb-2" />
+                        <VideoOff className="h-10 w-10 text-destructive mx-auto mb-2" />
                         <p className="text-sm font-semibold text-destructive">{error}</p>
                     </>
                 ) : (
                     <>
-                        <Camera className="h-10 w-10 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mt-2">Câmera pronta</p>
+                        <Camera className="h-10 w-10 text-muted-foreground mx-auto" />
+                        <p className="text-sm text-muted-foreground mt-2">Aperte para ativar a câmera</p>
                     </>
                 )}
             </div>
-            <div className="flex gap-2 justify-center">
-                <Button type="button" onClick={startCamera} disabled={isProcessing}>
-                    <Camera className="mr-2 h-4 w-4" />
-                    Ativar Câmera
-                </Button>
-            </div>
-        </div>
-    );
-  }
-
-  return (
-    <div className="w-full space-y-2">
-      <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted border">
-        <video
-          ref={videoRef}
-          className={cn("w-full h-full object-cover", capturedImage || !isActive ? "hidden" : "block")}
-          autoPlay
-          playsInline
-          muted
-        />
-        {capturedImage && (
-            <Image src={capturedImage} alt="Foto capturada" layout="fill" className="object-cover" />
         )}
-        {isProcessing && (
+         {isProcessing && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 <Loader2 className="h-8 w-8 text-white animate-spin" />
             </div>
@@ -163,12 +151,19 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       </div>
 
       <div className="flex gap-2 justify-center">
-        {!capturedImage ? (
-          <Button type="button" onClick={handleCaptureClick} disabled={isProcessing}>
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-            {isProcessing ? 'Processando...' : 'Capturar Foto'}
-          </Button>
-        ) : (
+        {!isCameraActive && !capturedImage && (
+            <Button type="button" onClick={startCamera} disabled={isProcessing}>
+                <Camera className="mr-2 h-4 w-4" />
+                Ativar Câmera
+            </Button>
+        )}
+        {isCameraActive && !capturedImage && (
+             <Button type="button" onClick={takePhoto} disabled={isProcessing}>
+                {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
+                {isProcessing ? 'Processando...' : 'Capturar Foto'}
+            </Button>
+        )}
+        {capturedImage && (
           <>
             <Button type="button" variant="outline" onClick={handleRetake}>
               <RefreshCw className="mr-2 h-4 w-4" />
