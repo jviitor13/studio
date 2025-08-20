@@ -465,15 +465,15 @@ export default function MaintenanceChecklistPage() {
                         <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
                         <div className="grid gap-4">
                             <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                         </div>
                     </div>
                     {/* Fotos da Carreta */}
@@ -481,15 +481,15 @@ export default function MaintenanceChecklistPage() {
                         <h3 className="font-semibold text-lg text-center">Carreta</h3>
                         <div className="grid gap-4">
                             <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} />} />
+                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                         </div>
                     </div>
                 </CardContent>

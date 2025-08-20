@@ -12,9 +12,10 @@ import Image from 'next/image';
 
 interface SelfieCaptureProps {
   onCapture: (imageDataUrl: string) => void;
+  cameraType?: 'user' | 'environment';
 }
 
-export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture }) => {
+export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraType = 'user' }) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +37,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture }) => {
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraType } });
         setHasCameraPermission(true);
 
         if (videoRef.current) {
@@ -62,7 +63,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture }) => {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [toast]);
+  }, [toast, cameraType]);
 
   const handleCapture = async () => {
     if (videoRef.current && canvasRef.current) {
@@ -132,7 +133,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture }) => {
         {!capturedImage ? (
           <Button type="button" onClick={handleCapture} disabled={!isStreaming}>
             <Camera className="mr-2 h-4 w-4" />
-            Capturar Selfie
+            Capturar Foto
           </Button>
         ) : (
           <>
@@ -142,7 +143,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture }) => {
             </Button>
             <Button type="button" onClick={handleConfirm}>
               <Check className="mr-2 h-4 w-4" />
-              Confirmar Selfie
+              Confirmar Foto
             </Button>
           </>
         )}
