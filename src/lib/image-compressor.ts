@@ -17,13 +17,25 @@ export function compressImage(
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
+      if (!event.target?.result) {
+        return reject(new Error("FileReader did not return a result."));
+      }
       const img = new Image();
-      img.src = event.target?.result as string;
+      img.src = event.target.result as string;
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const scaleFactor = maxWidth / img.width;
-        canvas.width = maxWidth;
-        canvas.height = img.height * scaleFactor;
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          const scaleFactor = maxWidth / width;
+          width = maxWidth;
+          height = img.height * scaleFactor;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
@@ -40,5 +52,3 @@ export function compressImage(
     reader.onerror = (error) => reject(error);
   });
 }
-
-    

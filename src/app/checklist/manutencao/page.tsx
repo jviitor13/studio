@@ -204,7 +204,7 @@ export default function MaintenanceChecklistPage() {
     const checklistId = `checklist-${Date.now()}`;
     
     try {
-        const imagesToUpload: {field: string, content: string}[] = [];
+        const imagesToUpload: {field: string, content: string, index?: number, subField?: string}[] = [];
 
         if (data.selfieResponsavel) imagesToUpload.push({ field: 'selfieResponsavel', content: data.selfieResponsavel });
         if (data.selfieMotorista) imagesToUpload.push({ field: 'selfieMotorista', content: data.selfieMotorista });
@@ -212,35 +212,36 @@ export default function MaintenanceChecklistPage() {
         if (data.assinaturaMotorista) imagesToUpload.push({ field: 'assinaturaMotorista', content: data.assinaturaMotorista });
 
         Object.entries(data.vehicleImages).forEach(([key, value]) => {
-            if (value) imagesToUpload.push({ field: `vehicleImages.${key}`, content: value });
+            if (value) imagesToUpload.push({ field: `vehicleImages`, content: value, subField: key });
         });
 
         data.questions.forEach((q, index) => {
-            if (q.photo) imagesToUpload.push({ field: `questions.${index}.photo`, content: q.photo });
+            if (q.photo) imagesToUpload.push({ field: `questions`, content: q.photo, index: index, subField: 'photo' });
         });
 
         const totalImages = imagesToUpload.filter(img => img.content.startsWith('data:image')).length;
         let uploadedCount = 0;
         
         setUploadProgress(0);
-        setSubmissionStatus('Iniciando envio...');
-
+        setSubmissionStatus('Iniciando envio das imagens...');
+        
+        // Create a deep copy of the data to modify
         const processedData = JSON.parse(JSON.stringify(data));
 
         const uploadPromises = imagesToUpload.map(async (img) => {
             if (img.content.startsWith('data:image')) {
-                const url = await uploadImageAndGetURL(img.content, checklistId, img.field.replace('.', '-'));
+                const uniqueFilename = `${img.field}-${img.subField || ''}-${img.index || ''}-${Date.now()}`;
+                const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
                 uploadedCount++;
                 const newProgress = totalImages > 0 ? Math.round((uploadedCount / totalImages) * 100) : 100;
                 setUploadProgress(newProgress);
                 setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
 
-                // Update the correct nested field in processedData
-                const fieldParts = img.field.split('.');
-                if (fieldParts.length === 2) {
-                     (processedData as any)[fieldParts[0]][fieldParts[1]] = url;
-                } else if(fieldParts.length === 3) { // for questions.index.photo
-                    (processedData as any)[fieldParts[0]][parseInt(fieldParts[1])][fieldParts[2]] = url;
+                // Update the correct nested field in the deep copy (processedData)
+                if (img.field === 'questions' && img.index !== undefined && img.subField) {
+                    processedData.questions[img.index][img.subField] = url;
+                } else if (img.field === 'vehicleImages' && img.subField) {
+                    processedData.vehicleImages[img.subField] = url;
                 } else {
                     processedData[img.field as keyof typeof processedData] = url;
                 }
@@ -248,9 +249,9 @@ export default function MaintenanceChecklistPage() {
         });
 
         await Promise.all(uploadPromises);
-        setSubmissionStatus('Finalizando...');
+        setSubmissionStatus('Finalizando o checklist...');
 
-        const hasIssues = processedData.questions.some(q => q.status === "Não OK");
+        const hasIssues = processedData.questions.some((q: any) => q.status === "Não OK");
         
         const submissionData = {
             ...processedData,
