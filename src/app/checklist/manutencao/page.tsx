@@ -48,7 +48,10 @@ const checklistSchema = z.object({
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
-  questions: z.array(checklistItemSchema),
+  questions: z.array(checklistItemSchema).refine(data => data.every(item => item.status !== 'N/A'), {
+    message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
+    path: ["root"],
+  }),
   vehicleImages: z.object({
     cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
     cavaloLateralDireita: z.string().min(1, "A foto da lateral direita do cavalo é obrigatória."),
@@ -57,9 +60,6 @@ const checklistSchema = z.object({
     carretaLateralDireita: z.string().min(1, "A foto da lateral direita da carreta é obrigatória."),
     carretaLateralEsquerda: z.string().min(1, "A foto da lateral esquerda da carreta é obrigatória."),
   }),
-}).refine(data => data.questions.every(item => item.status !== 'N/A'), {
-    message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
-    path: ["questions"],
 });
 
 
@@ -108,7 +108,7 @@ export default function MaintenanceChecklistPage() {
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     register,
     watch,
     getValues,
@@ -140,7 +140,7 @@ export default function MaintenanceChecklistPage() {
     },
     mode: 'onChange',
   });
-
+  const isSubmitting = getValues('templateId') === '' || Object.keys(errors).length > 0;
   const { fields, replace, update } = useFieldArray({
     control,
     name: "questions",
@@ -406,8 +406,8 @@ export default function MaintenanceChecklistPage() {
                 <CardHeader>
                     <CardTitle>Itens de Verificação</CardTitle>
                     <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
-                    {errors.questions && typeof errors.questions.message === 'string' && (
-                        <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>
+                    {errors.questions?.root && (
+                        <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>
                     )}
                 </CardHeader>
                 <CardContent className="space-y-3">
