@@ -3,25 +3,28 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
-import { Camera, Check, RefreshCw, Loader2, VideoOff } from 'lucide-react';
+import { Camera, Check, RefreshCw, Loader2, VideoOff, UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { compressImage } from '@/lib/image-compressor';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
-interface SelfieCaptureProps {
+interface ImageUploaderProps {
   onCapture: (imageDataUrl: string) => void;
   cameraType?: 'user' | 'environment';
+  initialImage?: string | null;
+  allowGallery?: boolean;
 }
 
-export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraType = 'user' }) => {
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraType = 'user', initialImage = null, allowGallery = false }) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<'idle' | 'streaming' | 'captured'>('idle');
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(initialImage);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +69,10 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       stopCamera();
     };
   }, [mode, startCamera, stopCamera]);
+  
+  useEffect(() => {
+      setCapturedImage(initialImage);
+  }, [initialImage]);
 
   const handleActivateCamera = () => {
     setMode('streaming');
@@ -110,6 +117,23 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     onCapture('');
     setMode('idle');
   };
+  
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files && event.target.files[0]) {
+          const file = event.target.files[0];
+          setIsProcessing(true);
+          try {
+              const compressedDataUrl = await compressImage(file);
+              setCapturedImage(compressedDataUrl);
+              setMode('captured');
+          } catch (err) {
+              console.error(err);
+              toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
+          } finally {
+            setIsProcessing(false);
+          }
+      }
+  }
 
   const handleConfirm = () => {
     if (capturedImage) {
@@ -124,7 +148,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         {mode === 'idle' && !capturedImage && (
            <div className="text-center p-2">
               <Camera className="h-10 w-10 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground mt-2">Clique para ativar a câmera</p>
+              <p className="text-sm text-muted-foreground mt-2">Ative a câmera ou escolha da galeria.</p>
            </div>
         )}
 
@@ -153,12 +177,23 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         )}
       </div>
 
-      <div className="flex gap-2 justify-center">
+      <div className="flex gap-2 justify-center flex-wrap">
         {mode === 'idle' && !capturedImage && (
-          <Button type="button" onClick={handleActivateCamera} disabled={isProcessing}>
-            <Camera className="mr-2 h-4 w-4" />
-            Ativar Câmera
-          </Button>
+          <>
+            <Button type="button" onClick={handleActivateCamera} disabled={isProcessing}>
+              <Camera className="mr-2 h-4 w-4" />
+              Ativar Câmera
+            </Button>
+            {allowGallery && (
+                <>
+                    <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
+                    <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={isProcessing}>
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        Escolher da Galeria
+                    </Button>
+                </>
+            )}
+          </>
         )}
         {mode === 'streaming' && (
           <Button type="button" onClick={handleTakePhoto} disabled={isProcessing}>
@@ -170,7 +205,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
           <>
             <Button type="button" variant="outline" onClick={handleRetake}>
               <RefreshCw className="mr-2 h-4 w-4" />
-              Tirar Novamente
+              Alterar Foto
             </Button>
             <Button type="button" onClick={handleConfirm}>
               <Check className="mr-2 h-4 w-4" />

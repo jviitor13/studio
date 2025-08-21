@@ -7,12 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { AlertTriangle, Paperclip, Trash2, Loader2 } from "lucide-react";
-import Image from "next/image";
+import { AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle } from "./ui/alert";
-import { compressImage } from "@/lib/image-compressor";
+import { ImageUploader } from "./image-uploader";
 
 
 // Match the form values type
@@ -30,17 +28,15 @@ interface ItemChecklistDialogProps {
   onClose: () => void;
   item: ChecklistItemFormValues | null;
   onSave: (data: { status: "OK" | "Não OK", photo?: string, observation?: string }) => void;
+  allowGallery?: boolean;
 }
 
-export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemChecklistDialogProps) {
+export function ItemChecklistDialog({ isOpen, onClose, item, onSave, allowGallery = false }: ItemChecklistDialogProps) {
   const { toast } = useToast();
   const [status, setStatus] = useState<"OK" | "Não OK" | "N/A">("N/A");
   const [observation, setObservation] = useState("");
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
-
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (item) {
@@ -70,31 +66,6 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
     onSave({ status, photo, observation });
   };
   
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setIsCompressing(true);
-      try {
-        const compressedImage = await compressImage(file);
-        setPhoto(compressedImage);
-        if (isPhotoRequired) {
-            setError(null);
-        }
-      } catch (err) {
-        console.error("Image compression error:", err);
-        toast({
-          variant: "destructive",
-          title: "Erro ao comprimir imagem",
-          description: "Não foi possível processar a imagem. Tente novamente.",
-        });
-      } finally {
-        setIsCompressing(false);
-      }
-      e.target.value = "";
-    }
-  };
-
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -145,41 +116,16 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
             <Label>
               Anexar Foto {isPhotoRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
-            {photo ? (
-              <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
-                  <Image src={photo} alt={`Foto do item ${item.text}`} layout="fill" className="object-cover" />
-                  <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-7 w-7"
-                      onClick={() => setPhoto(undefined)}
-                      disabled={isCompressing}
-                  >
-                      <Trash2 className="h-4 w-4" />
-                  </Button>
-              </div>
-            ) : (
-                <>
-                <Input
-                    id={`photo-${item.id}`}
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleImageUpload}
-                    ref={photoInputRef}
-                    disabled={isCompressing}
-                />
-                <Button variant="outline" onClick={() => photoInputRef.current?.click()} disabled={isCompressing}>
-                    {isCompressing ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Paperclip className="mr-2 h-4 w-4" />
-                    )}
-                    {isCompressing ? 'Processando...' : 'Anexar arquivo'}
-                </Button>
-                </>
-            )}
+            <ImageUploader 
+                onCapture={(imageDataUrl) => {
+                    setPhoto(imageDataUrl);
+                     if (isPhotoRequired && imageDataUrl) {
+                        setError(null);
+                    }
+                }}
+                initialImage={photo}
+                allowGallery={allowGallery}
+            />
              {error && (
                 <Alert variant="destructive" className="mt-2">
                     <AlertTriangle className="h-4 w-4" />
@@ -193,7 +139,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave }: ItemCheck
           <DialogClose asChild>
             <Button type="button" variant="secondary">Cancelar</Button>
           </DialogClose>
-          <Button type="button" onClick={handleSave} disabled={isCompressing}>Salvar</Button>
+          <Button type="button" onClick={handleSave}>Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
