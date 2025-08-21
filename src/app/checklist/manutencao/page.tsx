@@ -108,7 +108,7 @@ export default function MaintenanceChecklistPage() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     register,
     watch,
     getValues,
@@ -140,7 +140,7 @@ export default function MaintenanceChecklistPage() {
     },
     mode: 'onChange',
   });
-  const isSubmitting = getValues('templateId') === '' || Object.keys(errors).length > 0;
+
   const { fields, replace, update } = useFieldArray({
     control,
     name: "questions",
@@ -289,6 +289,8 @@ export default function MaintenanceChecklistPage() {
   };
   
   const selectedTemplateId = watch('templateId');
+  const isSubmitDisabled = isSubmitting || !selectedTemplateId;
+
 
   return (
     <>
@@ -541,7 +543,7 @@ export default function MaintenanceChecklistPage() {
             </Card>
             
             <CardFooter className="border-t px-6 py-4">
-                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting}>
+                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitDisabled}>
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
