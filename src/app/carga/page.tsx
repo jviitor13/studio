@@ -81,7 +81,7 @@ export default function CargaPage() {
         const fetchVehicles = async () => {
             setIsLoadingVehicles(true);
             try {
-                const querySnapshot = await getDocs(collection(db, "vehicles"));
+                const querySnapshot = await getDocs(collection(db, "veiculos"));
                 const vehiclesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
                 setVehicles(vehiclesData);
             } catch (error) {
