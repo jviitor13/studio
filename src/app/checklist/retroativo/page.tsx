@@ -194,7 +194,7 @@ export default function RetroactiveChecklistPage() {
         toast({
             variant: "destructive",
             title: "Campos Inválidos",
-            description: "Por favor, preencha todos os campos obrigatórios, incluindo assinaturas, selfies, fotos do veículo e avalie todos os itens antes de finalizar.",
+            description: "Por favor, preencha todos os campos obrigatórios antes de finalizar.",
         });
     }
   }
@@ -419,7 +419,6 @@ export default function RetroactiveChecklistPage() {
                 <CardHeader>
                     <CardTitle>Fotos Gerais do Veículo</CardTitle>
                     <CardDescription>Anexe as 6 fotos obrigatórias do conjunto (cavalo e carreta).</CardDescription>
-                     {errors.vehicleImages && <p className="text-sm text-destructive mt-2">Todas as 6 fotos do veículo são obrigatórias.</p>}
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
                     <div className="space-y-6">
@@ -427,14 +426,17 @@ export default function RetroactiveChecklistPage() {
                         <div className="grid gap-4">
                             <Label>Foto Frontal *</Label>
                             <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.cavaloFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloFrontal.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Direita *</Label>
                             <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.cavaloLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralDireita.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Esquerda *</Label>
                             <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.cavaloLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralEsquerda.message}</p>}
                         </div>
                     </div>
                      <div className="space-y-6">
@@ -442,14 +444,17 @@ export default function RetroactiveChecklistPage() {
                         <div className="grid gap-4">
                             <Label>Foto Frontal *</Label>
                             <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.carretaFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.carretaFrontal.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Direita *</Label>
                             <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.carretaLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralDireita.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Esquerda *</Label>
                             <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.carretaLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralEsquerda.message}</p>}
                         </div>
                     </div>
                 </CardContent>
@@ -511,9 +516,6 @@ export default function RetroactiveChecklistPage() {
                 <CardHeader>
                     <CardTitle>Validação e Assinaturas</CardTitle>
                     <CardDescription>O responsável e o motorista devem registrar a selfie e assinar abaixo para validar o checklist.</CardDescription>
-                     {(errors.assinaturaResponsavel || errors.assinaturaMotorista || errors.selfieResponsavel || errors.selfieMotorista) && (
-                        <p className="text-sm text-destructive mt-2">Selfie e assinatura de ambos são obrigatórias.</p>
-                     )}
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
                      <div className="grid gap-4">

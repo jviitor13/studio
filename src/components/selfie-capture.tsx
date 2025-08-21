@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { compressImage } from '@/lib/image-compressor';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { cn } from '@/lib/utils';
 
 interface SelfieCaptureProps {
   onCapture: (imageDataUrl: string) => void;
@@ -24,6 +25,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -69,6 +71,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
 
   const handleActivateCamera = () => {
     setMode('streaming');
+    setIsConfirmed(false);
   };
 
   const handleTakePhoto = useCallback(async () => {
@@ -108,12 +111,14 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   const handleRetake = () => {
     setCapturedImage(null);
     onCapture('');
+    setIsConfirmed(false);
     setMode('idle');
   };
 
   const handleConfirm = () => {
     if (capturedImage) {
       onCapture(capturedImage);
+      setIsConfirmed(true);
       setMode('idle');
     }
   };
@@ -172,9 +177,14 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
               <RefreshCw className="mr-2 h-4 w-4" />
               Tirar Novamente
             </Button>
-            <Button type="button" onClick={handleConfirm}>
+            <Button 
+              type="button" 
+              onClick={handleConfirm}
+              className={cn(isConfirmed && 'bg-green-600 hover:bg-green-700')}
+              disabled={isConfirmed}
+            >
               <Check className="mr-2 h-4 w-4" />
-              Confirmar Foto
+              {isConfirmed ? 'Confirmada' : 'Confirmar Foto'}
             </Button>
           </>
         )}
