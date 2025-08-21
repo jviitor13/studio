@@ -287,6 +287,18 @@ export default function RetroactiveChecklistPage() {
         setSubmissionStatus('');
     }
   };
+
+  const handleMarkAllOk = () => {
+    fields.forEach((_item, index) => {
+        const currentItem = getValues(`questions.${index}`);
+        update(index, { ...currentItem, status: 'OK' });
+    });
+    trigger("questions");
+    toast({
+        title: "Tudo OK!",
+        description: "Todos os itens foram marcados como 'OK'.",
+    });
+  }
   
   const selectedTemplateId = watch('templateId');
 
@@ -445,8 +457,16 @@ export default function RetroactiveChecklistPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Itens de Verificação</CardTitle>
-                    <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Itens de Verificação</CardTitle>
+                            <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={handleMarkAllOk}>
+                            <CheckCircle className="mr-2 h-4 w-4 text-green-600"/>
+                            Marcar Todos como OK
+                        </Button>
+                    </div>
                     {errors.questions && typeof errors.questions.message === 'string' && (
                         <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>
                     )}
