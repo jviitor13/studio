@@ -415,51 +415,6 @@ export default function RetroactiveChecklistPage() {
                     </div>
                 </CardContent>
             </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Fotos Gerais do Veículo</CardTitle>
-                    <CardDescription>Anexe as 6 fotos obrigatórias do conjunto (cavalo e carreta).</CardDescription>
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
-                    <div className="space-y-6">
-                        <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
-                        <div className="grid gap-4">
-                            <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
-                            {errors.vehicleImages?.cavaloFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloFrontal.message}</p>}
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
-                            {errors.vehicleImages?.cavaloLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralDireita.message}</p>}
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
-                            {errors.vehicleImages?.cavaloLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralEsquerda.message}</p>}
-                        </div>
-                    </div>
-                     <div className="space-y-6">
-                        <h3 className="font-semibold text-lg text-center">Carreta</h3>
-                        <div className="grid gap-4">
-                            <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
-                            {errors.vehicleImages?.carretaFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.carretaFrontal.message}</p>}
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
-                            {errors.vehicleImages?.carretaLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralDireita.message}</p>}
-                        </div>
-                         <div className="grid gap-4">
-                            <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
-                            {errors.vehicleImages?.carretaLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralEsquerda.message}</p>}
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             <Card>
                 <CardHeader>
@@ -510,6 +465,51 @@ export default function RetroactiveChecklistPage() {
                             </div>
                          );
                     })}
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Fotos Gerais do Veículo</CardTitle>
+                    <CardDescription>Anexe as 6 fotos obrigatórias do conjunto (cavalo e carreta).</CardDescription>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
+                    <div className="space-y-6">
+                        <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
+                        <div className="grid gap-4">
+                            <Label>Foto Frontal *</Label>
+                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.cavaloFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloFrontal.message}</p>}
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Direita *</Label>
+                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.cavaloLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralDireita.message}</p>}
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Esquerda *</Label>
+                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.cavaloLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralEsquerda.message}</p>}
+                        </div>
+                    </div>
+                     <div className="space-y-6">
+                        <h3 className="font-semibold text-lg text-center">Carreta</h3>
+                        <div className="grid gap-4">
+                            <Label>Foto Frontal *</Label>
+                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.carretaFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.carretaFrontal.message}</p>}
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Direita *</Label>
+                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.carretaLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralDireita.message}</p>}
+                        </div>
+                         <div className="grid gap-4">
+                            <Label>Foto Lateral Esquerda *</Label>
+                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            {errors.vehicleImages?.carretaLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralEsquerda.message}</p>}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -579,3 +579,5 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
+
+    
