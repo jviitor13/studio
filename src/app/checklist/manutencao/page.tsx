@@ -48,7 +48,7 @@ const checklistSchema = z.object({
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
-  questions: z.array(checklistItemSchema).refine(data => data.every(item => item.status !== 'N/A'), {
+  questions: z.array(checklistItemSchema).min(1, "O checklist deve ter pelo menos um item.").refine(data => data.every(item => item.status !== 'N/A'), {
     message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
     path: ["root"],
   }),
@@ -289,7 +289,6 @@ export default function MaintenanceChecklistPage() {
   };
   
   const selectedTemplateId = watch('templateId');
-  const isSubmitDisabled = isSubmitting || !selectedTemplateId;
 
 
   return (
@@ -543,7 +542,7 @@ export default function MaintenanceChecklistPage() {
             </Card>
             
             <CardFooter className="border-t px-6 py-4">
-                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitDisabled}>
+                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting}>
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
