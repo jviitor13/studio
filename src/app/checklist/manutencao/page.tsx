@@ -50,7 +50,6 @@ const checklistSchema = z.object({
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
   questions: z.array(checklistItemSchema).min(1, "O checklist deve ter pelo menos um item.").refine(data => data.every(item => item.status !== 'N/A'), {
     message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
-    path: ["root"],
   }),
   vehicleImages: z.object({
     cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
@@ -108,7 +107,7 @@ export default function MaintenanceChecklistPage() {
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     register,
     watch,
     getValues,
@@ -199,9 +198,11 @@ export default function MaintenanceChecklistPage() {
     }
   }
   
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (data: ChecklistFormValues) => {
     const checklistId = `checklist-${Date.now()}`;
+    setIsSubmitting(true);
     
     try {
         const imagesToUpload: {field: string, content: string, index?: number, subField?: string}[] = [];
@@ -282,6 +283,7 @@ export default function MaintenanceChecklistPage() {
             description: `Não foi possível finalizar o checklist. Detalhes: ${error.message}`,
         });
     } finally {
+        setIsSubmitting(false);
         setIsReviewing(false);
         setUploadProgress(0);
         setSubmissionStatus('');
@@ -407,8 +409,8 @@ export default function MaintenanceChecklistPage() {
                 <CardHeader>
                     <CardTitle>Itens de Verificação</CardTitle>
                     <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
-                    {errors.questions?.root && (
-                        <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>
+                    {errors.questions && (
+                        <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>
                     )}
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -542,7 +544,7 @@ export default function MaintenanceChecklistPage() {
             </Card>
             
             <CardFooter className="border-t px-6 py-4">
-                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting}>
+                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting || !selectedTemplateId}>
                     {isSubmitting ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -560,3 +562,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
