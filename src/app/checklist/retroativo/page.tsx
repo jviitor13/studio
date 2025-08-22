@@ -50,6 +50,7 @@ const checklistSchema = z.object({
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
   questions: z.array(checklistItemSchema).min(1, "O checklist deve ter pelo menos um item.").refine(data => data.every(item => item.status !== 'N/A'), {
     message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
+    path: ["root"],
   }),
   vehicleImages: z.object({
     cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
@@ -290,16 +291,20 @@ export default function RetroactiveChecklistPage() {
     }
   };
 
-  const handleMarkAllOk = async () => {
+  const handleMarkAllOk = () => {
     fields.forEach((_item, index) => {
         const currentItem = getValues(`questions.${index}`);
         update(index, { ...currentItem, status: 'OK' });
     });
-    await trigger(); // Trigger validation for the whole form
-    toast({
-        title: "Tudo OK!",
-        description: "Todos os itens foram marcados como 'OK'.",
-    });
+
+    // Use a timeout to allow the state updates to propagate before triggering validation
+    setTimeout(() => {
+        trigger("questions");
+        toast({
+            title: "Tudo OK!",
+            description: "Todos os itens foram marcados como 'OK'.",
+        });
+    }, 100);
   }
   
   const selectedTemplateId = watch('templateId');
@@ -430,8 +435,8 @@ export default function RetroactiveChecklistPage() {
                             Marcar Todos como OK
                         </Button>
                     </div>
-                    {errors.questions && (
-                        <p className="text-sm text-destructive mt-2">{errors.questions.message}</p>
+                    {errors.questions?.root && (
+                        <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>
                     )}
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -564,14 +569,7 @@ export default function RetroactiveChecklistPage() {
             
             <CardFooter className="border-t px-6 py-4">
                  <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting || !selectedTemplateId}>
-                    {isSubmitting ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Enviando...
-                        </>
-                    ) : (
-                        'Revisar e Finalizar Checklist'
-                    )}
+                    Revisar e Finalizar Checklist
                 </Button>
             </CardFooter>
           </>
@@ -581,5 +579,7 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
+
+    
 
     
