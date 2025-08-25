@@ -48,10 +48,7 @@ const checklistSchema = z.object({
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
-  questions: z.array(checklistItemSchema).min(1, "O checklist deve ter pelo menos um item.").refine(data => data.every(item => item.status !== 'N/A'), {
-    message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
-    path: ["root"],
-  }),
+  questions: z.array(checklistItemSchema).min(1, "O checklist deve ter pelo menos um item."),
   vehicleImages: z.object({
     cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
     cavaloLateralDireita: z.string().min(1, "A foto da lateral direita do cavalo é obrigatória."),
@@ -60,6 +57,12 @@ const checklistSchema = z.object({
     carretaLateralDireita: z.string().min(1, "A foto da lateral direita da carreta é obrigatória."),
     carretaLateralEsquerda: z.string().min(1, "A foto da lateral esquerda da carreta é obrigatória."),
   }),
+}).refine(data => {
+    const allItemsChecked = data.questions.every(q => q.status !== 'N/A');
+    return allItemsChecked;
+}, {
+    message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
+    path: ["questions.root"], 
 });
 
 
