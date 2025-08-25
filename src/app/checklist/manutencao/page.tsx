@@ -104,7 +104,7 @@ export default function MaintenanceChecklistPage() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     register,
     watch,
     getValues,
@@ -208,8 +208,6 @@ export default function MaintenanceChecklistPage() {
         });
     }
   }
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (data: ChecklistFormValues) => {
     const checklistId = `checklist-${Date.now()}`;

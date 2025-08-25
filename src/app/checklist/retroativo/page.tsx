@@ -74,6 +74,7 @@ export default function RetroactiveChecklistPage() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submissionStatus, setSubmissionStatus] = useState('');
+  const [shouldTriggerValidation, setShouldTriggerValidation] = useState(false);
 
 
   useEffect(() => {
@@ -301,20 +302,28 @@ export default function RetroactiveChecklistPage() {
     }
   };
 
+  const currentQuestions = watch('questions');
+
+  useEffect(() => {
+      if (shouldTriggerValidation) {
+          trigger('questions');
+          setShouldTriggerValidation(false);
+          toast({
+              title: "Tudo OK!",
+              description: "Todos os itens foram marcados como 'OK'.",
+          });
+      }
+  }, [currentQuestions, shouldTriggerValidation, trigger, toast]);
+
+
   const handleMarkAllOk = () => {
     fields.forEach((_item, index) => {
         const currentItem = getValues(`questions.${index}`);
-        update(index, { ...currentItem, status: 'OK' });
+        if (currentItem.status !== 'OK') {
+            update(index, { ...currentItem, status: 'OK' });
+        }
     });
-
-    // Use a timeout to allow the state updates to propagate before triggering validation
-    setTimeout(() => {
-        trigger();
-        toast({
-            title: "Tudo OK!",
-            description: "Todos os itens foram marcados como 'OK'.",
-        });
-    }, 100);
+    setShouldTriggerValidation(true);
   }
   
   const selectedTemplateId = watch('templateId');
