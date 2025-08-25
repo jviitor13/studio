@@ -48,7 +48,7 @@ const checklistSchema = z.object({
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
-  questions: z.array(checklistItemSchema).min(1, "O checklist deve ter pelo menos um item."),
+  questions: z.array(checklistItemSchema),
   vehicleImages: z.object({
     cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
     cavaloLateralDireita: z.string().min(1, "A foto da lateral direita do cavalo é obrigatória."),
@@ -74,6 +74,7 @@ export default function MaintenanceChecklistPage() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submissionStatus, setSubmissionStatus] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export default function MaintenanceChecklistPage() {
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     register,
     watch,
     getValues,
@@ -134,7 +135,7 @@ export default function MaintenanceChecklistPage() {
         carretaLateralEsquerda: '',
       }
     },
-    mode: 'onChange',
+    mode: 'onBlur',
   });
 
   const { fields, replace, update } = useFieldArray({
@@ -160,11 +161,11 @@ export default function MaintenanceChecklistPage() {
             observation: '',
         }));
         replace(newQuestions);
-        trigger();
     } else {
         setValue('templateId', '');
         replace([]);
     }
+    trigger();
   }, [templates, replace, setValue, trigger]);
 
 
@@ -175,17 +176,13 @@ export default function MaintenanceChecklistPage() {
             ...data,
         };
         update(currentItem.index, updatedItem);
-        // Delay trigger to allow state to update before validation
-        setTimeout(() => trigger("questions"), 100); 
+        setTimeout(() => trigger(`questions.${currentItem.index}`), 100); 
     }
     setCurrentItem(null);
   }, [currentItem, fields, update, trigger]);
 
   const handleReview = async () => {
-    // First, trigger standard validation for all fields defined in the schema
     const isFormValid = await trigger();
-
-    // Then, manually check if all checklist questions have been evaluated
     const questions = getValues("questions");
     const allQuestionsAnswered = questions.every(q => q.status !== 'N/A');
 
@@ -195,7 +192,7 @@ export default function MaintenanceChecklistPage() {
             title: "Checklist Incompleto",
             description: "Existem itens de checklist pendentes. Por favor, avalie todos os itens.",
         });
-        return; // Stop the process if questions are pending
+        return;
     }
 
     if(isFormValid && allQuestionsAnswered) {
@@ -204,7 +201,7 @@ export default function MaintenanceChecklistPage() {
         toast({
             variant: "destructive",
             title: "Campos Inválidos",
-            description: "Por favor, preencha todos os campos obrigatórios antes de finalizar.",
+            description: "Por favor, preencha todos os campos obrigatórios antes de finalizar. Verifique os campos marcados em vermelho.",
         });
     }
   }
@@ -214,62 +211,58 @@ export default function MaintenanceChecklistPage() {
     setIsSubmitting(true);
     
     try {
-        const imagesToUpload: {field: string, content: string, index?: number, subField?: string}[] = [];
+        const dataToSave = JSON.parse(JSON.stringify(data));
+        const imagesToUpload: {field: keyof ChecklistFormValues | `vehicleImages.${keyof ChecklistFormValues['vehicleImages']}` | `questions.${number}.photo`, content: string}[] = [];
 
-        if (data.selfieResponsavel) imagesToUpload.push({ field: 'selfieResponsavel', content: data.selfieResponsavel });
-        if (data.selfieMotorista) imagesToUpload.push({ field: 'selfieMotorista', content: data.selfieMotorista });
-        if (data.assinaturaResponsavel) imagesToUpload.push({ field: 'assinaturaResponsavel', content: data.assinaturaResponsavel });
-        if (data.assinaturaMotorista) imagesToUpload.push({ field: 'assinaturaMotorista', content: data.assinaturaMotorista });
+        if (data.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ field: 'selfieResponsavel', content: data.selfieResponsavel });
+        if (data.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ field: 'selfieMotorista', content: data.selfieMotorista });
+        if (data.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ field: 'assinaturaResponsavel', content: data.assinaturaResponsavel });
+        if (data.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ field: 'assinaturaMotorista', content: data.assinaturaMotorista });
 
         Object.entries(data.vehicleImages).forEach(([key, value]) => {
-            if (value) imagesToUpload.push({ field: `vehicleImages`, content: value, subField: key });
+            if (value?.startsWith('data:image')) {
+                imagesToUpload.push({ field: `vehicleImages.${key as keyof ChecklistFormValues['vehicleImages']}`, content: value });
+            }
         });
-
         data.questions.forEach((q, index) => {
-            if (q.photo) imagesToUpload.push({ field: `questions`, content: q.photo, index: index, subField: 'photo' });
-        });
-
-        const totalImages = imagesToUpload.filter(img => img.content.startsWith('data:image')).length;
-        let uploadedCount = 0;
-        
-        setUploadProgress(0);
-        setSubmissionStatus('Iniciando envio das imagens...');
-        
-        // Create a deep copy of the data to modify
-        const processedData = JSON.parse(JSON.stringify(data));
-
-        const uploadPromises = imagesToUpload.map(async (img) => {
-            if (img.content.startsWith('data:image')) {
-                const uniqueFilename = `${img.field}-${img.subField || ''}-${img.index || ''}-${Date.now()}`;
-                const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
-                uploadedCount++;
-                const newProgress = totalImages > 0 ? Math.round((uploadedCount / totalImages) * 100) : 100;
-                setUploadProgress(newProgress);
-                setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
-
-                // Update the correct nested field in the deep copy (processedData)
-                if (img.field === 'questions' && img.index !== undefined && img.subField) {
-                    processedData.questions[img.index][img.subField] = url;
-                } else if (img.field === 'vehicleImages' && img.subField) {
-                    processedData.vehicleImages[img.subField] = url;
-                } else {
-                    processedData[img.field as keyof typeof processedData] = url;
-                }
+            if (q.photo?.startsWith('data:image')) {
+                imagesToUpload.push({ field: `questions.${index}.photo`, content: q.photo });
             }
         });
 
-        await Promise.all(uploadPromises);
+        const totalImages = imagesToUpload.length;
+        setUploadProgress(0);
+        
+        for (let i = 0; i < totalImages; i++) {
+            const img = imagesToUpload[i];
+            const uniqueFilename = `${img.field.replace(/\./g, '-')}-${Date.now()}`;
+            setSubmissionStatus(`Enviando imagem ${i + 1} de ${totalImages}...`);
+
+            const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
+            
+            const fieldPath = img.field.split('.');
+            if (fieldPath.length === 3 && fieldPath[0] === 'questions') { // e.g. questions.0.photo
+                dataToSave.questions[parseInt(fieldPath[1])].photo = url;
+            } else if (fieldPath.length === 2 && fieldPath[0] === 'vehicleImages') { // e.g. vehicleImages.cavaloFrontal
+                 (dataToSave.vehicleImages as any)[fieldPath[1]] = url;
+            } else { // e.g. selfieResponsavel
+                (dataToSave as any)[fieldPath[0]] = url;
+            }
+
+            setUploadProgress(Math.round(((i + 1) / totalImages) * 100));
+        }
+
         setSubmissionStatus('Finalizando o checklist...');
 
-        const hasIssues = processedData.questions.some((q: any) => q.status === "Não OK");
+        const hasIssues = dataToSave.questions.some((q: any) => q.status === "Não OK");
         
         const submissionData = {
-            ...processedData,
-            vehicle: `${processedData.cavaloPlate} / ${processedData.carretaPlate}`,
-            name: templates.find(t => t.id === processedData.templateId)?.name || 'Checklist de Manutenção',
+            ...dataToSave,
+            vehicle: `${dataToSave.cavaloPlate} / ${dataToSave.carretaPlate}`,
+            name: templates.find(t => t.id === dataToSave.templateId)?.name || 'Checklist de Manutenção',
             type: "Manutenção",
-            category: templates.find(t => t.id === processedData.templateId)?.category || 'nao_aplicavel',
-            driver: processedData.driverName,
+            category: templates.find(t => t.id === dataToSave.templateId)?.category || 'nao_aplicavel',
+            driver: dataToSave.driverName,
             createdAt: Timestamp.now(),
             status: hasIssues ? "Pendente" : "OK",
             generalObservations: '',
@@ -418,9 +411,6 @@ export default function MaintenanceChecklistPage() {
                 <CardHeader>
                     <CardTitle>Itens de Verificação</CardTitle>
                     <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
-                    {errors.questions?.root && (
-                        <p className="text-sm text-destructive mt-2">{errors.questions.root.message}</p>
-                    )}
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {fields.map((item, index) => {
