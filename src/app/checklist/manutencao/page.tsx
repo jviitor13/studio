@@ -165,7 +165,7 @@ export default function MaintenanceChecklistPage() {
         setValue('templateId', '');
         replace([]);
     }
-    trigger();
+     trigger();
   }, [templates, replace, setValue, trigger]);
 
 
@@ -545,3 +545,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
