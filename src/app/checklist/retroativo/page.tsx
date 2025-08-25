@@ -57,12 +57,6 @@ const checklistSchema = z.object({
     carretaLateralDireita: z.string().min(1, "A foto da lateral direita da carreta é obrigatória."),
     carretaLateralEsquerda: z.string().min(1, "A foto da lateral esquerda da carreta é obrigatória."),
   }),
-}).refine(data => {
-    const allItemsChecked = data.questions.every(q => q.status !== 'N/A');
-    return allItemsChecked;
-}, {
-    message: "Todos os itens de verificação devem ser avaliados (OK ou Não OK).",
-    path: ["questions.root"], 
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
@@ -188,11 +182,25 @@ export default function RetroactiveChecklistPage() {
   }, [currentItem, fields, update, trigger]);
 
   const handleReview = async () => {
-    const isValid = await trigger();
-    if(isValid) {
+    // First, trigger standard validation for all fields defined in the schema
+    const isFormValid = await trigger();
+
+    // Then, manually check if all checklist questions have been evaluated
+    const questions = getValues("questions");
+    const allQuestionsAnswered = questions.every(q => q.status !== 'N/A');
+
+    if (!allQuestionsAnswered) {
+        toast({
+            variant: "destructive",
+            title: "Checklist Incompleto",
+            description: "Existem itens de checklist pendentes. Por favor, avalie todos os itens.",
+        });
+        return; // Stop the process if questions are pending
+    }
+
+    if(isFormValid && allQuestionsAnswered) {
         setIsReviewing(true);
     } else {
-        console.log(errors)
         toast({
             variant: "destructive",
             title: "Campos Inválidos",
@@ -301,7 +309,7 @@ export default function RetroactiveChecklistPage() {
 
     // Use a timeout to allow the state updates to propagate before triggering validation
     setTimeout(() => {
-        trigger("questions");
+        trigger();
         toast({
             title: "Tudo OK!",
             description: "Todos os itens foram marcados como 'OK'.",
@@ -581,7 +589,3 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
-
-    
-
-    
