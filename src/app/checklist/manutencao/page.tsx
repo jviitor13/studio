@@ -213,14 +213,16 @@ export default function MaintenanceChecklistPage() {
     try {
         const imagesToUpload: { path: string; content: string }[] = [];
         
-        // Populate imagesToUpload array
+        // Build the list of images to upload ONCE
         if (data.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ path: 'selfieResponsavel', content: data.selfieResponsavel });
         if (data.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ path: 'selfieMotorista', content: data.selfieMotorista });
         if (data.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ path: 'assinaturaResponsavel', content: data.assinaturaResponsavel });
         if (data.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ path: 'assinaturaMotorista', content: data.assinaturaMotorista });
+        
         Object.entries(data.vehicleImages).forEach(([key, value]) => {
             if (value?.startsWith('data:image')) imagesToUpload.push({ path: `vehicleImages.${key}`, content: value });
         });
+        
         data.questions.forEach((q, index) => {
             if (q.photo?.startsWith('data:image')) imagesToUpload.push({ path: `questions.${index}.photo`, content: q.photo });
         });
@@ -235,6 +237,7 @@ export default function MaintenanceChecklistPage() {
             
             const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
             
+            // Set the URL back into the form state
             setValue(img.path as any, url, { shouldValidate: false, shouldDirty: false });
             
             setUploadProgress(Math.round(((i + 1) / totalImages) * 100));
@@ -242,6 +245,7 @@ export default function MaintenanceChecklistPage() {
 
         setSubmissionStatus('Finalizando o checklist...');
         
+        // Get the final, clean data with URLs instead of base64 strings
         const finalData = getValues();
         const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
         
@@ -575,5 +579,7 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
 
     
