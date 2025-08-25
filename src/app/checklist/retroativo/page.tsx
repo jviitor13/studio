@@ -195,7 +195,7 @@ export default function RetroactiveChecklistPage() {
         return;
     }
 
-    if(isFormValid && allQuestionsAnswered) {
+    if(isFormValid) {
         setIsReviewing(true);
     } else {
         toast({
@@ -235,7 +235,6 @@ export default function RetroactiveChecklistPage() {
             
             const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
             
-            // Use setValue to update the form state with the URL
             setValue(img.path as any, url, { shouldValidate: false, shouldDirty: false });
             
             setUploadProgress(Math.round(((i + 1) / totalImages) * 100));
@@ -243,7 +242,6 @@ export default function RetroactiveChecklistPage() {
 
         setSubmissionStatus('Finalizando o checklist...');
         
-        // Get the latest form data with URLs
         const finalData = getValues();
         const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
         
@@ -472,7 +470,7 @@ export default function RetroactiveChecklistPage() {
                     })}
                 </CardContent>
             </Card>
-            
+
             <Card>
                 <CardHeader>
                     <CardTitle>Fotos Gerais do Veículo</CardTitle>

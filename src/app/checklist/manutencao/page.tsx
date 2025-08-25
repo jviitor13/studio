@@ -195,7 +195,7 @@ export default function MaintenanceChecklistPage() {
         return;
     }
 
-    if(isFormValid && allQuestionsAnswered) {
+    if(isFormValid) {
         setIsReviewing(true);
     } else {
         toast({
@@ -235,7 +235,6 @@ export default function MaintenanceChecklistPage() {
             
             const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
             
-            // Use setValue to update the form state with the URL
             setValue(img.path as any, url, { shouldValidate: false, shouldDirty: false });
             
             setUploadProgress(Math.round(((i + 1) / totalImages) * 100));
@@ -243,7 +242,6 @@ export default function MaintenanceChecklistPage() {
 
         setSubmissionStatus('Finalizando o checklist...');
         
-        // Get the latest form data with URLs
         const finalData = getValues();
         const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
         
@@ -284,6 +282,30 @@ export default function MaintenanceChecklistPage() {
   };
   
   const selectedTemplateId = watch('templateId');
+  const [shouldTriggerValidation, setShouldTriggerValidation] = useState(false);
+  const currentQuestions = watch('questions');
+
+   useEffect(() => {
+      if (shouldTriggerValidation) {
+          trigger('questions');
+          setShouldTriggerValidation(false);
+          toast({
+              title: "Tudo OK!",
+              description: "Todos os itens foram marcados como 'OK'.",
+          });
+      }
+  }, [currentQuestions, shouldTriggerValidation, trigger, toast]);
+
+
+  const handleMarkAllOk = () => {
+    fields.forEach((_item, index) => {
+        const currentItem = getValues(`questions.${index}`);
+        if (currentItem.status !== 'OK') {
+            update(index, { ...currentItem, status: 'OK' });
+        }
+    });
+    setShouldTriggerValidation(true);
+  }
 
 
   return (
@@ -400,8 +422,16 @@ export default function MaintenanceChecklistPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Itens de Verificação</CardTitle>
-                    <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Itens de Verificação</CardTitle>
+                            <CardDescription>Avalie cada item da lista abaixo.</CardDescription>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={handleMarkAllOk}>
+                            <CheckCircle className="mr-2 h-4 w-4 text-green-600"/>
+                            Marcar Todos como OK
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {fields.map((item, index) => {
