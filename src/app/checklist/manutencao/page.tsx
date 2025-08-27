@@ -206,81 +206,111 @@ export default function MaintenanceChecklistPage() {
     }
   }
 
-  const onSubmit = async (data: ChecklistFormValues) => {
+ const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
+    setSubmissionStatus('Iniciando envio...');
+    setUploadProgress(0);
+
     const checklistId = `checklist-${Date.now()}`;
-    const finalData = { ...data };
+    
+    // 1. Create a "clean" data object with only non-image data
+    const submissionData: any = {
+      templateId: data.templateId,
+      cavaloPlate: data.cavaloPlate,
+      carretaPlate: data.carretaPlate,
+      responsibleName: data.responsibleName,
+      driverName: data.driverName,
+      mileage: data.mileage,
+      questions: data.questions.map(q => ({
+        id: q.id,
+        text: q.text,
+        photoRequirement: q.photoRequirement,
+        status: q.status,
+        observation: q.observation || '',
+        photo: '', // Initialize photo URL as empty
+      })),
+      vehicleImages: {
+        cavaloFrontal: '',
+        cavaloLateralDireita: '',
+        cavaloLateralEsquerda: '',
+        carretaFrontal: '',
+        carretaLateralDireita: '',
+        carretaLateralEsquerda: '',
+      },
+      assinaturaResponsavel: '',
+      assinaturaMotorista: '',
+      selfieResponsavel: '',
+      selfieMotorista: '',
+    };
+    
+    // 2. Collect all images that need uploading into a flat array
+    const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
+    if (data.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieResponsavel', dataUrl: data.selfieResponsavel });
+    if (data.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieMotorista', dataUrl: data.selfieMotorista });
+    if (data.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaResponsavel', dataUrl: data.assinaturaResponsavel });
+    if (data.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaMotorista', dataUrl: data.assinaturaMotorista });
 
+    Object.entries(data.vehicleImages).forEach(([key, value]) => {
+      if (value?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
+    });
+
+    data.questions.forEach((q, index) => {
+      if (q.photo?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
+    });
+    
+    const totalImages = imagesToUpload.length;
+    
     try {
-        const imagesToUpload: { fieldPath: keyof typeof finalData | `questions.${number}.photo` | `vehicleImages.${keyof ChecklistFormValues['vehicleImages']}`; dataUrl: string }[] = [];
-
-        // Collect all images that need uploading
-        if (finalData.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieResponsavel', dataUrl: finalData.selfieResponsavel });
-        if (finalData.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieMotorista', dataUrl: finalData.selfieMotorista });
-        if (finalData.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaResponsavel', dataUrl: finalData.assinaturaResponsavel });
-        if (finalData.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaMotorista', dataUrl: finalData.assinaturaMotorista });
-
-        Object.entries(finalData.vehicleImages).forEach(([key, value]) => {
-            if (value?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `vehicleImages.${key as keyof ChecklistFormValues['vehicleImages']}`, dataUrl: value });
-        });
-
-        finalData.questions.forEach((q, index) => {
-            if (q.photo?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
-        });
-
-        let uploadedCount = 0;
-        const totalImages = imagesToUpload.length;
-        setUploadProgress(0);
+      // 3. Upload all images in parallel
+      if (totalImages > 0) {
         setSubmissionStatus(`Enviando ${totalImages} imagens...`);
-
-        // Create an array of upload promises
-        const uploadPromises = imagesToUpload.map(img =>
-            uploadImageAndGetURL(img.dataUrl, checklistId, `${img.fieldPath.replace(/\./g, '-')}-${Date.now()}`)
-                .then(url => {
-                    // This will be called for each successful upload
-                    uploadedCount++;
-                    setUploadProgress(Math.round((uploadedCount / totalImages) * 100));
-                    setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`)
-                    return { fieldPath: img.fieldPath, url };
-                })
+        const uploadPromises = imagesToUpload.map((imgInfo, index) =>
+          uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`)
+            .then(url => {
+              setUploadProgress(prev => prev + (1 / totalImages) * 100);
+              return { fieldPath: imgInfo.fieldPath, url };
+            })
         );
         
-        // Wait for all uploads to complete
         const uploadedImages = await Promise.all(uploadPromises);
 
-        // Update the finalData object with the new URLs
+        // 4. Populate the submissionData object with the returned URLs
         uploadedImages.forEach(({ fieldPath, url }) => {
             const pathParts = fieldPath.split('.');
-            let currentLevel: any = finalData;
+            let currentLevel: any = submissionData;
             for (let i = 0; i < pathParts.length - 1; i++) {
                 currentLevel = currentLevel[pathParts[i]];
             }
             currentLevel[pathParts[pathParts.length - 1]] = url;
         });
+      }
 
-        setSubmissionStatus('Finalizando o checklist...');
-        const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
-        
-        const submissionData = {
-            ...finalData,
-            vehicle: `${finalData.cavaloPlate} / ${finalData.carretaPlate}`,
-            name: templates.find(t => t.id === finalData.templateId)?.name || 'Checklist de Manutenção',
-            type: "Manutenção",
-            category: templates.find(t => t.id === finalData.templateId)?.category || 'nao_aplicavel',
-            driver: finalData.driverName,
-            createdAt: Timestamp.now(),
-            status: hasIssues ? "Pendente" : "OK",
-            generalObservations: '',
-        };
+      setSubmissionStatus('Finalizando o checklist...');
+      setUploadProgress(100);
 
-        const checklistDocRef = await addDoc(collection(db, 'completed-checklists'), submissionData);
-        
-        toast({
-            title: "Sucesso!",
-            description: "Checklist de manutenção finalizado com sucesso.",
-        });
-        
-        router.push(`/checklist/completed/${checklistDocRef.id}`);
+      // 5. Save the final, clean data to Firestore
+      const hasIssues = data.questions.some((q) => q.status === "Não OK");
+      
+      const finalChecklistData = {
+          ...submissionData,
+          vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
+          name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
+          type: "Manutenção",
+          category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
+          driver: data.driverName,
+          createdAt: Timestamp.now(),
+          status: hasIssues ? "Pendente" : "OK",
+          generalObservations: '',
+      };
+
+      const checklistDocRef = await addDoc(collection(db, 'completed-checklists'), finalChecklistData);
+      
+      toast({
+          title: "Sucesso!",
+          description: "Checklist de manutenção finalizado com sucesso.",
+      });
+      
+      router.push(`/checklist/completed/${checklistDocRef.id}`);
 
     } catch (error: any) {
         console.error("Checklist submission error:", error);
@@ -591,3 +621,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
