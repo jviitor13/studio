@@ -207,46 +207,58 @@ export default function RetroactiveChecklistPage() {
   }
 
  const onSubmit = async (data: ChecklistFormValues) => {
-    const checklistId = `checklist-${Date.now()}`;
     setIsSubmitting(true);
-    
+    const checklistId = `checklist-${Date.now()}`;
+    const finalData = { ...data };
+
     try {
-        const imagesToUpload: { path: string; content: string }[] = [];
-        
-        // Build the list of images to upload ONCE
-        if (data.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ path: 'selfieResponsavel', content: data.selfieResponsavel });
-        if (data.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ path: 'selfieMotorista', content: data.selfieMotorista });
-        if (data.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ path: 'assinaturaResponsavel', content: data.assinaturaResponsavel });
-        if (data.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ path: 'assinaturaMotorista', content: data.assinaturaMotorista });
-        
-        Object.entries(data.vehicleImages).forEach(([key, value]) => {
-            if (value?.startsWith('data:image')) imagesToUpload.push({ path: `vehicleImages.${key}`, content: value });
-        });
-        
-        data.questions.forEach((q, index) => {
-            if (q.photo?.startsWith('data:image')) imagesToUpload.push({ path: `questions.${index}.photo`, content: q.photo });
+        const imagesToUpload: { fieldPath: keyof typeof finalData | `questions.${number}.photo` | `vehicleImages.${keyof ChecklistFormValues['vehicleImages']}`; dataUrl: string }[] = [];
+
+        // Collect all images that need uploading
+        if (finalData.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieResponsavel', dataUrl: finalData.selfieResponsavel });
+        if (finalData.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieMotorista', dataUrl: finalData.selfieMotorista });
+        if (finalData.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaResponsavel', dataUrl: finalData.assinaturaResponsavel });
+        if (finalData.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaMotorista', dataUrl: finalData.assinaturaMotorista });
+
+        Object.entries(finalData.vehicleImages).forEach(([key, value]) => {
+            if (value?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `vehicleImages.${key as keyof ChecklistFormValues['vehicleImages']}`, dataUrl: value });
         });
 
+        finalData.questions.forEach((q, index) => {
+            if (q.photo?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
+        });
+        
+        let uploadedCount = 0;
         const totalImages = imagesToUpload.length;
         setUploadProgress(0);
+        setSubmissionStatus(`Enviando ${totalImages} imagens...`);
 
-        for (let i = 0; i < totalImages; i++) {
-            const img = imagesToUpload[i];
-            const uniqueFilename = `${img.path.replace(/\./g, '-')}-${Date.now()}`;
-            setSubmissionStatus(`Enviando imagem ${i + 1} de ${totalImages}...`);
-            
-            const url = await uploadImageAndGetURL(img.content, checklistId, uniqueFilename);
-            
-            // Set the URL back into the form state
-            setValue(img.path as any, url, { shouldValidate: false, shouldDirty: false });
-            
-            setUploadProgress(Math.round(((i + 1) / totalImages) * 100));
-        }
+        // Create an array of upload promises
+        const uploadPromises = imagesToUpload.map(img =>
+            uploadImageAndGetURL(img.dataUrl, checklistId, `${img.fieldPath.replace(/\./g, '-')}-${Date.now()}`)
+                .then(url => {
+                    // This will be called for each successful upload
+                    uploadedCount++;
+                    setUploadProgress(Math.round((uploadedCount / totalImages) * 100));
+                    setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`)
+                    return { fieldPath: img.fieldPath, url };
+                })
+        );
+        
+        // Wait for all uploads to complete
+        const uploadedImages = await Promise.all(uploadPromises);
+
+        // Update the finalData object with the new URLs
+        uploadedImages.forEach(({ fieldPath, url }) => {
+            const pathParts = fieldPath.split('.');
+            let currentLevel: any = finalData;
+            for (let i = 0; i < pathParts.length - 1; i++) {
+                currentLevel = currentLevel[pathParts[i]];
+            }
+            currentLevel[pathParts[pathParts.length - 1]] = url;
+        });
 
         setSubmissionStatus('Finalizando o checklist...');
-        
-        // Get the final, clean data with URLs instead of base64 strings
-        const finalData = getValues();
         const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
         
         const submissionData = {
@@ -579,7 +591,3 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
-
-    
-
-    
