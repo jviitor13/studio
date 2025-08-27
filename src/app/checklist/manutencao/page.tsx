@@ -259,31 +259,27 @@ export default function MaintenanceChecklistPage() {
     });
     
     const totalImages = imagesToUpload.length;
+    let uploadedCount = 0;
     
     try {
-      // 3. Upload all images in parallel
-      if (totalImages > 0) {
-        setSubmissionStatus(`Enviando ${totalImages} imagens...`);
-        const uploadPromises = imagesToUpload.map((imgInfo, index) =>
-          uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`)
-            .then(url => {
-              setUploadProgress(prev => prev + (1 / totalImages) * 100);
-              return { fieldPath: imgInfo.fieldPath, url };
-            })
-        );
+      // 3. Upload all images sequentially
+      for (const imgInfo of imagesToUpload) {
+        uploadedCount++;
+        setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
         
-        const uploadedImages = await Promise.all(uploadPromises);
+        const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
 
-        // 4. Populate the submissionData object with the returned URLs
-        uploadedImages.forEach(({ fieldPath, url }) => {
-            const pathParts = fieldPath.split('.');
-            let currentLevel: any = submissionData;
-            for (let i = 0; i < pathParts.length - 1; i++) {
-                currentLevel = currentLevel[pathParts[i]];
-            }
-            currentLevel[pathParts[pathParts.length - 1]] = url;
-        });
+        // 4. Populate the submissionData object with the returned URL
+        const pathParts = imgInfo.fieldPath.split('.');
+        let currentLevel: any = submissionData;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            currentLevel = currentLevel[pathParts[i]];
+        }
+        currentLevel[pathParts[pathParts.length - 1]] = url;
+
+        setUploadProgress((uploadedCount / totalImages) * 100);
       }
+
 
       setSubmissionStatus('Finalizando o checklist...');
       setUploadProgress(100);
