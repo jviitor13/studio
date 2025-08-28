@@ -5,7 +5,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
-import { collection, Timestamp, query, where, addDoc, getDocs, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, Timestamp, query, where, addDoc, getDocs, doc, setDoc, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -222,7 +222,6 @@ export default function MaintenanceChecklistPage() {
 
         try {
             if (currentStep === 1) {
-                // Create document and store its ID
                 const data = getValues();
                 const newChecklistId = `checklist-${Date.now()}`;
                 const checklistRef = doc(db, 'completed-checklists', newChecklistId);
@@ -241,17 +240,15 @@ export default function MaintenanceChecklistPage() {
                     driver: data.driverName,
                     createdAt: Timestamp.now(),
                     status: "Em Andamento",
-                    questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation })), // Save text-only data initially
+                    questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation })),
                 };
                 await setDoc(checklistRef, submissionData);
                 setChecklistId(newChecklistId);
-
             } else if (checklistId) {
                 const data = getValues();
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
                 const batch = writeBatch(db);
 
-                // Handle image uploads for the current step
                 let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
                 
                 if (currentStep === 2) {
@@ -266,7 +263,6 @@ export default function MaintenanceChecklistPage() {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
-                     batch.update(checklistRef, { questions: questions.map(q => ({id: q.id, text: q.text, status: q.status, observation: q.observation})) });
                 } else if (currentStep === 3) {
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
@@ -289,16 +285,19 @@ export default function MaintenanceChecklistPage() {
                     batch.update(checklistRef, { [imgInfo.fieldPath]: url });
                     setUploadProgress(25 * (currentStep -1) + (uploadedCount / imagesToUpload.length) * 25);
                 }
+
+                if (currentStep === 2) {
+                    batch.update(checklistRef, { questions: data.questions.map(q => ({id: q.id, text: q.text, status: q.status, observation: q.observation})) });
+                }
                 
                 await batch.commit();
 
-                // Final step: finalize the checklist
                 if (currentStep === 4) {
                     const hasIssues = data.questions.some((q) => q.status === "Não OK");
                     await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK" });
                     toast({ title: "Sucesso!", description: "Checklist de manutenção finalizado com sucesso." });
                     router.push(`/checklist/completed/${checklistId}`);
-                    return; // Exit after final submission
+                    return;
                 }
             }
              if (currentStep < formSteps.length) {
@@ -318,7 +317,6 @@ export default function MaintenanceChecklistPage() {
 
 
  const onSubmit = (data: ChecklistFormValues) => {
-    // This function is now mainly for triggering validation and the final step logic
     handleNextStep();
  }
   

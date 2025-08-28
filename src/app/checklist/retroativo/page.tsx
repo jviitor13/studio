@@ -5,7 +5,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
-import { collection, Timestamp, query, where, addDoc, getDocs, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, Timestamp, query, where, addDoc, getDocs, doc, setDoc, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -265,7 +265,6 @@ export default function RetroactiveChecklistPage() {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
-                     batch.update(checklistRef, { questions: questions.map(q => ({id: q.id, text: q.text, status: q.status, observation: q.observation})) });
                 } else if (currentStep === 3) {
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
@@ -287,6 +286,10 @@ export default function RetroactiveChecklistPage() {
                     const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
                     batch.update(checklistRef, { [imgInfo.fieldPath]: url });
                     setUploadProgress(25 * (currentStep -1) + (uploadedCount / imagesToUpload.length) * 25);
+                }
+
+                if(currentStep === 2) {
+                     batch.update(checklistRef, { questions: data.questions.map(q => ({id: q.id, text: q.text, status: q.status, observation: q.observation})) });
                 }
                 
                 await batch.commit();
