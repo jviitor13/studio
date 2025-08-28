@@ -222,10 +222,11 @@ export default function RetroactiveChecklistPage() {
 
         try {
             if (currentStep === 1) {
-                // Create document and store its ID
                 const data = getValues();
                 const newChecklistId = `checklist-${Date.now()}`;
                 const checklistRef = doc(db, 'completed-checklists', newChecklistId);
+                const selectedTemplate = templates.find(t => t.id === data.templateId);
+                
                 const submissionData = {
                     id: newChecklistId,
                     templateId: data.templateId,
@@ -235,24 +236,30 @@ export default function RetroactiveChecklistPage() {
                     driverName: data.driverName,
                     mileage: data.mileage,
                     vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
-                    name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
+                    name: selectedTemplate?.name || 'Checklist de Manutenção',
                     type: "Manutenção",
-                    category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
+                    category: selectedTemplate?.category || 'nao_aplicavel',
                     driver: data.driverName,
                     createdAt: Timestamp.now(),
                     status: "Em Andamento",
-                    questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation })),
+                    questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation || '' })),
                 };
+                
+                Object.keys(submissionData).forEach(key => {
+                    if ((submissionData as any)[key] === undefined) {
+                        (submissionData as any)[key] = null; // or a default value
+                    }
+                });
+
                 await setDoc(checklistRef, submissionData);
                 setChecklistId(newChecklistId);
-
             } else if (checklistId) {
                 const data = getValues();
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
-                const batch = writeBatch(db);
-
-                let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
                 
+                const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
+                let updateData: { [key: string]: any } = {};
+
                 if (currentStep === 2) {
                      const questions = data.questions;
                      if (questions.some(q => q.status === 'N/A')) {
@@ -265,18 +272,21 @@ export default function RetroactiveChecklistPage() {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
+                    updateData.questions = questions.map(q => ({ ...q, photo: q.photo?.startsWith('data:image') ? '' : q.photo }));
                 } else if (currentStep === 3) {
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
                         }
                     });
+                    updateData.vehicleImages = { ...data.vehicleImages };
                 } else if (currentStep === 4) {
                      Object.entries(data.signatures).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `signatures.${key}`, dataUrl: value });
                         }
                     });
+                    updateData.signatures = { ...data.signatures };
                 }
                 
                 let uploadedCount = 0;
@@ -284,18 +294,22 @@ export default function RetroactiveChecklistPage() {
                     uploadedCount++;
                     setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${imagesToUpload.length}...`);
                     const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
-                    batch.update(checklistRef, { [imgInfo.fieldPath]: url });
+
+                    const pathParts = imgInfo.fieldPath.split('.');
+                    let current = updateData;
+                    for (let i = 0; i < pathParts.length - 1; i++) {
+                        current = current[pathParts[i]];
+                    }
+                    current[pathParts[pathParts.length - 1]] = url;
+
                     setUploadProgress(25 * (currentStep -1) + (uploadedCount / imagesToUpload.length) * 25);
                 }
-
-                if(currentStep === 2) {
-                     batch.update(checklistRef, { questions: data.questions.map(q => ({id: q.id, text: q.text, status: q.status, observation: q.observation})) });
-                }
                 
-                await batch.commit();
+                await updateDoc(checklistRef, updateData);
 
                 if (currentStep === 4) {
-                    const hasIssues = data.questions.some((q) => q.status === "Não OK");
+                    const finalData = getValues();
+                    const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
                     await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK" });
                     toast({ title: "Sucesso!", description: "Checklist retroativo finalizado com sucesso." });
                     router.push(`/checklist/completed/${checklistId}`);
