@@ -244,12 +244,6 @@ export default function MaintenanceChecklistPage() {
                     status: "Em Andamento",
                     questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation || '' })),
                 };
-                
-                Object.keys(submissionData).forEach(key => {
-                    if ((submissionData as any)[key] === undefined) {
-                        (submissionData as any)[key] = null; // or a default value
-                    }
-                });
 
                 await setDoc(checklistRef, submissionData);
                 setChecklistId(newChecklistId);
@@ -626,3 +620,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
