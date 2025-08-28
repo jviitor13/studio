@@ -10,10 +10,12 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     status: 'OK' | 'Pendente' | 'Enviando' | 'Falhou';
     type: "Manutenção" | "viagem" | "retorno";
     questions: (Omit<ChecklistItem, 'status'> & { status: 'OK' | 'Não OK' | 'N/A' })[];
-    assinaturaResponsavel?: string;
-    assinaturaMotorista?: string;
-    selfieResponsavel?: string;
-    selfieMotorista?: string;
+    signatures?: {
+        assinaturaResponsavel?: string;
+        assinaturaMotorista?: string;
+        selfieResponsavel?: string;
+        selfieMotorista?: string;
+    },
     vehicleImages?: {
         cavaloFrontal: string;
         cavaloLateralDireita: string;

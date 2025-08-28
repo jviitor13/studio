@@ -197,34 +197,34 @@ export default function ChecklistCompletedPage() {
                                 {item.photo && <div className="mt-2"><img src={item.photo} alt="foto" className="rounded-md w-full max-w-xs"/></div>}
                             </div>
                             ))}
-                            {(checklist.assinaturaResponsavel || checklist.assinaturaMotorista) && (
+                            {(checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) && (
                                 <div className="p-3 border rounded-lg bg-muted/30">
                                     <p className="font-medium">Validação e Assinaturas</p>
                                      <div className="flex flex-col md:flex-row gap-8 mt-2">
-                                        {checklist.selfieResponsavel && (
+                                        {checklist.signatures?.selfieResponsavel && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Selfie Responsável: {checklist.responsibleName}</p>
-                                                <Image src={checklist.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                <Image src={checklist.signatures.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
                                             </div>
                                         )}
-                                        {checklist.assinaturaResponsavel && (
+                                        {checklist.signatures?.assinaturaResponsavel && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Assinatura Responsável</p>
-                                                <img src={checklist.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                <img src={checklist.signatures.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
                                             </div>
                                         )}
                                      </div>
                                       <div className="flex flex-col md:flex-row gap-8 mt-4">
-                                        {checklist.selfieMotorista && (
+                                        {checklist.signatures?.selfieMotorista && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Selfie Motorista: {checklist.driver}</p>
-                                                <Image src={checklist.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                <Image src={checklist.signatures.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
                                             </div>
                                         )}
-                                        {checklist.assinaturaMotorista && (
+                                        {checklist.signatures?.assinaturaMotorista && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Assinatura Motorista</p>
-                                                <img src={checklist.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                <img src={checklist.signatures.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
                                             </div>
                                         )}
                                      </div>

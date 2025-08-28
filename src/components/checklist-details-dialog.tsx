@@ -103,7 +103,7 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
             ))}
              {checklist.questions.length === 0 && <p className="text-center text-muted-foreground">Nenhum item de checklist para exibir.</p>}
 
-            {(checklist.assinaturaResponsavel || checklist.assinaturaMotorista) && (
+            {(checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) && (
                 <div className="p-3 border rounded-lg bg-muted/30">
                     <p className="font-medium mb-4">Validação e Assinaturas</p>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -111,16 +111,16 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
                         <div className="space-y-4">
                            <h4 className="font-semibold text-center md:text-left">Responsável Técnico</h4>
                            <p className="text-sm text-center md:text-left text-muted-foreground -mt-3">{checklist.responsibleName}</p>
-                            {checklist.selfieResponsavel && (
+                            {checklist.signatures.selfieResponsavel && (
                                 <div>
                                     <p className="text-sm font-medium flex items-center gap-2"><Camera className="h-4 w-4" /> Selfie</p>
-                                    <Image src={checklist.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover mt-1" />
+                                    <Image src={checklist.signatures.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover mt-1" />
                                 </div>
                             )}
-                            {checklist.assinaturaResponsavel && (
+                            {checklist.signatures.assinaturaResponsavel && (
                                 <div>
                                     <p className="text-sm font-medium flex items-center gap-2"><PenSquare className="h-4 w-4" /> Assinatura</p>
-                                    <img src={checklist.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24 mt-1" />
+                                    <img src={checklist.signatures.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24 mt-1" />
                                 </div>
                             )}
                         </div>
@@ -128,16 +128,16 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
                         <div className="space-y-4">
                            <h4 className="font-semibold text-center md:text-left">Motorista</h4>
                             <p className="text-sm text-center md:text-left text-muted-foreground -mt-3">{checklist.driver}</p>
-                            {checklist.selfieMotorista && (
+                            {checklist.signatures.selfieMotorista && (
                                 <div>
                                     <p className="text-sm font-medium flex items-center gap-2"><Camera className="h-4 w-4" /> Selfie</p>
-                                    <Image src={checklist.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover mt-1" />
+                                    <Image src={checklist.signatures.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover mt-1" />
                                 </div>
                             )}
-                            {checklist.assinaturaMotorista && (
+                            {checklist.signatures.assinaturaMotorista && (
                                 <div>
                                     <p className="text-sm font-medium flex items-center gap-2"><PenSquare className="h-4 w-4" /> Assinatura</p>
-                                    <img src={checklist.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24 mt-1" />
+                                    <img src={checklist.signatures.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24 mt-1" />
                                 </div>
                             )}
                         </div>

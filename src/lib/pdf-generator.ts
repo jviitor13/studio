@@ -57,11 +57,11 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     doc.text('Responsável Técnico', margin, currentY);
     currentY += 8;
     
-    if (checklist.selfieResponsavel) {
-      doc.addImage(checklist.selfieResponsavel, 'JPEG', margin, currentY, selfieWidth, selfieHeight);
+    if (checklist.signatures?.selfieResponsavel) {
+      doc.addImage(checklist.signatures.selfieResponsavel, 'JPEG', margin, currentY, selfieWidth, selfieHeight);
     }
-    if (checklist.assinaturaResponsavel) {
-        doc.addImage(checklist.assinaturaResponsavel, 'PNG', margin + selfieWidth + 10, currentY + 5, signatureWidth, signatureHeight);
+    if (checklist.signatures?.assinaturaResponsavel) {
+        doc.addImage(checklist.signatures.assinaturaResponsavel, 'PNG', margin + selfieWidth + 10, currentY + 5, signatureWidth, signatureHeight);
         doc.setDrawColor(150, 150, 150);
         doc.line(margin + selfieWidth + 10, currentY + 5 + signatureHeight + 2, margin + selfieWidth + 10 + signatureWidth, currentY + 5 + signatureHeight + 2);
         doc.setFontSize(10);
@@ -76,11 +76,11 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     doc.text('Motorista', margin, currentY);
     currentY += 8;
 
-    if (checklist.selfieMotorista) {
-      doc.addImage(checklist.selfieMotorista, 'JPEG', margin, currentY, selfieWidth, selfieHeight);
+    if (checklist.signatures?.selfieMotorista) {
+      doc.addImage(checklist.signatures.selfieMotorista, 'JPEG', margin, currentY, selfieWidth, selfieHeight);
     }
-     if (checklist.assinaturaMotorista) {
-        doc.addImage(checklist.assinaturaMotorista, 'PNG', margin + selfieWidth + 10, currentY + 5, signatureWidth, signatureHeight);
+     if (checklist.signatures?.assinaturaMotorista) {
+        doc.addImage(checklist.signatures.assinaturaMotorista, 'PNG', margin + selfieWidth + 10, currentY + 5, signatureWidth, signatureHeight);
         doc.setDrawColor(150, 150, 150);
         doc.line(margin + selfieWidth + 10, currentY + 5 + signatureHeight + 2, margin + selfieWidth + 10 + signatureWidth, currentY + 5 + signatureHeight + 2);
         doc.setFontSize(10);
@@ -180,7 +180,7 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     }
   }
   
-  if (checklist.assinaturaResponsavel || checklist.assinaturaMotorista) {
+  if (checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) {
       addValidationSection();
   }
 

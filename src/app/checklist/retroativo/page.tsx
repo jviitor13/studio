@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, Edit } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Edit, ArrowLeft, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
 import { ChecklistTemplate } from '@/lib/checklist-templates-data';
@@ -37,6 +37,22 @@ const checklistItemSchema = z.object({
   observation: z.string().optional(),
 });
 
+const vehicleImagesSchema = z.object({
+    cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
+    cavaloLateralDireita: z.string().min(1, "A foto da lateral direita do cavalo é obrigatória."),
+    cavaloLateralEsquerda: z.string().min(1, "A foto da lateral esquerda do cavalo é obrigatória."),
+    carretaFrontal: z.string().min(1, "A foto frontal da carreta é obrigatória."),
+    carretaLateralDireita: z.string().min(1, "A foto da lateral direita da carreta é obrigatória."),
+    carretaLateralEsquerda: z.string().min(1, "A foto da lateral esquerda da carreta é obrigatória."),
+});
+
+const signaturesSchema = z.object({
+  assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
+  assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
+  selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
+  selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
+});
+
 const checklistSchema = z.object({
   templateId: z.string().min(1, 'A seleção de um modelo de checklist é obrigatória.'),
   cavaloPlate: z.string().min(7, 'A placa do cavalo é obrigatória.').max(8, 'Placa inválida.'),
@@ -44,23 +60,20 @@ const checklistSchema = z.object({
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
   driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
-  assinaturaResponsavel: z.string().min(1, "A assinatura do responsável é obrigatória."),
-  assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
-  selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
-  selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
   questions: z.array(checklistItemSchema).min(1, 'O checklist deve ter pelo menos um item.'),
-  vehicleImages: z.object({
-    cavaloFrontal: z.string().min(1, "A foto frontal do cavalo é obrigatória."),
-    cavaloLateralDireita: z.string().min(1, "A foto da lateral direita do cavalo é obrigatória."),
-    cavaloLateralEsquerda: z.string().min(1, "A foto da lateral esquerda do cavalo é obrigatória."),
-    carretaFrontal: z.string().min(1, "A foto frontal da carreta é obrigatória."),
-    carretaLateralDireita: z.string().min(1, "A foto da lateral direita da carreta é obrigatória."),
-    carretaLateralEsquerda: z.string().min(1, "A foto da lateral esquerda da carreta é obrigatória."),
-  }),
+  vehicleImages: vehicleImagesSchema,
+  signatures: signaturesSchema,
 });
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 type ChecklistItemData = z.infer<typeof checklistItemSchema>;
+
+const formSteps = [
+    { id: 1, title: 'Informações Gerais', fields: ['templateId', 'cavaloPlate', 'carretaPlate', 'responsibleName', 'driverName', 'mileage'] },
+    { id: 2, title: 'Itens de Verificação', fields: ['questions'] },
+    { id: 3, title: 'Fotos Gerais do Veículo', fields: ['vehicleImages'] },
+    { id: 4, title: 'Validação e Assinaturas', fields: ['signatures'] },
+];
 
 export default function RetroactiveChecklistPage() {
   const { toast } = useToast();
@@ -75,6 +88,7 @@ export default function RetroactiveChecklistPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submissionStatus, setSubmissionStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
 
   useEffect(() => {
@@ -121,10 +135,6 @@ export default function RetroactiveChecklistPage() {
       responsibleName: user?.displayName || '',
       driverName: '',
       mileage: 0,
-      assinaturaResponsavel: '',
-      assinaturaMotorista: '',
-      selfieResponsavel: '',
-      selfieMotorista: '',
       questions: [],
       vehicleImages: {
         cavaloFrontal: '',
@@ -133,6 +143,12 @@ export default function RetroactiveChecklistPage() {
         carretaFrontal: '',
         carretaLateralDireita: '',
         carretaLateralEsquerda: '',
+      },
+      signatures: {
+        assinaturaResponsavel: '',
+        assinaturaMotorista: '',
+        selfieResponsavel: '',
+        selfieMotorista: '',
       }
     },
     mode: 'onBlur',
@@ -165,7 +181,7 @@ export default function RetroactiveChecklistPage() {
         setValue('templateId', '');
         replace([]);
     }
-     trigger();
+     trigger('templateId');
   }, [templates, replace, setValue, trigger]);
 
 
@@ -181,30 +197,43 @@ export default function RetroactiveChecklistPage() {
     setCurrentItem(null);
   }, [currentItem, fields, update, trigger]);
 
-  const handleReview = async () => {
-    const isFormValid = await trigger();
-    const questions = getValues("questions");
-    const allQuestionsAnswered = questions.every(q => q.status !== 'N/A');
+  const handleNextStep = async () => {
+        const fieldsToValidate = formSteps[currentStep - 1].fields as (keyof ChecklistFormValues)[];
+        const isValid = await trigger(fieldsToValidate);
+        
+        if(currentStep === 2) {
+            const questions = getValues("questions");
+            const allQuestionsAnswered = questions.every(q => q.status !== 'N/A');
+            if(!allQuestionsAnswered) {
+                 toast({
+                    variant: "destructive",
+                    title: "Checklist Incompleto",
+                    description: "Existem itens de checklist pendentes. Por favor, avalie todos os itens.",
+                });
+                return;
+            }
+        }
 
-    if (!allQuestionsAnswered) {
-        toast({
-            variant: "destructive",
-            title: "Checklist Incompleto",
-            description: "Existem itens de checklist pendentes. Por favor, avalie todos os itens.",
-        });
-        return;
-    }
+        if (isValid) {
+            if (currentStep < formSteps.length) {
+                setCurrentStep(prev => prev + 1);
+            } else {
+                setIsReviewing(true);
+            }
+        } else {
+             toast({
+                variant: "destructive",
+                title: "Campos Incompletos",
+                description: `Por favor, preencha todos os campos obrigatórios da etapa "${formSteps[currentStep - 1].title}" antes de avançar.`,
+            });
+        }
+    };
 
-    if(isFormValid) {
-        setIsReviewing(true);
-    } else {
-        toast({
-            variant: "destructive",
-            title: "Campos Inválidos",
-            description: "Por favor, preencha todos os campos obrigatórios antes de finalizar. Verifique os campos marcados em vermelho.",
-        });
-    }
-  }
+    const handlePrevStep = () => {
+        if (currentStep > 1) {
+            setCurrentStep(prev => prev - 1);
+        }
+    };
 
  const onSubmit = async (data: ChecklistFormValues) => {
     setIsSubmitting(true);
@@ -212,78 +241,84 @@ export default function RetroactiveChecklistPage() {
     setUploadProgress(0);
 
     const checklistId = `checklist-${Date.now()}`;
-    const checklistDocRef = doc(db, 'completed-checklists', checklistId);
-
+    
     try {
-        // Etapa 1: Salvar os dados de texto primeiro
-        setSubmissionStatus('Salvando dados do checklist...');
-        const hasIssues = data.questions.some((q) => q.status === "Não OK");
-        const initialChecklistData = {
-            id: checklistId,
-            templateId: data.templateId,
-            cavaloPlate: data.cavaloPlate,
-            carretaPlate: data.carretaPlate,
-            responsibleName: data.responsibleName,
-            driverName: data.driverName,
-            mileage: data.mileage,
-            questions: data.questions.map(q => ({ ...q, photo: '' })), // Salva sem fotos inicialmente
-            vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
-            name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
-            type: "Manutenção",
-            category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
-            driver: data.driverName,
-            createdAt: Timestamp.now(),
-            status: "Enviando", // Status provisório
-        };
-        await setDoc(checklistDocRef, initialChecklistData);
+      // 1. Create a clean submission object with only text data
+      const submissionData: any = {
+        id: checklistId,
+        templateId: data.templateId,
+        cavaloPlate: data.cavaloPlate,
+        carretaPlate: data.carretaPlate,
+        responsibleName: data.responsibleName,
+        driverName: data.driverName,
+        mileage: data.mileage,
+        vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
+        name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
+        type: "Manutenção",
+        category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
+        driver: data.driverName,
+        createdAt: Timestamp.now(),
+        status: "Enviando", // Provisional status
+        questions: data.questions.map(q => ({
+            id: q.id,
+            text: q.text,
+            status: q.status,
+            observation: q.observation,
+        })),
+      };
 
-        // Etapa 2: Coletar e fazer upload das imagens
-        const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
-        const addImage = (fieldPath: string, dataUrl: string | undefined) => {
-            if (dataUrl?.startsWith('data:image')) {
-                imagesToUpload.push({ fieldPath, dataUrl });
-            }
-        };
+      // 2. Create the initial document in Firestore
+      setSubmissionStatus('Salvando dados do checklist...');
+      const checklistDocRef = doc(db, 'completed-checklists', checklistId);
+      await setDoc(checklistDocRef, submissionData);
+      
+      // 3. Collect all images that need to be uploaded
+      const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
+      const addImage = (fieldPath: string, dataUrl: string | undefined) => {
+          if (dataUrl?.startsWith('data:image')) {
+              imagesToUpload.push({ fieldPath, dataUrl });
+          }
+      };
+      
+      addImage('signatures.selfieResponsavel', data.signatures.selfieResponsavel);
+      addImage('signatures.selfieMotorista', data.signatures.selfieMotorista);
+      addImage('signatures.assinaturaResponsavel', data.signatures.assinaturaResponsavel);
+      addImage('signatures.assinaturaMotorista', data.signatures.assinaturaMotorista);
+      Object.entries(data.vehicleImages).forEach(([key, value]) => addImage(`vehicleImages.${key}`, value));
+      data.questions.forEach((q, index) => addImage(`questions.${index}.photo`, q.photo));
 
-        addImage('selfieResponsavel', data.selfieResponsavel);
-        addImage('selfieMotorista', data.selfieMotorista);
-        addImage('assinaturaResponsavel', data.assinaturaResponsavel);
-        addImage('assinaturaMotorista', data.assinaturaMotorista);
-        Object.entries(data.vehicleImages).forEach(([key, value]) => addImage(`vehicleImages.${key}`, value));
-        data.questions.forEach((q, index) => addImage(`questions.${index}.photo`, q.photo));
+      // 4. Upload images sequentially and update the document
+      let uploadedCount = 0;
+      const totalImages = imagesToUpload.length;
 
-        // Etapa 3: Upload sequencial das imagens
-        let uploadedCount = 0;
-        const totalImages = imagesToUpload.length;
+      for (const imgInfo of imagesToUpload) {
+          uploadedCount++;
+          setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
+          
+          const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
+          
+          const updateData: { [key: string]: string } = {};
+          updateData[imgInfo.fieldPath] = url;
+          await updateDoc(checklistDocRef, updateData);
 
-        for (const imgInfo of imagesToUpload) {
-            uploadedCount++;
-            setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
-            
-            const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
-            
-            // Atualiza o documento no Firestore com a URL da imagem
-            const updateData: { [key: string]: string } = {};
-            updateData[imgInfo.fieldPath] = url;
-            await updateDoc(checklistDocRef, updateData);
+          setUploadProgress((uploadedCount / totalImages) * 100);
+      }
 
-            setUploadProgress((uploadedCount / totalImages) * 100);
-        }
+      // 5. Finalize the checklist status
+      setSubmissionStatus('Finalizando...');
+      setUploadProgress(100);
 
-        // Etapa 4: Finalizar o checklist
-        setSubmissionStatus('Finalizando...');
-        setUploadProgress(100);
+      const hasIssues = data.questions.some((q) => q.status === "Não OK");
+      await updateDoc(checklistDocRef, {
+          status: hasIssues ? "Pendente" : "OK",
+      });
 
-        await updateDoc(checklistDocRef, {
-            status: hasIssues ? "Pendente" : "OK",
-        });
-
-        toast({
-            title: "Sucesso!",
-            description: "Checklist retroativo finalizado com sucesso.",
-        });
-        
-        router.push(`/checklist/completed/${checklistId}`);
+      toast({
+          title: "Sucesso!",
+          description: "Checklist retroativo finalizado com sucesso.",
+      });
+      
+      router.push(`/checklist/completed/${checklistId}`);
 
     } catch (error: any) {
         console.error("Checklist submission error:", error);
@@ -292,7 +327,7 @@ export default function RetroactiveChecklistPage() {
             title: "Erro no Envio",
             description: `Não foi possível finalizar o checklist. Detalhes: ${error.message}`,
         });
-        // Tenta reverter o status caso tenha falhado
+        const checklistDocRef = doc(db, 'completed-checklists', checklistId);
         await updateDoc(checklistDocRef, { status: "Falhou" }).catch();
     } finally {
         setIsSubmitting(false);
@@ -353,11 +388,12 @@ export default function RetroactiveChecklistPage() {
                 <p className="text-sm text-center text-muted-foreground">{submissionStatus}</p>
             </div>
         ) : (
-            <div className="text-sm space-y-2">
+            <div className="text-sm space-y-2 max-h-60 overflow-y-auto">
                 <p><strong>Cavalo:</strong> {getValues("cavaloPlate")}</p>
                 <p><strong>Carreta:</strong> {getValues("carretaPlate")}</p>
                 <p><strong>Responsável:</strong> {getValues("responsibleName")}</p>
                 <p><strong>Motorista:</strong> {getValues("driverName")}</p>
+                <p><strong>Itens com pendência:</strong> {getValues("questions").filter(q => q.status === 'Não OK').length}</p>
             </div>
         )}
         <AlertDialogFooter>
@@ -374,75 +410,78 @@ export default function RetroactiveChecklistPage() {
     <form onSubmit={(e) => e.preventDefault()} className="mx-auto grid w-full max-w-4xl gap-6">
       <PageHeader
         title="Checklist Retroativo (Admin)"
-        description="Preencha um checklist de manutenção com a opção de anexar fotos da galeria."
+        description={formSteps[currentStep - 1].title}
       />
       <div className="space-y-8">
-        <Card>
-            <CardHeader>
-                <CardTitle>Seleção de Modelo</CardTitle>
-                <CardDescription>Escolha o modelo de checklist a ser utilizado.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
-                    <Controller
-                        name="templateId"
-                        control={control}
-                        render={({ field }) => (
-                        <Select onValueChange={(value) => {
-                            field.onChange(value);
-                            handleTemplateChange(value);
-                        }} defaultValue={field.value}>
-                            <SelectTrigger id="templateId" className={cn(errors.templateId && "border-destructive")}>
-                                <SelectValue placeholder="Selecione o modelo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {templates.map(template => (
-                                    <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        )}
-                    />
-                )}
-                 {errors.templateId && <p className="text-sm text-destructive mt-2">{errors.templateId.message}</p>}
-            </CardContent>
-        </Card>
-
-      {selectedTemplateId && (
-          <>
+        
+        {currentStep === 1 && (
             <Card>
                 <CardHeader>
-                    <CardTitle>Informações Gerais</CardTitle>
+                    <CardTitle>Seleção de Modelo</CardTitle>
+                    <CardDescription>Escolha o modelo de checklist a ser utilizado.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-6">
-                     <div className="grid gap-2">
-                        <Label htmlFor="cavaloPlate">Placa do Cavalo *</Label>
-                        <Input id="cavaloPlate" placeholder="ABC1D23" {...register('cavaloPlate')} className={cn(errors.cavaloPlate && "border-destructive")} />
-                        {errors.cavaloPlate && <p className="text-sm text-destructive">{errors.cavaloPlate.message}</p>}
-                    </div>
-                     <div className="grid gap-2">
-                        <Label htmlFor="carretaPlate">Placa da Carreta *</Label>
-                        <Input id="carretaPlate" placeholder="ABC1D23" {...register('carretaPlate')} className={cn(errors.carretaPlate && "border-destructive")} />
-                        {errors.carretaPlate && <p className="text-sm text-destructive">{errors.carretaPlate.message}</p>}
-                    </div>
-                     <div className="grid gap-2">
-                        <Label htmlFor="mileage">Quilometragem Atual *</Label>
-                        <Input id="mileage" type="number" {...register('mileage')} className={cn(errors.mileage && "border-destructive")} />
-                        {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
-                    </div>
-                     <div className="grid gap-2">
-                        <Label htmlFor="responsibleName">Nome do Técnico Responsável *</Label>
-                        <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
-                         {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
-                    </div>
-                    <div className="grid gap-2 md:col-span-2">
-                        <Label htmlFor="driverName">Nome do Motorista *</Label>
-                        <Input id="driverName" {...register('driverName')} className={cn(errors.driverName && "border-destructive")} />
-                        {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
-                    </div>
+                <CardContent>
+                    {isLoadingTemplates ? <Skeleton className="h-10 w-full" /> : (
+                        <Controller
+                            name="templateId"
+                            control={control}
+                            render={({ field }) => (
+                            <Select onValueChange={(value) => {
+                                field.onChange(value);
+                                handleTemplateChange(value);
+                            }} defaultValue={field.value}>
+                                <SelectTrigger id="templateId" className={cn(errors.templateId && "border-destructive")}>
+                                    <SelectValue placeholder="Selecione o modelo" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {templates.map(template => (
+                                        <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            )}
+                        />
+                    )}
+                    {errors.templateId && <p className="text-sm text-destructive mt-2">{errors.templateId.message}</p>}
                 </CardContent>
+                {selectedTemplateId && (
+                    <>
+                    <CardHeader>
+                        <CardTitle>Informações Gerais</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 gap-6">
+                        <div className="grid gap-2">
+                            <Label htmlFor="cavaloPlate">Placa do Cavalo *</Label>
+                            <Input id="cavaloPlate" placeholder="ABC1D23" {...register('cavaloPlate')} className={cn(errors.cavaloPlate && "border-destructive")} />
+                            {errors.cavaloPlate && <p className="text-sm text-destructive">{errors.cavaloPlate.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="carretaPlate">Placa da Carreta *</Label>
+                            <Input id="carretaPlate" placeholder="ABC1D23" {...register('carretaPlate')} className={cn(errors.carretaPlate && "border-destructive")} />
+                            {errors.carretaPlate && <p className="text-sm text-destructive">{errors.carretaPlate.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="mileage">Quilometragem Atual *</Label>
+                            <Input id="mileage" type="number" {...register('mileage')} className={cn(errors.mileage && "border-destructive")} />
+                            {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="responsibleName">Nome do Técnico Responsável *</Label>
+                            <Input id="responsibleName" {...register('responsibleName')} className={cn(errors.responsibleName && "border-destructive")} />
+                            {errors.responsibleName && <p className="text-sm text-destructive">{errors.responsibleName.message}</p>}
+                        </div>
+                        <div className="grid gap-2 md:col-span-2">
+                            <Label htmlFor="driverName">Nome do Motorista *</Label>
+                            <Input id="driverName" {...register('driverName')} className={cn(errors.driverName && "border-destructive")} />
+                            {errors.driverName && <p className="text-sm text-destructive">{errors.driverName.message}</p>}
+                        </div>
+                    </CardContent>
+                    </>
+                )}
             </Card>
+        )}
 
+        {currentStep === 2 && (
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
@@ -491,7 +530,9 @@ export default function RetroactiveChecklistPage() {
                     })}
                 </CardContent>
             </Card>
+        )}
 
+        {currentStep === 3 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Fotos Gerais do Veículo</CardTitle>
@@ -536,7 +577,9 @@ export default function RetroactiveChecklistPage() {
                     </div>
                 </CardContent>
             </Card>
+        )}
 
+        {currentStep === 4 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Validação e Assinaturas</CardTitle>
@@ -546,51 +589,61 @@ export default function RetroactiveChecklistPage() {
                      <div className="grid gap-4">
                         <Label>Responsável Técnico: {watch('responsibleName')}</Label>
                         <Controller
-                            name="selfieResponsavel"
+                            name="signatures.selfieResponsavel"
                             control={control}
                             render={({ field }) => (
                                 <ImageUploader onCapture={field.onChange} allowGallery={true} />
                             )}
                         />
-                         {errors.selfieResponsavel && <p className="text-sm text-destructive -mt-2">{errors.selfieResponsavel.message}</p>}
+                         {errors.signatures?.selfieResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieResponsavel.message}</p>}
                         <Controller
-                            name="assinaturaResponsavel"
+                            name="signatures.assinaturaResponsavel"
                             control={control}
                             render={({ field }) => (
                                 <SignaturePad onEnd={field.onChange} />
                             )}
                         />
-                         {errors.assinaturaResponsavel && <p className="text-sm text-destructive -mt-2">{errors.assinaturaResponsavel.message}</p>}
+                         {errors.signatures?.assinaturaResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.assinaturaResponsavel.message}</p>}
                      </div>
                      <div className="grid gap-4">
                          <Label>Motorista: {watch('driverName')}</Label>
                         <Controller
-                            name="selfieMotorista"
+                            name="signatures.selfieMotorista"
                             control={control}
                             render={({ field }) => (
                                 <ImageUploader onCapture={field.onChange} allowGallery={true} />
                             )}
                         />
-                         {errors.selfieMotorista && <p className="text-sm text-destructive -mt-2">{errors.selfieMotorista.message}</p>}
+                         {errors.signatures?.selfieMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieMotorista.message}</p>}
                         <Controller
-                            name="assinaturaMotorista"
+                            name="signatures.assinaturaMotorista"
                             control={control}
                             render={({ field }) => (
                                 <SignaturePad onEnd={field.onChange} />
                             )}
                         />
-                         {errors.assinaturaMotorista && <p className="text-sm text-destructive -mt-2">{errors.assinaturaMotorista.message}</p>}
+                         {errors.signatures?.assinaturaMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.assinaturaMotorista.message}</p>}
                      </div>
                 </CardContent>
             </Card>
-            
-            <CardFooter className="border-t px-6 py-4">
-                 <Button type="button" size="lg" onClick={handleReview} disabled={isSubmitting || !selectedTemplateId}>
-                    Revisar e Finalizar Checklist
-                </Button>
-            </CardFooter>
-          </>
         )}
+            
+        <CardFooter className="border-t px-6 py-4 flex justify-between">
+            <div>
+                {currentStep > 1 && (
+                    <Button type="button" variant="outline" onClick={handlePrevStep} disabled={isSubmitting}>
+                        <ArrowLeft className="mr-2 h-4 w-4"/>
+                        Voltar
+                    </Button>
+                )}
+            </div>
+            <div>
+                <Button type="button" onClick={handleNextStep} disabled={isSubmitting || !selectedTemplateId}>
+                    {currentStep === formSteps.length ? 'Revisar e Finalizar' : 'Avançar'}
+                     {currentStep < formSteps.length && <ArrowRight className="ml-2 h-4 w-4"/>}
+                </Button>
+            </div>
+        </CardFooter>
         </div>
     </form>
     </>
