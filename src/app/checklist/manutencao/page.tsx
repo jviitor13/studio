@@ -5,7 +5,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
-import { collection, Timestamp, onSnapshot, query, where, addDoc, getDocs } from 'firebase/firestore';
+import { collection, Timestamp, onSnapshot, query, where, addDoc, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -212,101 +212,78 @@ export default function MaintenanceChecklistPage() {
     setUploadProgress(0);
 
     const checklistId = `checklist-${Date.now()}`;
-    
-    // 1. Create a "clean" data object with only non-image data
-    const submissionData: any = {
-      templateId: data.templateId,
-      cavaloPlate: data.cavaloPlate,
-      carretaPlate: data.carretaPlate,
-      responsibleName: data.responsibleName,
-      driverName: data.driverName,
-      mileage: data.mileage,
-      questions: data.questions.map(q => ({
-        id: q.id,
-        text: q.text,
-        photoRequirement: q.photoRequirement,
-        status: q.status,
-        observation: q.observation || '',
-        photo: '', // Initialize photo URL as empty
-      })),
-      vehicleImages: {
-        cavaloFrontal: '',
-        cavaloLateralDireita: '',
-        cavaloLateralEsquerda: '',
-        carretaFrontal: '',
-        carretaLateralDireita: '',
-        carretaLateralEsquerda: '',
-      },
-      assinaturaResponsavel: '',
-      assinaturaMotorista: '',
-      selfieResponsavel: '',
-      selfieMotorista: '',
-    };
-    
-    // 2. Collect all images that need uploading into a flat array
-    const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
-    if (data.selfieResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieResponsavel', dataUrl: data.selfieResponsavel });
-    if (data.selfieMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'selfieMotorista', dataUrl: data.selfieMotorista });
-    if (data.assinaturaResponsavel?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaResponsavel', dataUrl: data.assinaturaResponsavel });
-    if (data.assinaturaMotorista?.startsWith('data:image')) imagesToUpload.push({ fieldPath: 'assinaturaMotorista', dataUrl: data.assinaturaMotorista });
+    const checklistDocRef = doc(db, 'completed-checklists', checklistId);
 
-    Object.entries(data.vehicleImages).forEach(([key, value]) => {
-      if (value?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
-    });
-
-    data.questions.forEach((q, index) => {
-      if (q.photo?.startsWith('data:image')) imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
-    });
-    
-    const totalImages = imagesToUpload.length;
-    let uploadedCount = 0;
-    
     try {
-      // 3. Upload all images sequentially
-      for (const imgInfo of imagesToUpload) {
-        uploadedCount++;
-        setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
-        
-        const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
+        // Etapa 1: Salvar os dados de texto primeiro
+        setSubmissionStatus('Salvando dados do checklist...');
+        const hasIssues = data.questions.some((q) => q.status === "Não OK");
+        const initialChecklistData = {
+            id: checklistId,
+            templateId: data.templateId,
+            cavaloPlate: data.cavaloPlate,
+            carretaPlate: data.carretaPlate,
+            responsibleName: data.responsibleName,
+            driverName: data.driverName,
+            mileage: data.mileage,
+            questions: data.questions.map(q => ({ ...q, photo: '' })), // Salva sem fotos inicialmente
+            vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
+            name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
+            type: "Manutenção",
+            category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
+            driver: data.driverName,
+            createdAt: Timestamp.now(),
+            status: "Enviando", // Status provisório
+        };
+        await setDoc(checklistDocRef, initialChecklistData);
 
-        // 4. Populate the submissionData object with the returned URL
-        const pathParts = imgInfo.fieldPath.split('.');
-        let currentLevel: any = submissionData;
-        for (let i = 0; i < pathParts.length - 1; i++) {
-            currentLevel = currentLevel[pathParts[i]];
+        // Etapa 2: Coletar e fazer upload das imagens
+        const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
+        const addImage = (fieldPath: string, dataUrl: string | undefined) => {
+            if (dataUrl?.startsWith('data:image')) {
+                imagesToUpload.push({ fieldPath, dataUrl });
+            }
+        };
+
+        addImage('selfieResponsavel', data.selfieResponsavel);
+        addImage('selfieMotorista', data.selfieMotorista);
+        addImage('assinaturaResponsavel', data.assinaturaResponsavel);
+        addImage('assinaturaMotorista', data.assinaturaMotorista);
+        Object.entries(data.vehicleImages).forEach(([key, value]) => addImage(`vehicleImages.${key}`, value));
+        data.questions.forEach((q, index) => addImage(`questions.${index}.photo`, q.photo));
+
+        // Etapa 3: Upload sequencial das imagens
+        let uploadedCount = 0;
+        const totalImages = imagesToUpload.length;
+
+        for (const imgInfo of imagesToUpload) {
+            uploadedCount++;
+            setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
+            
+            const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
+            
+            // Atualiza o documento no Firestore com a URL da imagem
+            const updateData: { [key: string]: string } = {};
+            updateData[imgInfo.fieldPath] = url;
+            await updateDoc(checklistDocRef, updateData);
+
+            setUploadProgress((uploadedCount / totalImages) * 100);
         }
-        currentLevel[pathParts[pathParts.length - 1]] = url;
 
-        setUploadProgress((uploadedCount / totalImages) * 100);
-      }
+        // Etapa 4: Finalizar o checklist
+        setSubmissionStatus('Finalizando...');
+        setUploadProgress(100);
 
+        await updateDoc(checklistDocRef, {
+            status: hasIssues ? "Pendente" : "OK",
+        });
 
-      setSubmissionStatus('Finalizando o checklist...');
-      setUploadProgress(100);
-
-      // 5. Save the final, clean data to Firestore
-      const hasIssues = data.questions.some((q) => q.status === "Não OK");
-      
-      const finalChecklistData = {
-          ...submissionData,
-          vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
-          name: templates.find(t => t.id === data.templateId)?.name || 'Checklist de Manutenção',
-          type: "Manutenção",
-          category: templates.find(t => t.id === data.templateId)?.category || 'nao_aplicavel',
-          driver: data.driverName,
-          createdAt: Timestamp.now(),
-          status: hasIssues ? "Pendente" : "OK",
-          generalObservations: '',
-      };
-
-      const checklistDocRef = await addDoc(collection(db, 'completed-checklists'), finalChecklistData);
-      
-      toast({
-          title: "Sucesso!",
-          description: "Checklist de manutenção finalizado com sucesso.",
-      });
-      
-      router.push(`/checklist/completed/${checklistDocRef.id}`);
+        toast({
+            title: "Sucesso!",
+            description: "Checklist de manutenção finalizado com sucesso.",
+        });
+        
+        router.push(`/checklist/completed/${checklistId}`);
 
     } catch (error: any) {
         console.error("Checklist submission error:", error);
@@ -315,6 +292,8 @@ export default function MaintenanceChecklistPage() {
             title: "Erro no Envio",
             description: `Não foi possível finalizar o checklist. Detalhes: ${error.message}`,
         });
+        // Tenta reverter o status caso tenha falhado
+        await updateDoc(checklistDocRef, { status: "Falhou" }).catch();
     } finally {
         setIsSubmitting(false);
         setIsReviewing(false);
@@ -617,7 +596,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
-
-    
