@@ -218,8 +218,7 @@ export default function MaintenanceChecklistPage() {
 
         setIsSubmitting(true);
         setSubmissionStatus('Salvando progresso...');
-        setUploadProgress(25 * (currentStep -1));
-
+        
         try {
             if (currentStep === 1) {
                 const data = getValues();
@@ -233,22 +232,27 @@ export default function MaintenanceChecklistPage() {
                     cavaloPlate: data.cavaloPlate,
                     carretaPlate: data.carretaPlate,
                     responsibleName: data.responsibleName,
-                    driverName: data.driverName,
+                    driverName: data.driverName || '',
                     mileage: data.mileage,
                     vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
                     name: selectedTemplate?.name || 'Checklist de Manutenção',
-                    type: "Manutenção",
+                    type: selectedTemplate?.type || "Manutenção",
                     category: selectedTemplate?.category || 'nao_aplicavel',
-                    driver: data.driverName,
+                    driver: data.driverName || '',
                     createdAt: Timestamp.now(),
                     status: "Em Andamento",
-                    questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation || '' })),
+                    questions: data.questions.map(q => ({ 
+                        id: q.id, 
+                        text: q.text, 
+                        status: q.status, 
+                        observation: q.observation || ''
+                    })),
                 };
 
                 await setDoc(checklistRef, submissionData);
                 setChecklistId(newChecklistId);
             } else if (checklistId) {
-                 const data = getValues();
+                const data = getValues();
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
                 
                 const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
@@ -266,7 +270,7 @@ export default function MaintenanceChecklistPage() {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
-                    updateData.questions = questions.map(q => ({ ...q, photo: q.photo?.startsWith('data:image') ? '' : q.photo }));
+                    updateData.questions = data.questions; // Send all question data for update
                 } else if (currentStep === 3) {
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
@@ -284,28 +288,37 @@ export default function MaintenanceChecklistPage() {
                 }
 
                 let uploadedCount = 0;
+                setUploadProgress(25 * (currentStep - 1));
+                
                 for (const imgInfo of imagesToUpload) {
                     uploadedCount++;
                     setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${imagesToUpload.length}...`);
                     const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
                     
-                    // Set the URL in the updateData object using lodash.set or similar logic
                     const pathParts = imgInfo.fieldPath.split('.');
                     let current = updateData;
                     for (let i = 0; i < pathParts.length - 1; i++) {
+                        if (!current[pathParts[i]]) {
+                           if (pathParts[i] === 'questions') current[pathParts[i]] = [];
+                           else current[pathParts[i]] = {};
+                        }
                         current = current[pathParts[i]];
                     }
                     current[pathParts[pathParts.length - 1]] = url;
-
-                    setUploadProgress(25 * (currentStep -1) + (uploadedCount / imagesToUpload.length) * 25);
+                    
+                    await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
+                    setUploadProgress(25 * (currentStep - 1) + (uploadedCount / imagesToUpload.length) * 25);
                 }
 
-                await updateDoc(checklistRef, updateData);
-
+                // Update non-image fields if necessary
+                if (currentStep === 2) {
+                   await updateDoc(checklistRef, { questions: data.questions.map(q => ({...q, photo: q.photo?.startsWith('http') ? q.photo : ''})) });
+                }
+                
                 if (currentStep === 4) {
                     const finalData = getValues();
                     const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
-                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK" });
+                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK", signatures: updateData.signatures });
                     toast({ title: "Sucesso!", description: "Checklist de manutenção finalizado com sucesso." });
                     router.push(`/checklist/completed/${checklistId}`);
                     return;

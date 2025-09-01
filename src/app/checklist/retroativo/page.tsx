@@ -218,7 +218,6 @@ export default function RetroactiveChecklistPage() {
 
         setIsSubmitting(true);
         setSubmissionStatus('Salvando progresso...');
-        setUploadProgress(25 * (currentStep -1));
 
         try {
             if (currentStep === 1) {
@@ -233,16 +232,21 @@ export default function RetroactiveChecklistPage() {
                     cavaloPlate: data.cavaloPlate,
                     carretaPlate: data.carretaPlate,
                     responsibleName: data.responsibleName,
-                    driverName: data.driverName,
+                    driverName: data.driverName || '',
                     mileage: data.mileage,
                     vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
-                    name: selectedTemplate?.name || 'Checklist de Manutenção',
-                    type: "Manutenção",
+                    name: selectedTemplate?.name || 'Checklist Retroativo',
+                    type: selectedTemplate?.type || "Manutenção",
                     category: selectedTemplate?.category || 'nao_aplicavel',
-                    driver: data.driverName,
+                    driver: data.driverName || '',
                     createdAt: Timestamp.now(),
                     status: "Em Andamento",
-                    questions: data.questions.map(q => ({ id: q.id, text: q.text, status: q.status, observation: q.observation || '' })),
+                     questions: data.questions.map(q => ({ 
+                        id: q.id, 
+                        text: q.text, 
+                        status: q.status, 
+                        observation: q.observation || ''
+                    })),
                 };
                 
                 await setDoc(checklistRef, submissionData);
@@ -266,7 +270,7 @@ export default function RetroactiveChecklistPage() {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
-                    updateData.questions = questions.map(q => ({ ...q, photo: q.photo?.startsWith('data:image') ? '' : q.photo }));
+                    updateData.questions = data.questions; // Send all question data for update
                 } else if (currentStep === 3) {
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
@@ -284,27 +288,25 @@ export default function RetroactiveChecklistPage() {
                 }
                 
                 let uploadedCount = 0;
+                 setUploadProgress(25 * (currentStep - 1));
+
                 for (const imgInfo of imagesToUpload) {
                     uploadedCount++;
                     setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${imagesToUpload.length}...`);
                     const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
 
-                    const pathParts = imgInfo.fieldPath.split('.');
-                    let current = updateData;
-                    for (let i = 0; i < pathParts.length - 1; i++) {
-                        current = current[pathParts[i]];
-                    }
-                    current[pathParts[pathParts.length - 1]] = url;
-
-                    setUploadProgress(25 * (currentStep -1) + (uploadedCount / imagesToUpload.length) * 25);
+                    await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
+                    setUploadProgress(25 * (currentStep - 1) + (uploadedCount / imagesToUpload.length) * 25);
                 }
-                
-                await updateDoc(checklistRef, updateData);
+
+                if (currentStep === 2) {
+                   await updateDoc(checklistRef, { questions: data.questions.map(q => ({...q, photo: q.photo?.startsWith('http') ? q.photo : ''})) });
+                }
 
                 if (currentStep === 4) {
                     const finalData = getValues();
                     const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
-                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK" });
+                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK", signatures: updateData.signatures });
                     toast({ title: "Sucesso!", description: "Checklist retroativo finalizado com sucesso." });
                     router.push(`/checklist/completed/${checklistId}`);
                     return;
