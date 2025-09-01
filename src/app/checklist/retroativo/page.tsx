@@ -243,9 +243,11 @@ export default function RetroactiveChecklistPage() {
                     status: "Em Andamento",
                      questions: data.questions.map(q => ({ 
                         id: q.id, 
-                        text: q.text, 
+                        text: q.text,
+                        photoRequirement: q.photoRequirement, 
                         status: q.status, 
-                        observation: q.observation || ''
+                        observation: q.observation || '',
+                        photo: q.photo || '',
                     })),
                 };
                 
@@ -629,5 +631,7 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
+
+    
 
     

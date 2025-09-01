@@ -244,8 +244,10 @@ export default function MaintenanceChecklistPage() {
                     questions: data.questions.map(q => ({ 
                         id: q.id, 
                         text: q.text, 
+                        photoRequirement: q.photoRequirement,
                         status: q.status, 
-                        observation: q.observation || ''
+                        observation: q.observation || '',
+                        photo: q.photo || '',
                     })),
                 };
 
@@ -633,5 +635,7 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
 
     
