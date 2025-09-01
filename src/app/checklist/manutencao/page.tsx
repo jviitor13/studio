@@ -231,7 +231,7 @@ export default function MaintenanceChecklistPage() {
                     templateId: data.templateId,
                     cavaloPlate: data.cavaloPlate,
                     carretaPlate: data.carretaPlate,
-                    responsibleName: data.responsibleName,
+                    responsibleName: data.responsibleName || '',
                     driverName: data.driverName || '',
                     mileage: data.mileage,
                     vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
@@ -620,3 +620,5 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
