@@ -257,7 +257,7 @@ export default function MaintenanceChecklistPage() {
                 const data = getValues();
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
                 
-                const imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
+                let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
                 let updateData: { [key: string]: any } = {};
 
                 if (currentStep === 2) {
@@ -267,60 +267,45 @@ export default function MaintenanceChecklistPage() {
                         setIsSubmitting(false);
                         return;
                     }
+                    updateData.questions = data.questions; 
                      questions.forEach((q, index) => {
                         if(q.photo?.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
-                    updateData.questions = data.questions; // Send all question data for update
                 } else if (currentStep === 3) {
+                     updateData.vehicleImages = { ...data.vehicleImages };
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
                         }
                     });
-                     updateData.vehicleImages = { ...data.vehicleImages };
                 } else if (currentStep === 4) {
+                     updateData.signatures = { ...data.signatures };
                      Object.entries(data.signatures).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `signatures.${key}`, dataUrl: value });
                         }
                     });
-                     updateData.signatures = { ...data.signatures };
                 }
-
-                let uploadedCount = 0;
+                
                 setUploadProgress(25 * (currentStep - 1));
                 
-                for (const imgInfo of imagesToUpload) {
-                    uploadedCount++;
-                    setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${imagesToUpload.length}...`);
+                for (const [index, imgInfo] of imagesToUpload.entries()) {
+                    setSubmissionStatus(`Enviando imagem ${index + 1} de ${imagesToUpload.length}...`);
                     const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
-                    
-                    const pathParts = imgInfo.fieldPath.split('.');
-                    let current = updateData;
-                    for (let i = 0; i < pathParts.length - 1; i++) {
-                        if (!current[pathParts[i]]) {
-                           if (pathParts[i] === 'questions') current[pathParts[i]] = [];
-                           else current[pathParts[i]] = {};
-                        }
-                        current = current[pathParts[i]];
-                    }
-                    current[pathParts[pathParts.length - 1]] = url;
-                    
                     await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
-                    setUploadProgress(25 * (currentStep - 1) + (uploadedCount / imagesToUpload.length) * 25);
+                    setUploadProgress(25 * (currentStep - 1) + ((index + 1) / imagesToUpload.length) * 25);
                 }
 
-                // Update non-image fields if necessary
                 if (currentStep === 2) {
-                   await updateDoc(checklistRef, { questions: data.questions.map(q => ({...q, photo: q.photo?.startsWith('http') ? q.photo : ''})) });
+                   await updateDoc(checklistRef, { questions: data.questions });
                 }
                 
                 if (currentStep === 4) {
                     const finalData = getValues();
                     const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
-                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK", signatures: updateData.signatures });
+                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK", signatures: data.signatures });
                     toast({ title: "Sucesso!", description: "Checklist de manutenção finalizado com sucesso." });
                     router.push(`/checklist/completed/${checklistId}`);
                     return;
@@ -635,7 +620,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
-
-    
