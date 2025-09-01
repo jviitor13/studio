@@ -58,7 +58,7 @@ const checklistSchema = z.object({
   cavaloPlate: z.string().min(7, 'A placa do cavalo é obrigatória.').max(8, 'Placa inválida.'),
   carretaPlate: z.string().min(7, 'A placa da carreta é obrigatória.').max(8, 'Placa inválida.'),
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
-  driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
+  driverName: z.string().min(1, 'O nome do motorista é obrigatória.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
   questions: z.array(checklistItemSchema).min(1, 'O checklist deve ter pelo menos um item.'),
   vehicleImages: vehicleImagesSchema,
