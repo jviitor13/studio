@@ -25,7 +25,7 @@ import { db } from '@/lib/firebase';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { CompletedChecklist } from '@/lib/types';
 import { differenceInHours } from 'date-fns';
-import { Alert, AlertTitle } from '../ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import Link from 'next/link';
 
 // Mock data, in a real scenario this would come from Firestore.
