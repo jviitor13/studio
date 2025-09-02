@@ -240,11 +240,18 @@ export default function MaintenanceChecklistPage() {
             return;
         }
 
+        const data = getValues();
+        if (currentStep === 2) {
+            if (data.questions.some(q => q.status === 'N/A')) {
+                toast({ variant: "destructive", title: "Checklist Incompleto", description: "Avalie todos os itens antes de prosseguir." });
+                return;
+            }
+        }
+        
         setIsSubmitting(true);
         setSubmissionStatus('Salvando progresso...');
         
         try {
-            const data = getValues();
             if (currentStep === 1) {
                 const newChecklistId = `checklist-${Date.now()}`;
                 const selectedTemplate = templates.find(t => t.id === data.templateId);
@@ -294,28 +301,17 @@ export default function MaintenanceChecklistPage() {
 
             } else if (checklistId) {
                  let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
-                const data = getValues();
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
 
                 if (currentStep === 2) {
                     const questions = data.questions;
-                    if (questions.some(q => q.status === 'N/A')) {
-                        toast({ variant: "destructive", title: "Checklist Incompleto", description: "Avalie todos os itens antes de prosseguir." });
-                        setIsSubmitting(false);
-                        return;
-                    }
-                    const questionsData = questions.map(q => ({
-                        id: q.id, text: q.text, photoRequirement: q.photoRequirement,
-                        status: q.status, observation: q.observation, photo: q.photo
-                    }));
-
                     const questionsToUpdate = questions.map(q => ({
                        ...q,
                        photo: q.photo?.startsWith('data:image') ? '' : q.photo,
                     }));
                     await updateDoc(checklistRef, { questions: questionsToUpdate });
 
-                    questionsData.forEach((q, index) => {
+                    questions.forEach((q, index) => {
                         if(q.photo?.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
@@ -657,7 +653,3 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
-
-    
-
-    

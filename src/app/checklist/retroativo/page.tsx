@@ -239,12 +239,19 @@ export default function RetroactiveChecklistPage() {
             });
             return;
         }
+        
+        const data = getValues();
+        if (currentStep === 2) {
+            if (data.questions.some(q => q.status === 'N/A')) {
+                toast({ variant: "destructive", title: "Checklist Incompleto", description: "Avalie todos os itens antes de prosseguir." });
+                return;
+            }
+        }
 
         setIsSubmitting(true);
         setSubmissionStatus('Salvando progresso...');
 
         try {
-            const data = getValues();
             if (currentStep === 1) {
                 const newChecklistId = `checklist-${Date.now()}`;
                 const selectedTemplate = templates.find(t => t.id === data.templateId);
@@ -293,16 +300,10 @@ export default function RetroactiveChecklistPage() {
                 setChecklistId(newChecklistId);
             } else if (checklistId) {
                 let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
-                const data = getValues();
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
 
                 if (currentStep === 2) {
                      const questions = data.questions;
-                     if (questions.some(q => q.status === 'N/A')) {
-                        toast({ variant: "destructive", title: "Checklist Incompleto", description: "Avalie todos os itens antes de prosseguir." });
-                        setIsSubmitting(false);
-                        return;
-                    }
                      const questionsToUpdate = questions.map(q => ({
                        ...q,
                        photo: q.photo?.startsWith('data:image') ? '' : q.photo,
@@ -658,7 +659,3 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
-
-    
-
-    
