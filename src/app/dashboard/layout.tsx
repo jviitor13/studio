@@ -22,6 +22,7 @@ import {
   Package,
   MapPin,
   FileClock,
+  Upload,
 } from "lucide-react";
 import { Logo, ShipWheel } from "@/components/icons";
 import {
@@ -62,6 +63,7 @@ const getMenuItems = (role: string) => {
       { href: "/checklist/retroativo", label: "Checklist Retroativo", icon: FileClock, group: 'operacao' },
       { href: "/carga", label: "Controle de Carga", icon: Package, group: 'operacao' },
       { href: "/consultas", label: "Consultar Checklists", icon: Search, group: 'operacao' },
+      { href: "/envios", label: "Acompanhar Envios", icon: Upload, group: 'operacao' },
       { href: "/posicao-frota", label: "Posição da Frota", icon: ShipWheel, group: 'operacao' },
       // Gerenciamento
       { href: "/manutencoes", label: "Manutenções", icon: Wrench, group: 'gerenciamento' },

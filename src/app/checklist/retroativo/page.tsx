@@ -85,14 +85,12 @@ export default function RetroactiveChecklistPage() {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
 
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [submissionStatus, setSubmissionStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [checklistId, setChecklistId] = useState<string | null>(null);
 
   const uploadQueueRef = useRef<UploadQueueItem[]>([]);
-  const isUploadingRef = useRef(false);
+  const isProcessingQueue = useRef(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -194,6 +192,15 @@ export default function RetroactiveChecklistPage() {
             ...fields[currentItem.index],
             ...data,
         };
+
+         if (data.photo?.startsWith('data:image')) {
+            uploadQueueRef.current.push({
+                fieldPath: `questions.${currentItem.index}.photo`,
+                dataUrl: data.photo,
+            });
+            updatedItem.photo = ''; // Clear from form state
+        }
+
         update(currentItem.index, updatedItem);
         setTimeout(() => trigger(`questions.${currentItem.index}`), 100); 
     }
@@ -207,14 +214,14 @@ export default function RetroactiveChecklistPage() {
     };
     
     const processUploadQueue = useCallback(async (finalChecklistId: string) => {
-        if (isUploadingRef.current || uploadQueueRef.current.length === 0) return;
-
-        isUploadingRef.current = true;
+        if (isProcessingQueue.current || uploadQueueRef.current.length === 0) return;
+    
+        isProcessingQueue.current = true;
         
         const queue = [...uploadQueueRef.current];
         uploadQueueRef.current = [];
-
-        const batchSize = 3;
+    
+        const batchSize = 3; 
         for (let i = 0; i < queue.length; i += batchSize) {
             const batch = queue.slice(i, i + batchSize);
             await Promise.all(batch.map(async (imgInfo) => {
@@ -223,17 +230,19 @@ export default function RetroactiveChecklistPage() {
                     const checklistRef = doc(db, 'completed-checklists', finalChecklistId);
                     await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
                 } catch (e) {
-                    console.error("Failed to upload an image:", e);
+                    console.error("Failed to upload an image, will mark as failed:", imgInfo.fieldPath, e);
+                    await updateDoc(doc(db, 'completed-checklists', finalChecklistId), { status: "Falhou" });
                 }
             }));
         }
-
-        isUploadingRef.current = false;
+    
+        isProcessingQueue.current = false;
         
-        const finalData = getValues();
-        const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
-        await updateDoc(doc(db, 'completed-checklists', finalChecklistId), { status: hasIssues ? "Pendente" : "OK" });
-
+        const checklistRef = doc(db, 'completed-checklists', finalChecklistId);
+        const currentData = getValues();
+        const hasIssues = currentData.questions.some((q) => q.status === "Não OK");
+        await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK" });
+        
     }, [getValues]);
     
     const handleNextStep = async () => {
@@ -262,7 +271,6 @@ export default function RetroactiveChecklistPage() {
 
         try {
             if (currentStep === 1 && !checklistId) {
-                setSubmissionStatus('Criando checklist...');
                 const newChecklistId = `checklist-${Date.now()}`;
                 const selectedTemplate = templates.find(t => t.id === data.templateId);
                 
@@ -284,7 +292,7 @@ export default function RetroactiveChecklistPage() {
                     questions: data.questions.map(q => ({
                         id: q.id || '',
                         text: q.text || '',
-                        photoRequirement: q.photoRequirement || 'never',
+                        photoRequirement: q.photoRequirement,
                         status: q.status || 'N/A',
                         observation: q.observation || '',
                         photo: q.photo || '',
@@ -311,17 +319,18 @@ export default function RetroactiveChecklistPage() {
             } else if (checklistId) {
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
                 const currentData = getValues();
+                const batch = writeBatch(db);
 
                 if (currentStep === 2) {
-                     const questionsToUpdate = currentData.questions.map(q => {
+                     const questionsToUpdate = currentData.questions.map((q, index) => {
                         const { photo, ...rest } = q;
                         if (photo?.startsWith('data:image')) {
-                            uploadQueueRef.current.push({ fieldPath: `questions.${fields.findIndex(f => f.id === q.id)}.photo`, dataUrl: photo });
-                            return rest;
+                            uploadQueueRef.current.push({ fieldPath: `questions.${index}.photo`, dataUrl: photo });
+                            return {...rest, photo: ''};
                         }
                         return q;
                     });
-                    await updateDoc(checklistRef, { questions: questionsToUpdate });
+                    batch.update(checklistRef, { questions: questionsToUpdate });
                 } else if (currentStep === 3) {
                      Object.entries(currentData.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
@@ -335,15 +344,15 @@ export default function RetroactiveChecklistPage() {
                         }
                     });
                 }
+                await batch.commit();
             }
 
             if (currentStep < formSteps.length) {
                 setCurrentStep(prev => prev + 1);
             } else {
                 await updateDoc(doc(db, 'completed-checklists', checklistId!), { status: "Enviando" });
-                toast({ title: "Checklist Enviado!", description: "O checklist foi finalizado e as imagens estão sendo enviadas em segundo plano." });
                 router.push(`/checklist/completed/${checklistId}`);
-                processUploadQueue(checklistId!);
+                setTimeout(() => processUploadQueue(checklistId!), 500);
             }
         } catch (error: any) {
             console.error("Error during step progression:", error);
@@ -353,7 +362,6 @@ export default function RetroactiveChecklistPage() {
             }
         } finally {
             setIsSubmitting(false);
-            setSubmissionStatus('');
         }
     };
     
@@ -398,16 +406,16 @@ export default function RetroactiveChecklistPage() {
         onSave={handleSaveItem}
         allowGallery={true}
     />
-     <AlertDialog open={isSubmitting && submissionStatus !== ''}>
+     <AlertDialog open={isSubmitting}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Aguarde...</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {submissionStatus}
+                    Salvando seu progresso e preparando a próxima etapa.
                 </AlertDialogDescription>
             </AlertDialogHeader>
-            <div className="space-y-4 py-4">
-                <Progress value={uploadProgress} />
+            <div className="flex justify-center items-center py-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         </AlertDialogContent>
     </AlertDialog>
