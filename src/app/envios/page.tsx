@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CompletedChecklist } from "@/lib/types";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, Timestamp, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, where, Timestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import { format } from "date-fns";
@@ -50,10 +50,14 @@ const statusIcon: { [key: string]: React.ReactNode } = {
 
 const mapDocToChecklist = (doc: any): CompletedChecklist | null => {
     const data = doc.data();
-    // Defensive check to prevent crash on missing createdAt field
     if (!data.createdAt || !(data.createdAt instanceof Timestamp)) {
-        console.warn(`Document ${doc.id} is missing a valid 'createdAt' field.`);
-        return null; // Skip this document
+      // Return a valid date as a fallback to prevent crashing.
+      // The ideal solution is to ensure all documents have a valid createdAt field.
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: new Date().toISOString(),
+      } as CompletedChecklist;
     }
     
     const createdAt = data.createdAt.toDate().toISOString();
@@ -72,42 +76,39 @@ export default function EnviosPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
-  // Listener for 'Enviando' status
   React.useEffect(() => {
-    const q = query(collection(db, "completed-checklists"), where("status", "==", "Enviando"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qSending = query(collection(db, "completed-checklists"), where("status", "==", "Enviando"));
+    const unsubscribeSending = onSnapshot(qSending, (snapshot) => {
         const mappedData = snapshot.docs.map(mapDocToChecklist).filter(Boolean) as CompletedChecklist[];
         setSendingChecklists(mappedData);
-        setIsLoading(false);
     }, (error) => {
         console.error("Error fetching 'Enviando' checklists:", error);
         toast({ variant: "destructive", title: "Erro ao carregar envios" });
-        setIsLoading(false);
     });
-    return () => unsubscribe();
+    
+    return () => unsubscribeSending();
   }, [toast]);
 
-  // Listener for 'Falhou' status
   React.useEffect(() => {
-    const q = query(collection(db, "completed-checklists"), where("status", "==", "Falhou"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qFailed = query(collection(db, "completed-checklists"), where("status", "==", "Falhou"));
+    const unsubscribeFailed = onSnapshot(qFailed, (snapshot) => {
         const mappedData = snapshot.docs.map(mapDocToChecklist).filter(Boolean) as CompletedChecklist[];
         setFailedChecklists(mappedData);
-        setIsLoading(false);
     }, (error) => {
         console.error("Error fetching 'Falhou' checklists:", error);
         toast({ variant: "destructive", title: "Erro ao carregar envios com falha" });
-        setIsLoading(false);
     });
-    return () => unsubscribe();
+    
+    return () => unsubscribeFailed();
   }, [toast]);
 
-  // Combine and sort results
   React.useEffect(() => {
+      setIsLoading(true);
       const combined = [...sendingChecklists, ...failedChecklists];
       const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
       unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setProcessingChecklists(unique);
+      setIsLoading(false);
   }, [sendingChecklists, failedChecklists]);
   
   const formatDate = (dateString: string) => {
