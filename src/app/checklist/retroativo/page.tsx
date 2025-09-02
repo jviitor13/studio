@@ -4,7 +4,7 @@
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, Timestamp, query, where, addDoc, getDocs, doc, setDoc, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -67,6 +67,7 @@ const checklistSchema = z.object({
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 type ChecklistItemData = z.infer<typeof checklistItemSchema>;
+type UploadQueueItem = { fieldPath: string; dataUrl: string };
 
 const formSteps = [
     { id: 1, title: 'Informações Gerais', fields: ['templateId', 'cavaloPlate', 'carretaPlate', 'responsibleName', 'driverName', 'mileage'] },
@@ -90,6 +91,8 @@ export default function RetroactiveChecklistPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [checklistId, setChecklistId] = useState<string | null>(null);
 
+  const uploadQueueRef = useRef<UploadQueueItem[]>([]);
+  const isUploadingRef = useRef(false);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -204,29 +207,45 @@ export default function RetroactiveChecklistPage() {
             setCurrentStep(prev => prev - 1);
         }
     };
+    
+    const processUploadQueue = useCallback(async () => {
+        if (isUploadingRef.current || uploadQueueRef.current.length === 0 || !checklistId) return;
 
-    const processUploadsInBatches = async (imagesToUpload: { fieldPath: string; dataUrl: string }[], checklistId: string) => {
-        const batchSize = 3;
+        isUploadingRef.current = true;
+        const totalImagesToUpload = uploadQueueRef.current.length;
         let uploadedCount = 0;
-        const totalImages = imagesToUpload.length;
+        setSubmissionStatus(`Enviando imagens... (0/${totalImagesToUpload})`);
 
-        for (let i = 0; i < totalImages; i += batchSize) {
-            const batch = imagesToUpload.slice(i, i + batchSize);
-            
-            const uploadPromises = batch.map(async (imgInfo) => {
-                const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
-                const checklistRef = doc(db, 'completed-checklists', checklistId);
-                await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
+        const batchSize = 3;
+        const queue = [...uploadQueueRef.current];
+        uploadQueueRef.current = [];
 
-                uploadedCount++;
-                setSubmissionStatus(`Enviando imagem ${uploadedCount} de ${totalImages}...`);
-                setUploadProgress((uploadedCount / totalImages) * 100);
-            });
-
-            await Promise.all(uploadPromises);
+        for (let i = 0; i < queue.length; i += batchSize) {
+            const batch = queue.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (imgInfo) => {
+                try {
+                    const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
+                    const checklistRef = doc(db, 'completed-checklists', checklistId);
+                    await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
+                    uploadedCount++;
+                    setSubmissionStatus(`Enviando imagens... (${uploadedCount}/${totalImagesToUpload})`);
+                    setUploadProgress((uploadedCount / totalImagesToUpload) * 100);
+                } catch (e) {
+                    console.error("Failed to upload an image, re-queueing:", imgInfo.fieldPath, e);
+                    uploadQueueRef.current.push(imgInfo); // Re-queue failed uploads
+                }
+            }));
         }
-    };
 
+        isUploadingRef.current = false;
+        // If there are still items in the queue (due to failures), retry
+        if (uploadQueueRef.current.length > 0) {
+            setTimeout(processUploadQueue, 5000); // Retry after 5s
+        } else {
+            setSubmissionStatus('');
+        }
+    }, [checklistId]);
+    
     const handleNextStep = async () => {
         const fieldsToValidate = formSteps[currentStep - 1].fields as (keyof ChecklistFormValues)[];
         const isValid = await trigger(fieldsToValidate);
@@ -249,10 +268,10 @@ export default function RetroactiveChecklistPage() {
         }
 
         setIsSubmitting(true);
-        setSubmissionStatus('Salvando progresso...');
 
         try {
-            if (currentStep === 1) {
+            if (currentStep === 1 && !checklistId) {
+                setSubmissionStatus('Criando checklist...');
                 const newChecklistId = `checklist-${Date.now()}`;
                 const selectedTemplate = templates.find(t => t.id === data.templateId);
                 
@@ -299,51 +318,50 @@ export default function RetroactiveChecklistPage() {
                 await setDoc(checklistRef, submissionData);
                 setChecklistId(newChecklistId);
             } else if (checklistId) {
-                let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
 
                 if (currentStep === 2) {
-                     const questions = data.questions;
-                     const questionsToUpdate = questions.map(q => ({
+                     const questionsToUpdate = data.questions.map(q => ({
                        ...q,
                        photo: q.photo?.startsWith('data:image') ? '' : q.photo,
                     }));
                     await updateDoc(checklistRef, { questions: questionsToUpdate });
 
-                    questions.forEach((q, index) => {
+                    data.questions.forEach((q, index) => {
                         if(q.photo?.startsWith('data:image')) {
-                            imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
+                            uploadQueueRef.current.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
                 } else if (currentStep === 3) {
                      await updateDoc(checklistRef, { 'vehicleImages': {} });
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
-                            imagesToUpload.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
+                            uploadQueueRef.current.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
                         }
                     });
                 } else if (currentStep === 4) {
                      await updateDoc(checklistRef, { 'signatures': {} });
                      Object.entries(data.signatures).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
-                            imagesToUpload.push({ fieldPath: `signatures.${key}`, dataUrl: value });
+                            uploadQueueRef.current.push({ fieldPath: `signatures.${key}`, dataUrl: value });
                         }
                     });
                 }
-                
-                await processUploadsInBatches(imagesToUpload, checklistId);
-
-                if (currentStep === 4) {
-                    const finalData = getValues();
-                    const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
-                    await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK"});
-                    toast({ title: "Sucesso!", description: "Checklist retroativo finalizado com sucesso." });
-                    router.push(`/checklist/completed/${checklistId}`);
-                    return;
-                }
             }
-             if (currentStep < formSteps.length) {
+
+            if (currentStep < formSteps.length) {
                 setCurrentStep(prev => prev + 1);
+            } else {
+                setSubmissionStatus('Finalizando...');
+                 while (isUploadingRef.current || uploadQueueRef.current.length > 0) {
+                    setSubmissionStatus('Aguardando envio das imagens...');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                const finalData = getValues();
+                const hasIssues = finalData.questions.some((q) => q.status === "Não OK");
+                await updateDoc(doc(db, 'completed-checklists', checklistId!), { status: hasIssues ? "Pendente" : "OK"});
+                toast({ title: "Sucesso!", description: "Checklist retroativo finalizado com sucesso." });
+                router.push(`/checklist/completed/${checklistId}`);
             }
         } catch (error: any) {
             console.error("Error during step progression:", error);
@@ -354,9 +372,17 @@ export default function RetroactiveChecklistPage() {
         } finally {
             setIsSubmitting(false);
             setSubmissionStatus('');
+             if (!isUploadingRef.current) {
+                processUploadQueue();
+            }
         }
     };
-
+    
+    useEffect(() => {
+        if (checklistId && !isUploadingRef.current && uploadQueueRef.current.length > 0) {
+            processUploadQueue();
+        }
+    }, [checklistId, processUploadQueue]);
 
  const onSubmit = (data: ChecklistFormValues) => {
     handleNextStep();
@@ -399,17 +425,16 @@ export default function RetroactiveChecklistPage() {
         onSave={handleSaveItem}
         allowGallery={true}
     />
-     <AlertDialog open={isSubmitting}>
+     <AlertDialog open={isSubmitting && submissionStatus !== ''}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Aguarde...</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Estamos processando as informações. Por favor, não feche esta página.
+                    {submissionStatus}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="space-y-4 py-4">
                 <Progress value={uploadProgress} />
-                <p className="text-sm text-center text-muted-foreground">{submissionStatus}</p>
             </div>
         </AlertDialogContent>
     </AlertDialog>
@@ -659,3 +684,5 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
+
+    
