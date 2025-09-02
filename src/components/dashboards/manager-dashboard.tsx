@@ -19,12 +19,14 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Truck, Clock, AlertCircle } from 'lucide-react';
+import { DollarSign, Truck, Clock, AlertCircle, TestTube2 } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
 import { CompletedChecklist } from '@/lib/types';
 import { differenceInHours } from 'date-fns';
+import { Alert, AlertTitle } from '../ui/alert';
+import Link from 'next/link';
 
 // Mock data, in a real scenario this would come from Firestore.
 interface Vehicle {
@@ -181,6 +183,14 @@ export function ManagerDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Alert variant="destructive">
+        <TestTube2 className="h-4 w-4" />
+        <AlertTitle>Teste de Rota</AlertTitle>
+        <AlertDescription>
+          Por favor, clique neste link para confirmar que a página de envios está funcionando: <Link href="/envios" className="font-bold underline hover:text-destructive/80">Testar Acesso à Tela de Envios</Link>.
+        </AlertDescription>
+      </Alert>
+
       <div>
         <h1 className="text-2xl font-headline font-semibold">Painel do Gestor</h1>
         <p className="text-muted-foreground">Visão geral da frota e operações.</p>
