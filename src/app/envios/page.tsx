@@ -50,10 +50,15 @@ const statusIcon: { [key: string]: React.ReactNode } = {
 
 const mapDocToChecklist = (doc: any): CompletedChecklist => {
     const data = doc.data();
+    // Defensive check to prevent crash on missing createdAt field
+    const createdAt = data.createdAt instanceof Timestamp 
+        ? data.createdAt.toDate().toISOString() 
+        : new Date().toISOString();
+
     return {
       ...data,
       id: doc.id,
-      createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+      createdAt: createdAt,
     } as CompletedChecklist;
 };
 
