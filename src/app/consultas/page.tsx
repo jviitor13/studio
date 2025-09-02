@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2 } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud } from "lucide-react"
 import { format, startOfDay, endOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -32,15 +32,49 @@ import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
-const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
+const checklistStatusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
     'Pendente': 'destructive',
 }
 
-const statusBadgeColor : {[key:string]: string} = {
+const checklistStatusBadgeColor : {[key:string]: string} = {
     'OK': 'bg-green-500 hover:bg-green-600',
     'Pendente': ''
 }
+
+const uploadStatusVariant: { [key: string]: "default" | "destructive" | "secondary" } = {
+  "Concluído": "default",
+  "Enviando": "secondary",
+  "Falhou": "destructive",
+};
+
+const UploadStatusBadge = ({ status }: { status: CompletedChecklist['status'] }) => {
+    if (status === 'OK' || status === 'Pendente') {
+        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">N/A</Badge>;
+    }
+    
+    let icon;
+    let text;
+    switch (status) {
+        case 'Enviando':
+            icon = <Loader2 className="mr-2 h-4 w-4 animate-spin text-amber-600" />;
+            text = "Enviando...";
+            break;
+        case 'Falhou':
+            icon = <AlertTriangle className="mr-2 h-4 w-4 text-red-600" />;
+            text = "Falhou";
+            break;
+        default:
+            return <Badge variant="secondary" className="bg-gray-200 text-gray-700">N/A</Badge>;
+    }
+
+    return (
+        <Badge variant={uploadStatusVariant[status]} className="flex items-center w-fit">
+            {icon}
+            <span>{text}</span>
+        </Badge>
+    );
+};
 
 
 export default function ConsultasPage() {
@@ -167,6 +201,14 @@ export default function ConsultasPage() {
         const d = typeof date === 'string' ? new Date(date) : date;
         return format(d, "dd/MM/yyyy HH:mm");
     };
+    
+    const getChecklistStatusLabel = (status: CompletedChecklist['status']) => {
+        switch (status) {
+            case 'OK': return 'Concluído';
+            case 'Pendente': return 'Com Pendências';
+            default: return status;
+        }
+    }
 
     return (
         <>
@@ -278,8 +320,8 @@ export default function ConsultasPage() {
                                     <TableHead>Data</TableHead>
                                     <TableHead>Veículo</TableHead>
                                     <TableHead>Responsável</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>Status Checklist</TableHead>
+                                    <TableHead>Status Envio</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -296,11 +338,13 @@ export default function ConsultasPage() {
                                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
-                                            <TableCell className="capitalize">{item.type}</TableCell>
                                             <TableCell>
-                                                <Badge variant={statusVariant[item.status]} className={cn(statusBadgeColor[item.status])}>
-                                                    {item.status === 'OK' ? 'Concluído' : 'Com Pendências'}
+                                                <Badge variant={checklistStatusVariant[item.status]} className={cn(checklistStatusBadgeColor[item.status])}>
+                                                     {getChecklistStatusLabel(item.status)}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <UploadStatusBadge status={item.status} />
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <AlertDialog>

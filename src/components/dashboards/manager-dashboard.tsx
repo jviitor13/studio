@@ -183,14 +183,6 @@ export function ManagerDashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Alert variant="destructive">
-        <TestTube2 className="h-4 w-4" />
-        <AlertTitle>Teste de Rota</AlertTitle>
-        <AlertDescription>
-          Por favor, clique neste link para confirmar que a página de envios está funcionando: <Link href="/envios" className="font-bold underline hover:text-destructive/80">Testar Acesso à Tela de Envios</Link>.
-        </AlertDescription>
-      </Alert>
-
       <div>
         <h1 className="text-2xl font-headline font-semibold">Painel do Gestor</h1>
         <p className="text-muted-foreground">Visão geral da frota e operações.</p>
