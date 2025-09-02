@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -25,7 +25,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, Timestamp, doc, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Loader2, AlertTriangle, CheckCircle, UploadCloud } from "lucide-react";
 
@@ -33,6 +33,7 @@ const statusVariant: { [key: string]: "default" | "destructive" | "secondary" } 
   "Enviando": "secondary",
   "Falhou": "destructive",
   "OK": "default",
+  "Pendente": "destructive",
 };
 
 const statusBadgeColor: { [key: string]: string } = {
@@ -44,7 +45,8 @@ const statusBadgeColor: { [key: string]: string } = {
 const statusIcon: { [key: string]: React.ReactNode } = {
     "Enviando": <Loader2 className="mr-2 h-4 w-4 animate-spin"/>,
     "Falhou": <AlertTriangle className="mr-2 h-4 w-4"/>,
-    "OK": <CheckCircle className="mr-2 h-4 w-4" />
+    "OK": <CheckCircle className="mr-2 h-4 w-4" />,
+    "Pendente": <AlertTriangle className="mr-2 h-4 w-4" />
 }
 
 export default function EnviosPage() {
@@ -54,40 +56,49 @@ export default function EnviosPage() {
 
   React.useEffect(() => {
     setIsLoading(true);
-    // Query for checklists created in the last 24 hours that are not yet OK or Pending
-    const oneDayAgo = subDays(new Date(), 1);
-    const q = query(
-        collection(db, "completed-checklists"),
-        where("createdAt", ">=", Timestamp.fromDate(oneDayAgo)),
-        orderBy("createdAt", "desc")
-    );
-    
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const checklistsData: CompletedChecklist[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-         // Filter client-side for the specific statuses
-        if(data.status === 'Enviando' || data.status === 'Falhou'){
-            checklistsData.push({
+
+    const fetchChecklists = (status: string) => {
+      const q = query(collection(db, "completed-checklists"), where("status", "==", status));
+      return onSnapshot(q, (snapshot) => {
+        const checklistsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
               ...data,
               id: doc.id,
               createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-            } as CompletedChecklist);
-        }
-      });
-      setProcessingChecklists(checklistsData);
-      setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching processing checklists:", error);
+            } as CompletedChecklist;
+        });
+
+        // Update the main state based on the status
+        setProcessingChecklists(prev => {
+            // Remove old entries with this status to avoid duplicates
+            const otherStatuses = prev.filter(c => c.status !== status);
+            // Combine and sort
+            const combined = [...otherStatuses, ...checklistsData];
+            combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            return combined;
+        });
+        
+      }, (error) => {
+        console.error(`Error fetching checklists with status ${status}:`, error);
         toast({
             variant: "destructive",
             title: "Erro ao carregar envios",
             description: "Não foi possível buscar os checklists em processamento."
-        })
-        setIsLoading(false);
-    });
+        });
+      });
+    };
 
-    return () => unsubscribe();
+    const unsubscribeSending = fetchChecklists('Enviando');
+    const unsubscribeFailed = fetchChecklists('Falhou');
+    
+    // Initial loading state finished after a short delay to allow queries to run
+    setTimeout(() => setIsLoading(false), 1500);
+
+    return () => {
+      unsubscribeSending();
+      unsubscribeFailed();
+    };
   }, [toast]);
   
   const formatDate = (dateString: string) => {
@@ -99,13 +110,13 @@ export default function EnviosPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Acompanhamento de Envios"
-        description="Monitore o status do processamento dos checklists enviados."
+        description="Monitore o status do processamento dos checklists enviados. Apenas checklists 'Enviando' ou com 'Falha' são exibidos aqui."
       />
       <Card>
         <CardHeader>
           <CardTitle>Checklists em Processamento</CardTitle>
           <CardDescription>
-            A lista abaixo é atualizada em tempo real. Checklists concluídos ou corrigidos desaparecerão daqui.
+            A lista abaixo é atualizada em tempo real. Checklists concluídos desaparecerão daqui.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,7 +158,7 @@ export default function EnviosPage() {
                     <div className="flex flex-col items-center justify-center gap-2">
                         <UploadCloud className="h-10 w-10" />
                         <p className="font-semibold">Nenhum checklist em processamento.</p>
-                        <p className="text-sm">Todos os envios foram concluídos.</p>
+                        <p className="text-sm">Todos os envios foram concluídos ou não apresentaram falhas.</p>
                     </div>
                   </TableCell>
                 </TableRow>
