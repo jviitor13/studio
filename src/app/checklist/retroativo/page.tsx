@@ -292,8 +292,9 @@ export default function RetroactiveChecklistPage() {
                 await setDoc(checklistRef, submissionData);
                 setChecklistId(newChecklistId);
             } else if (checklistId) {
-                const checklistRef = doc(db, 'completed-checklists', checklistId);
                 let imagesToUpload: { fieldPath: string; dataUrl: string }[] = [];
+                const data = getValues();
+                const checklistRef = doc(db, 'completed-checklists', checklistId);
 
                 if (currentStep === 2) {
                      const questions = data.questions;
@@ -302,25 +303,26 @@ export default function RetroactiveChecklistPage() {
                         setIsSubmitting(false);
                         return;
                     }
-                    const questionsData = questions.map(q => ({
-                        id: q.id || '', text: q.text || '', photoRequirement: q.photoRequirement || 'never',
-                        status: q.status || 'N/A', observation: q.observation || '', photo: q.photo || '',
+                     const questionsToUpdate = questions.map(q => ({
+                       ...q,
+                       photo: q.photo?.startsWith('data:image') ? '' : q.photo,
                     }));
-                    await updateDoc(checklistRef, { questions: questionsData });
+                    await updateDoc(checklistRef, { questions: questionsToUpdate });
+
                     questions.forEach((q, index) => {
                         if(q.photo?.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
                         }
                     });
                 } else if (currentStep === 3) {
-                    await updateDoc(checklistRef, { vehicleImages: data.vehicleImages });
+                     await updateDoc(checklistRef, { 'vehicleImages': {} });
                      Object.entries(data.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
                         }
                     });
                 } else if (currentStep === 4) {
-                    await updateDoc(checklistRef, { signatures: data.signatures });
+                     await updateDoc(checklistRef, { 'signatures': {} });
                      Object.entries(data.signatures).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             imagesToUpload.push({ fieldPath: `signatures.${key}`, dataUrl: value });
@@ -656,3 +658,5 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
+
+    
