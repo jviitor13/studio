@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { CheckCircle, Download, Home, Printer, Share2 } from 'lucide-react';
+import { CheckCircle, Download, Home, Printer, Share2, Loader2 } from 'lucide-react';
 import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -21,11 +21,13 @@ import Image from 'next/image';
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
     'Pendente': 'destructive',
+    'Enviando': 'secondary',
 }
 
 const statusBadgeColor : {[key:string]: string} = {
     'OK': 'bg-green-500 hover:bg-green-600',
-    'Pendente': ''
+    'Pendente': '',
+    'Enviando': 'animate-pulse'
 }
 
 export default function ChecklistCompletedPage() {
@@ -134,6 +136,15 @@ export default function ChecklistCompletedPage() {
     if (!checklist) {
         return <p>Checklist não encontrado.</p>;
     }
+    
+    const getStatusLabel = (status: CompletedChecklist['status']) => {
+        switch (status) {
+            case 'OK': return 'Concluído';
+            case 'Pendente': return 'Com Pendências';
+            case 'Enviando': return 'Enviando Imagens...';
+            default: return status;
+        }
+    }
 
     const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy 'às' HH:mm") : 'Data não disponível';
 
@@ -147,7 +158,10 @@ export default function ChecklistCompletedPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <CheckCircle className="h-7 w-7 text-green-600" />
+                        {checklist.status !== 'Enviando' ? 
+                            <CheckCircle className="h-7 w-7 text-green-600" /> : 
+                            <Loader2 className="h-7 w-7 text-secondary animate-spin" />
+                        }
                         Resumo do Envio
                     </CardTitle>
                 </CardHeader>
@@ -175,7 +189,7 @@ export default function ChecklistCompletedPage() {
                     <div className="flex flex-col gap-1">
                         <span className="font-semibold">Status:</span>
                         <Badge variant={statusVariant[checklist.status]} className={`w-fit ${statusBadgeColor[checklist.status]}`}>
-                            {checklist.status === 'OK' ? 'Concluído' : 'Com Pendências'}
+                            {getStatusLabel(checklist.status)}
                         </Badge>
                     </div>
                 </CardContent>
@@ -194,7 +208,14 @@ export default function ChecklistCompletedPage() {
                                 <p className="font-medium">{item.text}</p>
                                 <p className="text-sm text-muted-foreground">Status: {item.status}</p>
                                 {item.observation && <p className="text-sm text-muted-foreground">Observação: {item.observation}</p>}
-                                {item.photo && <div className="mt-2"><img src={item.photo} alt="foto" className="rounded-md w-full max-w-xs"/></div>}
+                                {item.photo && (
+                                  <div className="mt-2">
+                                    {item.photo.startsWith('http') ?
+                                        <img src={item.photo} alt="foto" className="rounded-md w-full max-w-xs"/> :
+                                        <p className="text-xs text-muted-foreground italic">Imagem sendo processada...</p>
+                                    }
+                                  </div>
+                                )}
                             </div>
                             ))}
                             {(checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) && (
@@ -241,11 +262,11 @@ export default function ChecklistCompletedPage() {
                     <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
                 </CardHeader>
                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Button onClick={handleExport} size="lg" className="h-auto py-4">
+                    <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
                         <Download className="mr-3 h-5 w-5" />
                         Gerar PDF
                     </Button>
-                     <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4">
+                     <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
                         <Printer className="mr-3 h-5 w-5" />
                         Imprimir
                     </Button>
@@ -263,3 +284,6 @@ export default function ChecklistCompletedPage() {
         </div>
     );
 }
+
+
+    

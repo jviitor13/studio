@@ -58,7 +58,7 @@ const checklistSchema = z.object({
   cavaloPlate: z.string().min(7, 'A placa do cavalo é obrigatória.').max(8, 'Placa inválida.'),
   carretaPlate: z.string().min(7, 'A placa da carreta é obrigatória.').max(8, 'Placa inválida.'),
   responsibleName: z.string().min(1, 'O nome do responsável é obrigatório.'),
-  driverName: z.string().min(1, 'O nome do motorista é obrigatória.'),
+  driverName: z.string().min(1, 'O nome do motorista é obrigatório.'),
   mileage: z.coerce.number().min(1, 'A quilometragem é obrigatória.'),
   questions: z.array(checklistItemSchema).min(1, 'O checklist deve ter pelo menos um item.'),
   vehicleImages: vehicleImagesSchema,
@@ -174,9 +174,7 @@ export default function MaintenanceChecklistPage() {
     if (selectedTemplate) {
         setValue('templateId', templateId);
         const newQuestions = selectedTemplate.questions.map(q => ({
-            id: q.id,
-            text: q.text,
-            photoRequirement: q.photoRequirement,
+            ...q,
             status: 'N/A' as const,
             photo: '',
             observation: '',
@@ -208,43 +206,34 @@ export default function MaintenanceChecklistPage() {
         }
     };
 
-    const processUploadQueue = useCallback(async () => {
-        if (isUploadingRef.current || uploadQueueRef.current.length === 0 || !checklistId) return;
+    const processUploadQueue = useCallback(async (finalChecklistId: string) => {
+        if (isUploadingRef.current || uploadQueueRef.current.length === 0) return;
 
         isUploadingRef.current = true;
-        const totalImagesToUpload = uploadQueueRef.current.length;
-        let uploadedCount = 0;
-        setSubmissionStatus(`Enviando imagens... (0/${totalImagesToUpload})`);
-
-        const batchSize = 3;
+        
         const queue = [...uploadQueueRef.current];
         uploadQueueRef.current = [];
 
+        const batchSize = 3;
         for (let i = 0; i < queue.length; i += batchSize) {
             const batch = queue.slice(i, i + batchSize);
             await Promise.all(batch.map(async (imgInfo) => {
                 try {
-                    const url = await uploadImageAndGetURL(imgInfo.dataUrl, checklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
-                    const checklistRef = doc(db, 'completed-checklists', checklistId);
+                    const url = await uploadImageAndGetURL(imgInfo.dataUrl, finalChecklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
+                    const checklistRef = doc(db, 'completed-checklists', finalChecklistId);
                     await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
-                    uploadedCount++;
-                    setSubmissionStatus(`Enviando imagens... (${uploadedCount}/${totalImagesToUpload})`);
-                    setUploadProgress((uploadedCount / totalImagesToUpload) * 100);
                 } catch (e) {
                     console.error("Failed to upload an image, re-queueing:", imgInfo.fieldPath, e);
-                    uploadQueueRef.current.push(imgInfo); // Re-queue failed uploads
                 }
             }));
         }
 
         isUploadingRef.current = false;
-        // If there are still items in the queue (due to failures), retry
-        if (uploadQueueRef.current.length > 0) {
-            setTimeout(processUploadQueue, 5000); // Retry after 5s
-        } else {
-            setSubmissionStatus('');
-        }
-    }, [checklistId]);
+        
+        const hasIssues = getValues().questions.some((q) => q.status === "Não OK");
+        await updateDoc(doc(db, 'completed-checklists', finalChecklistId), { status: hasIssues ? "Pendente" : "OK" });
+        
+    }, [getValues]);
     
     const handleNextStep = async () => {
         const fieldsToValidate = formSteps[currentStep - 1].fields as (keyof ChecklistFormValues)[];
@@ -261,7 +250,8 @@ export default function MaintenanceChecklistPage() {
 
         const data = getValues();
         if (currentStep === 2) {
-            if (data.questions.some(q => q.status === 'N/A')) {
+            const hasPendingItems = data.questions.some(q => q.status === 'N/A');
+            if (hasPendingItems) {
                 toast({ variant: "destructive", title: "Checklist Incompleto", description: "Avalie todos os itens antes de prosseguir." });
                 return;
             }
@@ -290,7 +280,7 @@ export default function MaintenanceChecklistPage() {
                     driver: data.driverName || '',
                     createdAt: Timestamp.now(),
                     status: "Em Andamento",
-                    questions: (data.questions || []).map(q => ({
+                    questions: data.questions.map(q => ({
                         id: q.id || '',
                         text: q.text || '',
                         photoRequirement: q.photoRequirement || 'never',
@@ -320,29 +310,26 @@ export default function MaintenanceChecklistPage() {
 
             } else if (checklistId) {
                 const checklistRef = doc(db, 'completed-checklists', checklistId);
+                const currentData = getValues();
 
                 if (currentStep === 2) {
-                    const questionsToUpdate = data.questions.map(q => ({
-                       ...q,
-                       photo: q.photo?.startsWith('data:image') ? '' : q.photo,
-                    }));
-                    await updateDoc(checklistRef, { questions: questionsToUpdate });
-
-                    data.questions.forEach((q, index) => {
-                        if(q.photo?.startsWith('data:image')) {
-                            uploadQueueRef.current.push({ fieldPath: `questions.${index}.photo`, dataUrl: q.photo });
+                    const questionsToUpdate = currentData.questions.map(q => {
+                        const { photo, ...rest } = q;
+                        if (photo?.startsWith('data:image')) {
+                            uploadQueueRef.current.push({ fieldPath: `questions.${fields.findIndex(f => f.id === q.id)}.photo`, dataUrl: photo });
+                            return rest;
                         }
+                        return q;
                     });
+                    await updateDoc(checklistRef, { questions: questionsToUpdate });
                 } else if (currentStep === 3) {
-                     await updateDoc(checklistRef, { 'vehicleImages': {} }); // Clear old data if any
-                     Object.entries(data.vehicleImages).forEach(([key, value]) => {
+                     Object.entries(currentData.vehicleImages).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             uploadQueueRef.current.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
                         }
                     });
                 } else if (currentStep === 4) {
-                     await updateDoc(checklistRef, { 'signatures': {} });
-                     Object.entries(data.signatures).forEach(([key, value]) => {
+                     Object.entries(currentData.signatures).forEach(([key, value]) => {
                         if(value.startsWith('data:image')) {
                             uploadQueueRef.current.push({ fieldPath: `signatures.${key}`, dataUrl: value });
                         }
@@ -353,16 +340,10 @@ export default function MaintenanceChecklistPage() {
             if (currentStep < formSteps.length) {
                 setCurrentStep(prev => prev + 1);
             } else {
-                setSubmissionStatus('Finalizando...');
-                // On the last step, wait for all uploads to finish
-                while (isUploadingRef.current || uploadQueueRef.current.length > 0) {
-                    setSubmissionStatus('Aguardando envio das imagens...');
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-                const hasIssues = getValues().questions.some((q) => q.status === "Não OK");
-                await updateDoc(doc(db, 'completed-checklists', checklistId!), { status: hasIssues ? "Pendente" : "OK" });
-                toast({ title: "Sucesso!", description: "Checklist de manutenção finalizado com sucesso." });
+                await updateDoc(doc(db, 'completed-checklists', checklistId!), { status: "Enviando" });
+                toast({ title: "Checklist Enviado!", description: "O checklist foi finalizado e as imagens estão sendo enviadas em segundo plano." });
                 router.push(`/checklist/completed/${checklistId}`);
+                processUploadQueue(checklistId!);
             }
         } catch (error: any) {
             console.error("Error during step progression:", error);
@@ -373,18 +354,8 @@ export default function MaintenanceChecklistPage() {
         } finally {
             setIsSubmitting(false);
             setSubmissionStatus('');
-            if (!isUploadingRef.current) {
-                processUploadQueue();
-            }
         }
     };
-
-    useEffect(() => {
-        if (checklistId && !isUploadingRef.current && uploadQueueRef.current.length > 0) {
-            processUploadQueue();
-        }
-    }, [checklistId, processUploadQueue]);
-    
     
  const onSubmit = (data: ChecklistFormValues) => {
     handleNextStep();
@@ -678,5 +649,7 @@ export default function MaintenanceChecklistPage() {
     </>
   );
 }
+
+    
 
     
