@@ -48,12 +48,15 @@ const statusIcon: { [key: string]: React.ReactNode } = {
     "Pendente": <AlertTriangle className="mr-2 h-4 w-4" />
 }
 
-const mapDocToChecklist = (doc: any): CompletedChecklist => {
+const mapDocToChecklist = (doc: any): CompletedChecklist | null => {
     const data = doc.data();
     // Defensive check to prevent crash on missing createdAt field
-    const createdAt = data.createdAt instanceof Timestamp 
-        ? data.createdAt.toDate().toISOString() 
-        : new Date().toISOString();
+    if (!data.createdAt || !(data.createdAt instanceof Timestamp)) {
+        console.warn(`Document ${doc.id} is missing a valid 'createdAt' field.`);
+        return null; // Skip this document
+    }
+    
+    const createdAt = data.createdAt.toDate().toISOString();
 
     return {
       ...data,
@@ -73,7 +76,8 @@ export default function EnviosPage() {
   React.useEffect(() => {
     const q = query(collection(db, "completed-checklists"), where("status", "==", "Enviando"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        setSendingChecklists(snapshot.docs.map(mapDocToChecklist));
+        const mappedData = snapshot.docs.map(mapDocToChecklist).filter(Boolean) as CompletedChecklist[];
+        setSendingChecklists(mappedData);
         setIsLoading(false);
     }, (error) => {
         console.error("Error fetching 'Enviando' checklists:", error);
@@ -87,7 +91,8 @@ export default function EnviosPage() {
   React.useEffect(() => {
     const q = query(collection(db, "completed-checklists"), where("status", "==", "Falhou"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        setFailedChecklists(snapshot.docs.map(mapDocToChecklist));
+        const mappedData = snapshot.docs.map(mapDocToChecklist).filter(Boolean) as CompletedChecklist[];
+        setFailedChecklists(mappedData);
         setIsLoading(false);
     }, (error) => {
         console.error("Error fetching 'Falhou' checklists:", error);
