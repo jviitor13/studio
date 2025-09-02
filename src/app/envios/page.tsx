@@ -22,10 +22,10 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CompletedChecklist } from "@/lib/types";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, Timestamp, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, Timestamp, doc, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Loader2, AlertTriangle, CheckCircle, UploadCloud } from "lucide-react";
 
@@ -54,17 +54,26 @@ export default function EnviosPage() {
 
   React.useEffect(() => {
     setIsLoading(true);
-    const q = query(collection(db, "completed-checklists"), where("status", "in", ["Enviando", "Falhou"]));
+    // Query for checklists created in the last 24 hours that are not yet OK or Pending
+    const oneDayAgo = subDays(new Date(), 1);
+    const q = query(
+        collection(db, "completed-checklists"),
+        where("createdAt", ">=", Timestamp.fromDate(oneDayAgo)),
+        orderBy("createdAt", "desc")
+    );
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const checklistsData: CompletedChecklist[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        checklistsData.push({
-          ...data,
-          id: doc.id,
-          createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
-        } as CompletedChecklist);
+         // Filter client-side for the specific statuses
+        if(data.status === 'Enviando' || data.status === 'Falhou'){
+            checklistsData.push({
+              ...data,
+              id: doc.id,
+              createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+            } as CompletedChecklist);
+        }
       });
       setProcessingChecklists(checklistsData);
       setIsLoading(false);
