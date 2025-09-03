@@ -222,7 +222,7 @@ export default function MaintenanceChecklistPage() {
         }
         
         if (currentStep < formSteps.length) {
-            setCurrentStep(prev => prev - 1);
+            setCurrentStep(prev => prev + 1);
         } else {
             // This is the final step, submit the form.
             await handleSubmit(onSubmit)();
@@ -252,7 +252,7 @@ export default function MaintenanceChecklistPage() {
             'signatures.assinaturaMotorista': data.signatures.assinaturaMotorista,
         });
 
-        const checklistForFirestore: CompletedChecklist = {
+        const checklistForFirestore: Omit<CompletedChecklist, 'firebaseStorageStatus' | 'googleDriveStatus'> = {
             ...data,
             id: checklistId,
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
@@ -262,8 +262,6 @@ export default function MaintenanceChecklistPage() {
             driver: data.driverName,
             createdAt: Timestamp.now().toDate().toISOString(),
             status: 'Enviando',
-            googleDriveStatus: 'pending',
-            firebaseStorageStatus: 'pending',
         };
 
         try {
