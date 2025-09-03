@@ -94,15 +94,13 @@ export default function ChecklistCompletedPage() {
 
                 if (rawDate instanceof Timestamp) {
                     createdAtDate = rawDate.toDate();
-                } else if (typeof rawDate === 'string' || typeof rawDate === 'number') {
+                } else if (rawDate && typeof rawDate.seconds === 'number' && typeof rawDate.nanoseconds === 'number') {
+                    // Handle Firestore-like timestamp objects that aren't instances of Timestamp
+                    createdAtDate = new Timestamp(rawDate.seconds, rawDate.nanoseconds).toDate();
+                }
+                else if (typeof rawDate === 'string' || typeof rawDate === 'number') {
                     const parsedDate = new Date(rawDate);
                     if (isValid(parsedDate)) {
-                        createdAtDate = parsedDate;
-                    }
-                } else if (rawDate && typeof rawDate.seconds === 'number') {
-                    // Handle Firestore-like timestamp objects that aren't instances of Timestamp
-                    const parsedDate = new Date(rawDate.seconds * 1000);
-                     if (isValid(parsedDate)) {
                         createdAtDate = parsedDate;
                     }
                 }
@@ -112,10 +110,14 @@ export default function ChecklistCompletedPage() {
                     id: docSnap.id,
                     createdAt: createdAtDate, // Store as Date object or null
                 } as CompletedChecklist);
+                 setIsLoading(false);
             } else {
-                console.error("No such document!");
-                toast({ variant: "destructive", title: "Erro", description: "Checklist não encontrado." });
+                console.warn(`Checklist with ID ${checklistId} not found yet. It might be processing.`);
+                // Keep loading true to wait for the document to be created
             }
+        }, (error) => {
+            console.error("Error fetching checklist:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar o checklist." });
             setIsLoading(false);
         });
 

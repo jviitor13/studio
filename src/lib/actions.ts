@@ -7,6 +7,7 @@ import type { AssistantFlowInput } from '@/ai/flows/assistant-flow';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { uploadChecklistFlow } from './checklist-upload-flow';
 import { CompletedChecklist } from './types';
+import { ai } from '@/ai/genkit';
 
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
@@ -82,12 +83,11 @@ export async function saveChecklistAndTriggerUpload(
   try {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     
-    // Save the initial checklist data with base64 images
     await checklistRef.set(checklistData);
 
     // Trigger the background upload flow and DON'T wait for it to complete.
     // This is "fire-and-forget"
-    uploadChecklistFlow({ checklistId });
+    ai.run('uploadChecklistFlow', { checklistId });
 
     // Return immediately to the client
     return { success: true, checklistId };
@@ -109,4 +109,3 @@ export async function saveChecklistAndTriggerUpload(
     return { success: false, error: error.message, checklistId };
   }
 }
-
