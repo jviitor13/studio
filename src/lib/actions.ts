@@ -6,42 +6,7 @@ import { assistantFlow } from '@/ai/flows/assistant-flow';
 import type { AssistantFlowInput } from '@/ai/flows/assistant-flow';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { uploadChecklistFlow } from './checklist-upload-flow';
-import type { ChecklistUploadData } from './checklist-upload-flow';
 import { CompletedChecklist } from './types';
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase-admin/storage';
-
-
-// Helper function to upload images within a server action
-async function uploadImageAndGetURL(base64: string, path: string, filename: string): Promise<string> {
-    if (!base64 || !base64.startsWith('data:image')) {
-        if (base64 && (base64.startsWith('http') || base64.startsWith('gs:'))) {
-            return base64;
-        }
-        if (!base64) {
-            return '';
-        }
-        throw new Error(`Invalid base64 string provided for upload: ${filename}`);
-    }
-
-    const storage = getStorage(adminDb.app);
-    const bucket = storage.bucket('rodocheck-244cd.appspot.com');
-    const file = bucket.file(`${path}/${filename}.jpg`);
-
-    const buffer = Buffer.from(base64.split(',')[1], 'base64');
-
-    await file.save(buffer, {
-        metadata: {
-            contentType: 'image/jpeg',
-        },
-    });
-
-    const [url] = await file.getSignedUrl({
-        action: 'read',
-        expires: '03-09-2491', // Far future expiration date
-    });
-
-    return url;
-}
 
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
@@ -109,71 +74,29 @@ export async function createUser(data: UserData) {
   }
 }
 
-export async function triggerChecklistUpload(data: ChecklistUploadData) {
-  try {
-    uploadChecklistFlow(data);
-    return { success: true };
-  } catch (error) {
-    console.error('Error triggering checklist upload flow:', error);
-    throw new Error('Failed to trigger checklist upload.');
-  }
-}
-
 export async function saveChecklistAndTriggerUpload(
   checklistData: CompletedChecklist,
-  imageDataUrls: Record<string, string>
 ) {
   const checklistId = checklistData.id;
 
   try {
-    const uploadedUrls: Record<string, string> = {};
-    for (const [key, dataUrl] of Object.entries(imageDataUrls)) {
-      if (dataUrl) {
-        const path = `checklists/${checklistId}/images`;
-        const filename = key;
-        const url = await uploadImageAndGetURL(dataUrl, path, filename);
-        uploadedUrls[key] = url;
-      }
-    }
-    
-    const finalChecklistData = { ...checklistData };
-    
-    finalChecklistData.vehicleImages = {
-      cavaloFrontal: uploadedUrls['vehicleImages.cavaloFrontal'] || '',
-      cavaloLateralDireita: uploadedUrls['vehicleImages.cavaloLateralDireita'] || '',
-      cavaloLateralEsquerda: uploadedUrls['vehicleImages.cavaloLateralEsquerda'] || '',
-      carretaFrontal: uploadedUrls['vehicleImages.carretaFrontal'] || '',
-      carretaLateralDireita: uploadedUrls['vehicleImages.carretaLateralDireita'] || '',
-      carretaLateralEsquerda: uploadedUrls['vehicleImages.carretaLateralEsquerda'] || '',
-    };
-    finalChecklistData.signatures = {
-      selfieResponsavel: uploadedUrls['signatures.selfieResponsavel'] || '',
-      assinaturaResponsavel: uploadedUrls['signatures.assinaturaResponsavel'] || '',
-      selfieMotorista: uploadedUrls['signatures.selfieMotorista'] || '',
-      assinaturaMotorista: uploadedUrls['signatures.assinaturaMotorista'] || '',
-    };
-    finalChecklistData.questions = finalChecklistData.questions.map((q, index) => {
-        const photoUrl = uploadedUrls[`questions.${index}.photo`];
-        if (photoUrl) {
-            return { ...q, photo: photoUrl };
-        }
-        return q;
-    });
-
-    const hasIssues = finalChecklistData.questions.some(
+    const hasIssues = checklistData.questions.some(
       (q: any) => q.status === 'Não OK'
     );
-    finalChecklistData.status = hasIssues ? 'Pendente' : 'OK';
-    finalChecklistData.firebaseStorageStatus = 'success';
+    const finalStatus = hasIssues ? 'Pendente' : 'OK';
 
+    const finalChecklistData = {
+        ...checklistData,
+        status: finalStatus,
+        firebaseStorageStatus: 'success',
+        googleDriveStatus: 'pending'
+    };
 
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     await checklistRef.set(finalChecklistData);
 
-    uploadChecklistFlow({
-      checklistId,
-      imageDataUrls, 
-    });
+    // Trigger the background upload to Google Drive
+    uploadChecklistFlow({ checklistId });
 
     return { success: true, checklistId };
   } catch (error: any) {

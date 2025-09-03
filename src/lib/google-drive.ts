@@ -3,6 +3,7 @@
 
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import fetch from 'node-fetch';
 
 // This is the scope for Google Drive API.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
@@ -95,6 +96,46 @@ export async function uploadFile(fileName: string, mimeType: string, content: st
         throw new Error(`Failed to upload file "${fileName}"`);
     }
 }
+
+
+/**
+ * Uploads a file from a URL to a specific folder in Google Drive.
+ * @param fileName The name of the file to be saved.
+ * @param mimeType The MIME type of the file.
+ * @param url The URL of the file to download and upload.
+ * @param folderId The ID of the folder where the file will be uploaded.
+ */
+export async function uploadFileFromUrl(fileName: string, mimeType: string, url: string, folderId: string): Promise<void> {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch file from URL: ${response.statusText}`);
+        }
+        
+        // Ensure response.body is not null and is a Readable stream
+        const body = response.body as unknown as Readable;
+
+        const fileMetadata = {
+            name: fileName,
+            parents: [folderId],
+        };
+        
+        const media = {
+            mimeType: mimeType,
+            body: body,
+        };
+
+        await drive.files.create({
+            requestBody: fileMetadata,
+            media: media,
+            fields: 'id',
+        });
+    } catch (error) {
+        console.error(`Error uploading file from URL "${fileName}":`, error);
+        throw new Error(`Failed to upload file from URL "${fileName}"`);
+    }
+}
+
 
 
 // Remember to add the service account email to the shared Google Drive folder with 'Editor' permissions.

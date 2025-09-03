@@ -231,26 +231,10 @@ export default function RetroactiveChecklistPage() {
     
  const onSubmit = async (data: ChecklistFormValues) => {
         setIsSubmitting(true);
+        toast({ title: 'Enviando Checklist...', description: 'Aguarde enquanto processamos os dados. Isso pode levar um momento.' });
+
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
-
-        const imageDataUrls: Record<string, string> = {};
-
-        data.questions.forEach((q, index) => {
-            if (q.photo) imageDataUrls[`questions.${index}.photo`] = q.photo;
-        });
-        Object.assign(imageDataUrls, {
-            'vehicleImages.cavaloFrontal': data.vehicleImages.cavaloFrontal,
-            'vehicleImages.cavaloLateralDireita': data.vehicleImages.cavaloLateralDireita,
-            'vehicleImages.cavaloLateralEsquerda': data.vehicleImages.cavaloLateralEsquerda,
-            'vehicleImages.carretaFrontal': data.vehicleImages.carretaFrontal,
-            'vehicleImages.carretaLateralDireita': data.vehicleImages.carretaLateralDireita,
-            'vehicleImages.carretaLateralEsquerda': data.vehicleImages.carretaLateralEsquerda,
-            'signatures.selfieResponsavel': data.signatures.selfieResponsavel,
-            'signatures.assinaturaResponsavel': data.signatures.assinaturaResponsavel,
-            'signatures.selfieMotorista': data.signatures.selfieMotorista,
-            'signatures.assinaturaMotorista': data.signatures.assinaturaMotorista,
-        });
 
         const checklistForFirestore: CompletedChecklist = {
             ...data,
@@ -262,12 +246,12 @@ export default function RetroactiveChecklistPage() {
             driver: data.driverName,
             createdAt: Timestamp.now().toDate().toISOString(),
             status: 'Enviando',
-            googleDriveStatus: 'pending',
             firebaseStorageStatus: 'pending',
+            googleDriveStatus: 'pending',
         };
 
         try {
-            const result = await saveChecklistAndTriggerUpload(checklistForFirestore, imageDataUrls);
+            const result = await saveChecklistAndTriggerUpload(checklistForFirestore);
 
             if (result.success) {
                 router.push(`/checklist/completed/${result.checklistId}`);
@@ -336,7 +320,7 @@ export default function RetroactiveChecklistPage() {
     <form onSubmit={handleSubmit(onSubmit)} className="mx-auto grid w-full max-w-4xl gap-6">
       <PageHeader
         title="Checklist Retroativo (Admin)"
-        description={formSteps[currentStep - 1].title}
+        description={formSteps.find(step => step.id === currentStep)?.title || ''}
       />
       <Progress value={(100 / formSteps.length) * currentStep} className="w-full h-2" />
       <div className="space-y-8">

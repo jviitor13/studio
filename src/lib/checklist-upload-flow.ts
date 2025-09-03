@@ -1,12 +1,12 @@
 
 'use server';
 /**
- * @fileOverview Handles the background upload of a completed checklist to Google Drive and Firebase Storage.
+ * @fileOverview Handles the background upload of a completed checklist to Google Drive.
+ * The images are already in Firebase Storage, so this flow only handles the Google Drive backup.
  */
 
 import { adminDb } from './firebase-admin';
-import { findOrCreateFolder, uploadFile } from './google-drive';
-import { uploadImageAndGetURL } from './storage';
+import { findOrCreateFolder, uploadFileFromUrl, uploadFile } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
@@ -14,11 +14,11 @@ import { CompletedChecklist } from './types';
 
 const ChecklistUploadDataSchema = z.object({
     checklistId: z.string(),
-    imageDataUrls: z.record(z.string(), z.string()),
 });
 export type ChecklistUploadData = z.infer<typeof ChecklistUploadDataSchema>;
 
-async function uploadToGoogleDrive(checklistId: string, checklistData: CompletedChecklist, imageDataUrls: Record<string, string>): Promise<void> {
+
+async function uploadToGoogleDrive(checklistId: string, checklistData: CompletedChecklist): Promise<void> {
     const rootFolderName = 'Checklists_Rodocheck';
     
     // 1. Find or create the root folder
@@ -34,26 +34,30 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
     // 4. Create an 'images' subfolder
     const imagesFolderId = await findOrCreateFolder('images', checklistFolderId);
 
-    // 5. Upload all images
-    for (const [key, dataUrl] of Object.entries(imageDataUrls)) {
-        if (dataUrl) {
-            await uploadFile(`${key}.jpg`, 'image/jpeg', dataUrl, imagesFolderId, true);
+    // 5. Gather all image URLs from the checklist data
+    const imageUrls: { key: string, url: string }[] = [];
+    checklistData.questions.forEach((q, index) => {
+        if (q.photo) imageUrls.push({ key: `questions.${index}.photo`, url: q.photo });
+    });
+    if (checklistData.vehicleImages) {
+        Object.entries(checklistData.vehicleImages).forEach(([key, url]) => {
+            if (url) imageUrls.push({ key: `vehicleImages.${key}`, url: url as string });
+        });
+    }
+     if (checklistData.signatures) {
+        Object.entries(checklistData.signatures).forEach(([key, url]) => {
+            if (url) imageUrls.push({ key: `signatures.${key}`, url: url as string });
+        });
+    }
+
+    // 6. Upload all images from their Firebase Storage URL
+    for (const { key, url } of imageUrls) {
+        if (url) {
+            await uploadFileFromUrl(`${key}.jpg`, 'image/jpeg', url, imagesFolderId);
         }
     }
 }
 
-async function uploadToFirebaseStorage(checklistId: string, imageDataUrls: Record<string, string>): Promise<Record<string, string>> {
-    const uploadedUrls: Record<string, string> = {};
-    for (const [key, dataUrl] of Object.entries(imageDataUrls)) {
-        if (dataUrl) {
-            const path = `checklists/${checklistId}/images`;
-            const filename = key;
-            const url = await uploadImageAndGetURL(dataUrl, path, filename);
-            uploadedUrls[key] = url;
-        }
-    }
-    return uploadedUrls;
-}
 
 export const uploadChecklistFlow = ai.defineFlow(
     {
@@ -61,47 +65,24 @@ export const uploadChecklistFlow = ai.defineFlow(
         inputSchema: ChecklistUploadDataSchema,
         outputSchema: z.void(),
     },
-    async ({ checklistId, imageDataUrls }) => {
+    async ({ checklistId }) => {
         const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
         
         const docSnap = await checklistRef.get();
         if (!docSnap.exists) {
-            console.error(`[${checklistId}] Checklist document not found.`);
+            console.error(`[${checklistId}] Checklist document not found for Google Drive upload.`);
             return;
         }
         const checklistData = docSnap.data() as CompletedChecklist;
 
         // --- Google Drive Upload ---
         try {
-            await uploadToGoogleDrive(checklistId, checklistData, imageDataUrls);
+            await uploadToGoogleDrive(checklistId, checklistData);
             await checklistRef.update({ googleDriveStatus: 'success' });
+            console.log(`[${checklistId}] Google Drive upload successful.`);
         } catch (error) {
             console.error(`[${checklistId}] Google Drive upload failed:`, error);
             await checklistRef.update({ googleDriveStatus: 'error' });
         }
-
-        // --- Firebase Storage Upload ---
-        try {
-            const uploadedUrls = await uploadToFirebaseStorage(checklistId, imageDataUrls);
-
-            // Create a flat object of updates
-            const firestoreUpdates: Record<string, any> = { firebaseStorageStatus: 'success' };
-            for(const [key, url] of Object.entries(uploadedUrls)) {
-                // key is like 'questions.0.photo' or 'signatures.selfieResponsavel'
-                firestoreUpdates[key] = url;
-            }
-            
-            await checklistRef.update(firestoreUpdates);
-
-        } catch (error) {
-            console.error(`[${checklistId}] Firebase Storage upload failed:`, error);
-            await checklistRef.update({ firebaseStorageStatus: 'error' });
-        }
-        
-        // Final status update
-        const hasIssues = checklistData.questions.some((q: any) => q.status === "Não OK");
-        await checklistRef.update({ status: hasIssues ? "Pendente" : "OK" });
     }
 );
-
-    

@@ -3,8 +3,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
-import { Camera, Check, RefreshCw, Loader2, VideoOff, UploadCloud } from 'lucide-react';
+import { Camera, Check, RefreshCw, Loader2, VideoOff, UploadCloud, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { uploadImageAndGetURLClient } from '@/lib/storage';
 import { compressImage } from '@/lib/image-compressor';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -24,11 +25,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraT
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [mode, setMode] = useState<'idle' | 'streaming' | 'captured'>('idle');
-  const [capturedImage, setCapturedImage] = useState<string | null>(initialImage);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [mode, setMode] = useState<'idle' | 'streaming' | 'captured' | 'uploading' | 'confirmed'>('idle');
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImage);
   const [error, setError] = useState<string | null>(null);
-  const [isConfirmed, setIsConfirmed] = useState(!!initialImage);
+
+  useEffect(() => {
+    if (initialImage) {
+        setMode('confirmed');
+        setImageSrc(initialImage);
+    }
+  }, [initialImage]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -71,88 +77,70 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraT
       stopCamera();
     };
   }, [mode, startCamera, stopCamera]);
-  
-  useEffect(() => {
-      setCapturedImage(initialImage);
-      setIsConfirmed(!!initialImage);
-  }, [initialImage]);
 
-  const handleActivateCamera = () => {
-    setMode('streaming');
-    setIsConfirmed(false);
-  };
+  const handleActivateCamera = () => setMode('streaming');
+
+  const processAndSetImage = useCallback(async (file: File) => {
+    setMode('uploading'); // Visual feedback for processing/uploading
+    try {
+        const compressedDataUrl = await compressImage(file);
+        setImageSrc(compressedDataUrl);
+
+        toast({ title: 'Enviando imagem...', description: 'Aguarde, estamos salvando sua foto.' });
+        const filename = `img-${Date.now()}`;
+        const path = `uploads/${filename}`;
+        const downloadURL = await uploadImageAndGetURLClient(compressedDataUrl, path, filename);
+        
+        onCapture(downloadURL);
+        setMode('confirmed');
+        toast({ title: 'Sucesso!', description: 'Imagem enviada e confirmada.' });
+
+    } catch (err) {
+        console.error(err);
+        toast({ variant: 'destructive', title: 'Erro ao Processar Imagem' });
+        setMode('idle');
+    }
+  }, [onCapture, toast]);
 
   const handleTakePhoto = useCallback(async () => {
     if (mode !== 'streaming' || !videoRef.current || !canvasRef.current) return;
 
-    setIsProcessing(true);
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
     const context = canvas.getContext('2d');
-    if (!context) {
-      setIsProcessing(false);
-      return;
-    }
-    
+    if (!context) return;
     context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
     
-    try {
-      const rawDataUrl = canvas.toDataURL('image/png');
-      const blob = await fetch(rawDataUrl).then(res => res.blob());
-      const file = new File([blob], 'capture.png', { type: 'image/png' });
-      const compressedDataUrl = await compressImage(file);
-      setCapturedImage(compressedDataUrl);
-      setMode('captured');
-    } catch (err) {
-      console.error(err);
-      toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [mode, toast]);
+    const rawDataUrl = canvas.toDataURL('image/png');
+    const blob = await fetch(rawDataUrl).then(res => res.blob());
+    const file = new File([blob], 'capture.png', { type: 'image/png' });
+    
+    await processAndSetImage(file);
+    stopCamera();
 
+  }, [mode, processAndSetImage, stopCamera]);
 
-  const handleRetake = () => {
-    setCapturedImage(null);
-    onCapture('');
-    setIsConfirmed(false);
-    setMode('idle');
-  };
-  
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
       if (event.target.files && event.target.files[0]) {
           const file = event.target.files[0];
-          setIsProcessing(true);
-          try {
-              const compressedDataUrl = await compressImage(file);
-              setCapturedImage(compressedDataUrl);
-              setIsConfirmed(false);
-              setMode('captured');
-          } catch (err) {
-              console.error(err);
-              toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
-          } finally {
-            setIsProcessing(false);
-          }
+          await processAndSetImage(file);
       }
-  }
-
-  const handleConfirm = () => {
-    if (capturedImage) {
-      onCapture(capturedImage);
-      setIsConfirmed(true);
-      setMode('idle');
-    }
   };
+
+  const handleReset = () => {
+    setImageSrc(null);
+    onCapture('');
+    setMode('idle');
+  };
+  
+  const isBusy = mode === 'uploading' || (mode === 'streaming' && !videoRef.current?.srcObject);
 
   return (
     <div className="w-full space-y-2">
       <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted border flex items-center justify-center">
-        {mode === 'idle' && !capturedImage && (
+        {mode === 'idle' && (
            <div className="text-center p-2">
               <Camera className="h-10 w-10 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground mt-2">Ative a câmera ou escolha da galeria.</p>
@@ -161,13 +149,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraT
 
         {mode === 'streaming' && <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />}
 
-        {(mode === 'captured' || (mode === 'idle' && capturedImage)) && (
-          <Image src={capturedImage!} alt="Foto capturada" layout="fill" className="object-cover" />
+        {(mode === 'confirmed' || mode === 'uploading') && imageSrc && (
+          <Image src={imageSrc} alt="Foto" layout="fill" className="object-cover" />
         )}
         
-        {isProcessing && (
+        {isBusy && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
             <Loader2 className="h-8 w-8 text-white animate-spin" />
+            <p className="text-white ml-2">Processando...</p>
           </div>
         )}
         
@@ -176,25 +165,23 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraT
                 <Alert variant="destructive">
                     <VideoOff className="h-4 w-4" />
                     <AlertTitle>Erro de Câmera</AlertTitle>
-                    <AlertDescription>
-                        {error}
-                    </AlertDescription>
+                    <AlertDescription>{error}</AlertDescription>
                 </Alert>
             </div>
         )}
       </div>
 
       <div className="flex gap-2 justify-center flex-wrap">
-        {mode === 'idle' && !capturedImage && (
+        {mode === 'idle' && (
           <>
-            <Button type="button" onClick={handleActivateCamera} disabled={isProcessing}>
+            <Button type="button" onClick={handleActivateCamera} disabled={isBusy}>
               <Camera className="mr-2 h-4 w-4" />
               Ativar Câmera
             </Button>
             {allowGallery && (
                 <>
                     <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-                    <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={isProcessing}>
+                    <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={isBusy}>
                         <UploadCloud className="mr-2 h-4 w-4" />
                         Escolher da Galeria
                     </Button>
@@ -203,27 +190,16 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraT
           </>
         )}
         {mode === 'streaming' && (
-          <Button type="button" onClick={handleTakePhoto} disabled={isProcessing}>
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-            {isProcessing ? 'Processando...' : 'Capturar Foto'}
+          <Button type="button" onClick={handleTakePhoto} disabled={isBusy}>
+            <Camera className="mr-2 h-4 w-4" />
+            {isBusy ? 'Aguarde...' : 'Capturar Foto'}
           </Button>
         )}
-        {(mode === 'captured' || (mode === 'idle' && capturedImage)) && (
-          <>
-            <Button type="button" variant="outline" onClick={handleRetake}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Alterar Foto
+         {(mode === 'uploading' || mode === 'confirmed') && (
+            <Button type="button" variant="destructive" onClick={handleReset}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Remover Foto
             </Button>
-            <Button 
-              type="button" 
-              onClick={handleConfirm}
-              className={cn(isConfirmed && 'bg-green-600 hover:bg-green-700')}
-              disabled={isConfirmed}
-            >
-              <Check className="mr-2 h-4 w-4" />
-              {isConfirmed ? 'Confirmada' : 'Confirmar Foto'}
-            </Button>
-          </>
         )}
       </div>
       <canvas ref={canvasRef} className="hidden" />
