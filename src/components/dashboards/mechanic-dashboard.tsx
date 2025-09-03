@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Wrench, PlusCircle, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { CompletedChecklist } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
@@ -33,11 +33,14 @@ export function MechanicDashboard() {
   useEffect(() => {
     const q = query(collection(db, "completed-checklists"), where("status", "==", "Pendente"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const checklistsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: (doc.data().createdAt as any).toDate().toISOString(),
-        } as CompletedChecklist));
+        const checklistsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+            } as CompletedChecklist
+        });
         setPendingMaintenance(checklistsData);
         setIsLoading(false);
     });

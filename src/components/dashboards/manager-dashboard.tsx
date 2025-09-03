@@ -113,7 +113,7 @@ export function ManagerDashboard() {
             return {
               ...data,
               id: doc.id,
-              createdAt: data.createdAt.toDate().toISOString(),
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
             } as CompletedChecklist
         });
         setChecklists(checklistsData);

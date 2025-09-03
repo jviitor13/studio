@@ -87,10 +87,21 @@ export default function ChecklistCompletedPage() {
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
+                
+                // Robust date handling
+                let createdAtDate: Date;
+                if (data.createdAt instanceof Timestamp) {
+                    createdAtDate = data.createdAt.toDate();
+                } else if (typeof data.createdAt === 'string') {
+                    createdAtDate = new Date(data.createdAt);
+                } else {
+                    createdAtDate = data.createdAt; // Assume it's already a Date object
+                }
+
                 setChecklist({
                     ...data,
                     id: docSnap.id,
-                    createdAt: (data.createdAt as Timestamp).toDate(),
+                    createdAt: createdAtDate,
                 } as CompletedChecklist);
             } else {
                 console.error("No such document!");

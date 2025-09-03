@@ -97,7 +97,7 @@ export default function ConsultasPage() {
             checklistsData.push({
               ...data,
               id: doc.id,
-              createdAt: data.createdAt.toDate().toISOString(),
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
             } as CompletedChecklist);
           });
           setChecklists(checklistsData);
@@ -135,7 +135,7 @@ export default function ConsultasPage() {
             const results: CompletedChecklist[] = querySnapshot.docs.map(doc => ({
                 ...doc.data(),
                 id: doc.id,
-                createdAt: doc.data().createdAt.toDate().toISOString(),
+                createdAt: doc.data().createdAt instanceof Timestamp ? doc.data().createdAt.toDate() : new Date(doc.data().createdAt),
             } as CompletedChecklist));
 
             setChecklists(results);
