@@ -5,7 +5,7 @@ import { Timestamp } from "firebase/firestore";
 
 export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> & { 
     id: string; 
-    createdAt: Date | Timestamp; 
+    createdAt: Date | Timestamp | null; 
     vehicle: string; 
     driver: string; 
     responsibleName: string;

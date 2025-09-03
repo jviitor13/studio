@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { CheckCircle, Download, Home, Printer, Share2, Loader2, Database, Server, AlertTriangle } from 'lucide-react';
 import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
@@ -89,19 +89,28 @@ export default function ChecklistCompletedPage() {
                 const data = docSnap.data();
                 
                 // Robust date handling
-                let createdAtDate: Date;
-                if (data.createdAt instanceof Timestamp) {
-                    createdAtDate = data.createdAt.toDate();
-                } else if (typeof data.createdAt === 'string') {
-                    createdAtDate = new Date(data.createdAt);
-                } else {
-                    createdAtDate = data.createdAt; // Assume it's already a Date object
+                let createdAtDate: Date | null = null;
+                const rawDate = data.createdAt;
+
+                if (rawDate instanceof Timestamp) {
+                    createdAtDate = rawDate.toDate();
+                } else if (typeof rawDate === 'string' || typeof rawDate === 'number') {
+                    const parsedDate = new Date(rawDate);
+                    if (isValid(parsedDate)) {
+                        createdAtDate = parsedDate;
+                    }
+                } else if (rawDate && typeof rawDate.seconds === 'number') {
+                    // Handle Firestore-like timestamp objects that aren't instances of Timestamp
+                    const parsedDate = new Date(rawDate.seconds * 1000);
+                     if (isValid(parsedDate)) {
+                        createdAtDate = parsedDate;
+                    }
                 }
 
                 setChecklist({
                     ...data,
                     id: docSnap.id,
-                    createdAt: createdAtDate,
+                    createdAt: createdAtDate, // Store as Date object or null
                 } as CompletedChecklist);
             } else {
                 console.error("No such document!");
@@ -198,7 +207,9 @@ export default function ChecklistCompletedPage() {
         }
     }
 
-    const formattedDate = checklist.createdAt ? format(checklist.createdAt, "dd/MM/yyyy 'às' HH:mm") : 'Data não disponível';
+    const formattedDate = checklist.createdAt && isValid(checklist.createdAt) 
+        ? format(checklist.createdAt, "dd/MM/yyyy 'às' HH:mm") 
+        : 'Data não disponível';
 
     return (
         <div className="flex flex-col gap-6">
