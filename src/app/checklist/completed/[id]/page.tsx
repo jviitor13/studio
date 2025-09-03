@@ -198,7 +198,7 @@ export default function ChecklistCompletedPage() {
         }
     }
 
-    const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy 'às' HH:mm") : 'Data não disponível';
+    const formattedDate = checklist.createdAt ? format(checklist.createdAt, "dd/MM/yyyy 'às' HH:mm") : 'Data não disponível';
 
     return (
         <div className="flex flex-col gap-6">
