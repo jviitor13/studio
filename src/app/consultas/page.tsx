@@ -32,16 +32,6 @@ import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
-const checklistStatusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
-    'OK': 'default',
-    'Pendente': 'destructive',
-}
-
-const checklistStatusBadgeColor : {[key:string]: string} = {
-    'OK': 'bg-green-500 hover:bg-green-600',
-    'Pendente': ''
-}
-
 const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending' }) => {
     let icon;
     let text;
@@ -346,7 +336,7 @@ export default function ConsultasPage() {
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
                                             <TableCell>
-                                                <Badge variant={item.status === 'OK' ? 'default' : item.status === 'Pendente' ? 'destructive' : 'secondary'} className={cn(item.status === 'OK' && 'bg-green-500 hover:bg-green-600')}>
+                                                <Badge variant={item.status === 'OK' ? 'default' : item.status === 'Pendente' ? 'destructive' : 'secondary'} className={cn(item.status === 'OK' && 'bg-green-500 hover:bg-green-600', item.status === 'Enviando' && 'animate-pulse')}>
                                                      {getChecklistStatusLabel(item.status)}
                                                 </Badge>
                                             </TableCell>

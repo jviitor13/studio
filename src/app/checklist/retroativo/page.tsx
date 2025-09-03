@@ -223,7 +223,7 @@ export default function RetroactiveChecklistPage() {
             setCurrentStep(prev => prev + 1);
         } else {
             // This is the final step, submit the form.
-            onSubmit(getValues());
+            await handleSubmit(onSubmit)();
         }
     };
     
@@ -231,8 +231,6 @@ export default function RetroactiveChecklistPage() {
         setIsSubmitting(true);
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
-    
-        const hasIssues = data.questions.some(q => q.status === 'Não OK');
     
         // This object contains all data URLs that need to be uploaded
         const imageDataUrls: Record<string, string> = {};

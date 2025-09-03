@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { CheckCircle, Download, Home, Printer, Share2, Loader2 } from 'lucide-react';
+import { CheckCircle, Download, Home, Printer, Share2, Loader2, Database, Server, AlertTriangle } from 'lucide-react';
 import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
@@ -29,6 +30,46 @@ const statusBadgeColor : {[key:string]: string} = {
     'Pendente': '',
     'Enviando': 'animate-pulse'
 }
+
+const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending' }) => {
+    let icon;
+    let text;
+    let variant: "default" | "destructive" | "secondary" = "secondary";
+    let className = "";
+
+    switch (status) {
+        case 'success':
+            icon = <CheckCircle className="h-3 w-3" />;
+            text = "Sucesso";
+            variant = "default";
+            className = "bg-green-500 hover:bg-green-600";
+            break;
+        case 'error':
+            icon = <AlertTriangle className="h-3 w-3" />;
+            text = "Falha";
+            variant = "destructive";
+            break;
+        case 'pending':
+            icon = <Loader2 className="h-3 w-3 animate-spin" />;
+            text = "Pendente";
+            variant = "secondary";
+            break;
+        default:
+            icon = <Loader2 className="h-3 w-3 animate-spin" />;
+            text = "Enviando...";
+            variant = "secondary";
+            className = "animate-pulse";
+            break;
+    }
+
+    return (
+        <Badge variant={variant} className={cn("flex items-center gap-1 w-fit text-xs", className)}>
+            {icon}
+            <span>{text}</span>
+        </Badge>
+    );
+};
+
 
 export default function ChecklistCompletedPage() {
     const params = useParams();
@@ -141,7 +182,7 @@ export default function ChecklistCompletedPage() {
         switch (status) {
             case 'OK': return 'Concluído';
             case 'Pendente': return 'Com Pendências';
-            case 'Enviando': return 'Enviando Imagens...';
+            case 'Enviando': return 'Processando Imagens...';
             default: return status;
         }
     }
@@ -151,8 +192,8 @@ export default function ChecklistCompletedPage() {
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
-                title="Checklist Finalizado!"
-                description="O seu checklist foi enviado e está salvo no sistema."
+                title={checklist.status === 'Enviando' ? "Enviando Checklist..." : "Checklist Finalizado!"}
+                description={checklist.status === 'Enviando' ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
             />
             
             <Card>
@@ -160,12 +201,12 @@ export default function ChecklistCompletedPage() {
                     <CardTitle className="flex items-center gap-2">
                         {checklist.status !== 'Enviando' ? 
                             <CheckCircle className="h-7 w-7 text-green-600" /> : 
-                            <Loader2 className="h-7 w-7 text-secondary animate-spin" />
+                            <Loader2 className="h-7 w-7 text-primary animate-spin" />
                         }
                         Resumo do Envio
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 text-sm">
                     <div className="flex flex-col gap-1">
                         <span className="font-semibold">ID do Checklist:</span>
                         <span className="text-muted-foreground break-all">{checklist.id}</span>
@@ -192,6 +233,19 @@ export default function ChecklistCompletedPage() {
                             {getStatusLabel(checklist.status)}
                         </Badge>
                     </div>
+                     <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
+                        <span className="font-semibold">Status do Upload:</span>
+                        <div className="flex items-center gap-6 mt-1">
+                             <div className="flex items-center gap-2">
+                                <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
+                                <UploadStatusBadge status={checklist.googleDriveStatus} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
+                                <UploadStatusBadge status={checklist.firebaseStorageStatus} />
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -211,8 +265,10 @@ export default function ChecklistCompletedPage() {
                                 {item.photo && (
                                   <div className="mt-2">
                                     {item.photo.startsWith('http') ?
-                                        <img src={item.photo} alt="foto" className="rounded-md w-full max-w-xs"/> :
-                                        <p className="text-xs text-muted-foreground italic">Imagem sendo processada...</p>
+                                        <Image src={item.photo} alt="foto" width={200} height={150} className="rounded-md object-cover"/> :
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                                            <Loader2 className="h-3 w-3 animate-spin"/> Imagem sendo processada...
+                                        </div>
                                     }
                                   </div>
                                 )}
@@ -225,13 +281,19 @@ export default function ChecklistCompletedPage() {
                                         {checklist.signatures?.selfieResponsavel && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Selfie Responsável: {checklist.responsibleName}</p>
-                                                <Image src={checklist.signatures.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                {checklist.signatures.selfieResponsavel.startsWith('http') ?
+                                                     <Image src={checklist.signatures.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                     : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[120px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                }
                                             </div>
                                         )}
                                         {checklist.signatures?.assinaturaResponsavel && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Assinatura Responsável</p>
-                                                <img src={checklist.signatures.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                 {checklist.signatures.assinaturaResponsavel.startsWith('http') ?
+                                                    <img src={checklist.signatures.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                    : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[96px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                }
                                             </div>
                                         )}
                                      </div>
@@ -239,13 +301,19 @@ export default function ChecklistCompletedPage() {
                                         {checklist.signatures?.selfieMotorista && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Selfie Motorista: {checklist.driver}</p>
-                                                <Image src={checklist.signatures.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                {checklist.signatures.selfieMotorista.startsWith('http') ?
+                                                    <Image src={checklist.signatures.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                    : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[120px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                }
                                             </div>
                                         )}
                                         {checklist.signatures?.assinaturaMotorista && (
                                             <div>
                                                 <p className="text-sm text-muted-foreground">Assinatura Motorista</p>
-                                                <img src={checklist.signatures.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                {checklist.signatures.assinaturaMotorista.startsWith('http') ?
+                                                    <img src={checklist.signatures.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                     : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[96px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                }
                                             </div>
                                         )}
                                      </div>
@@ -284,6 +352,3 @@ export default function ChecklistCompletedPage() {
         </div>
     );
 }
-
-
-    
