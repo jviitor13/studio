@@ -131,7 +131,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onCapture, cameraT
     setMode('idle');
   };
   
-  const isBusy = mode === 'uploading' || (mode === 'streaming' && !videoRef.current?.srcObject);
+  const isBusy = mode === 'uploading';
 
   const renderContent = () => {
     switch (mode) {

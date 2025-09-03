@@ -35,6 +35,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
 
   const startCamera = useCallback(async () => {
     setError(null);
+    setMode('streaming');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: cameraType },
@@ -42,10 +43,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => {
-            console.error("Video play error:", e);
-            setError("Não foi possível iniciar o vídeo da câmera.");
-        });
+        await videoRef.current.play();
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -57,19 +55,13 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
   }, [cameraType, toast]);
 
   useEffect(() => {
-    if (mode === 'streaming') {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    
     return () => {
       stopCamera();
     };
-  }, [mode, startCamera, stopCamera]);
+  }, [stopCamera]);
 
   const handleActivateCamera = () => {
-    setMode('streaming');
+    startCamera();
   };
 
   const handleTakePhoto = useCallback(async () => {
@@ -85,6 +77,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     if (!context) return;
     
     context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+    stopCamera();
     
     try {
       const rawDataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -98,8 +91,9 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     } catch (err) {
       console.error(err);
       toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
+      setMode('streaming'); // Go back to streaming on error
     }
-  }, [mode, toast]);
+  }, [mode, toast, stopCamera]);
 
 
   const handleRetake = () => {
@@ -128,7 +122,55 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     }
   };
   
-  const isBusy = mode === 'uploading' || (mode === 'streaming' && !videoRef.current?.srcObject);
+  const isBusy = mode === 'uploading';
+
+  const renderButtons = () => {
+    switch(mode) {
+        case 'idle':
+            return (
+                <Button type="button" onClick={handleActivateCamera} disabled={isBusy}>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Ativar Câmera
+                </Button>
+            );
+        case 'streaming':
+            return (
+                <Button type="button" onClick={handleTakePhoto} disabled={isBusy}>
+                    <Camera className="mr-2 h-4 w-4" />
+                    {isBusy ? 'Aguarde...' : 'Capturar Foto'}
+                </Button>
+            );
+        case 'captured':
+             return (
+                <>
+                    <Button type="button" variant="outline" onClick={handleRetake}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Tirar Novamente
+                    </Button>
+                    <Button type="button" onClick={handleConfirm}>
+                        <Check className="mr-2 h-4 w-4" />
+                        Confirmar Foto
+                    </Button>
+                </>
+            );
+        case 'uploading':
+            return (
+                <Button type="button" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando...
+                </Button>
+            );
+        case 'confirmed':
+            return (
+                <Button type="button" className="bg-green-600 hover:bg-green-700" disabled>
+                    <Check className="mr-2 h-4 w-4" />
+                    Confirmada
+                </Button>
+            );
+        default:
+            return null;
+    }
+  }
 
   return (
     <div className="w-full space-y-2">
@@ -166,42 +208,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       </div>
 
       <div className="flex gap-2 justify-center">
-        {mode === 'idle' && (
-          <Button type="button" onClick={handleActivateCamera} disabled={isBusy}>
-            <Camera className="mr-2 h-4 w-4" />
-            Ativar Câmera
-          </Button>
-        )}
-        {mode === 'streaming' && (
-          <Button type="button" onClick={handleTakePhoto} disabled={isBusy}>
-            <Camera className="mr-2 h-4 w-4" />
-            Capturar Foto
-          </Button>
-        )}
-        {mode === 'captured' && (
-          <>
-            <Button type="button" variant="outline" onClick={handleRetake}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Tirar Novamente
-            </Button>
-            <Button type="button" onClick={handleConfirm}>
-              <Check className="mr-2 h-4 w-4" />
-              Confirmar Foto
-            </Button>
-          </>
-        )}
-         {mode === 'uploading' && (
-            <Button type="button" disabled>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Enviando...
-            </Button>
-        )}
-        {mode === 'confirmed' && (
-           <Button type="button" className="bg-green-600 hover:bg-green-700" disabled>
-              <Check className="mr-2 h-4 w-4" />
-              Confirmada
-            </Button>
-        )}
+        {renderButtons()}
       </div>
       <canvas ref={canvasRef} className="hidden" />
     </div>
