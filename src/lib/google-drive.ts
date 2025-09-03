@@ -4,6 +4,8 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import fetch from 'node-fetch';
+import serviceAccount from '../../rodocheck-244cd-firebase-adminsdk-q5v8b-c6b2b51268.json';
+
 
 // This is the scope for Google Drive API.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
@@ -11,9 +13,11 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 function getDriveClient() {
     // Authenticate with the service account.
     const auth = new google.auth.GoogleAuth({
-        // The JSON string of the service account key is stored in an environment variable.
-        // This is more secure than including the file directly in the project.
-        credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'),
+        // The JSON string of the service account key is imported directly.
+        credentials: {
+            client_email: serviceAccount.client_email,
+            private_key: serviceAccount.private_key,
+        },
         scopes: SCOPES,
     });
 
