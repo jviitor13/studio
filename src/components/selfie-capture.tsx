@@ -87,10 +87,12 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
     
     try {
-      const rawDataUrl = canvas.toDataURL('image/png');
+      const rawDataUrl = canvas.toDataURL('image/jpeg', 0.95);
       const blob = await fetch(rawDataUrl).then(res => res.blob());
-      const file = new File([blob], 'capture.png', { type: 'image/png' });
+      const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+      
       const compressedDataUrl = await compressImage(file);
+
       setCapturedImage(compressedDataUrl);
       setMode('captured');
     } catch (err) {
@@ -126,7 +128,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     }
   };
   
-  const isBusy = mode === 'uploading' || mode === 'streaming' && !videoRef.current?.srcObject;
+  const isBusy = mode === 'uploading' || (mode === 'streaming' && !videoRef.current?.srcObject);
 
   return (
     <div className="w-full space-y-2">
@@ -144,7 +146,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
           <Image src={capturedImage} alt="Foto capturada" layout="fill" className="object-cover" />
         )}
         
-        {(mode === 'uploading' || isBusy) && (
+        {mode === 'uploading' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
             <Loader2 className="h-8 w-8 text-white animate-spin" />
           </div>
