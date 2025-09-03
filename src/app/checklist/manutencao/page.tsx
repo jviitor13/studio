@@ -231,7 +231,7 @@ export default function MaintenanceChecklistPage() {
     
     const onSubmit = async (data: ChecklistFormValues) => {
         setIsSubmitting(true);
-        toast({ title: 'Enviando Checklist...', description: 'Aguarde enquanto processamos os dados. Isso pode levar um momento.' });
+        toast({ title: 'Enviando Checklist...', description: 'Aguarde enquanto processamos os dados. Você pode sair desta tela.' });
 
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);

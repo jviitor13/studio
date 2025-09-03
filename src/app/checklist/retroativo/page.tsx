@@ -25,7 +25,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHea
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ImageUploader } from '@/components/image-uploader';
+import { SelfieCapture } from '@/components/selfie-capture';
 import { saveChecklistAndTriggerUpload } from '@/lib/actions';
 import { CompletedChecklist } from '@/lib/types';
 
@@ -454,17 +454,17 @@ export default function RetroactiveChecklistPage() {
                         <h3 className="font-semibold text-lg text-center">Cavalo Mecânico</h3>
                         <div className="grid gap-4">
                             <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            <Controller name="vehicleImages.cavaloFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                             {errors.vehicleImages?.cavaloFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloFrontal.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            <Controller name="vehicleImages.cavaloLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                             {errors.vehicleImages?.cavaloLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralDireita.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            <Controller name="vehicleImages.cavaloLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                             {errors.vehicleImages?.cavaloLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.cavaloLateralEsquerda.message}</p>}
                         </div>
                     </div>
@@ -472,17 +472,17 @@ export default function RetroactiveChecklistPage() {
                         <h3 className="font-semibold text-lg text-center">Carreta</h3>
                         <div className="grid gap-4">
                             <Label>Foto Frontal *</Label>
-                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            <Controller name="vehicleImages.carretaFrontal" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                             {errors.vehicleImages?.carretaFrontal && <p className="text-sm text-destructive">{errors.vehicleImages.carretaFrontal.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Direita *</Label>
-                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            <Controller name="vehicleImages.carretaLateralDireita" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                             {errors.vehicleImages?.carretaLateralDireita && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralDireita.message}</p>}
                         </div>
                          <div className="grid gap-4">
                             <Label>Foto Lateral Esquerda *</Label>
-                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <ImageUploader onCapture={field.onChange} cameraType="environment" allowGallery={true} />} />
+                            <Controller name="vehicleImages.carretaLateralEsquerda" control={control} render={({ field }) => <SelfieCapture onCapture={field.onChange} cameraType="environment" />} />
                             {errors.vehicleImages?.carretaLateralEsquerda && <p className="text-sm text-destructive">{errors.vehicleImages.carretaLateralEsquerda.message}</p>}
                         </div>
                     </div>
@@ -503,7 +503,7 @@ export default function RetroactiveChecklistPage() {
                             name="signatures.selfieResponsavel"
                             control={control}
                             render={({ field }) => (
-                                <ImageUploader onCapture={field.onChange} allowGallery={true} />
+                                <SelfieCapture onCapture={field.onChange} />
                             )}
                         />
                          {errors.signatures?.selfieResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieResponsavel.message}</p>}
@@ -522,7 +522,7 @@ export default function RetroactiveChecklistPage() {
                             name="signatures.selfieMotorista"
                             control={control}
                             render={({ field }) => (
-                                <ImageUploader onCapture={field.onChange} allowGallery={true} />
+                                <SelfieCapture onCapture={field.onChange} />
                             )}
                         />
                          {errors.signatures?.selfieMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieMotorista.message}</p>}

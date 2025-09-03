@@ -80,30 +80,33 @@ export async function saveChecklistAndTriggerUpload(
   const checklistId = checklistData.id;
 
   try {
-    const hasIssues = checklistData.questions.some(
-      (q: any) => q.status === 'Não OK'
-    );
-    const finalStatus = hasIssues ? 'Pendente' : 'OK';
-
-    const finalChecklistData = {
-        ...checklistData,
-        status: finalStatus,
-        firebaseStorageStatus: 'success',
-        googleDriveStatus: 'pending'
-    };
-
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    await checklistRef.set(finalChecklistData);
+    
+    // Save the initial checklist data with base64 images
+    await checklistRef.set(checklistData);
 
-    // Trigger the background upload to Google Drive
+    // Trigger the background upload flow and DON'T wait for it to complete.
+    // This is "fire-and-forget"
     uploadChecklistFlow({ checklistId });
 
+    // Return immediately to the client
     return { success: true, checklistId };
   } catch (error: any) {
     console.error(
-      `[${checklistId}] Error saving checklist or triggering upload:`,
+      `[${checklistId}] Error saving initial checklist or triggering upload:`,
       error
     );
-    return { success: false, error: error.message };
+    // Optionally update Firestore document to reflect the error
+    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
+    await checklistRef.set({ 
+        ...checklistData, 
+        status: 'Pendente', 
+        googleDriveStatus: 'error',
+        firebaseStorageStatus: 'error',
+        generalObservations: `Falha ao iniciar o processo de upload: ${error.message}`
+    }, { merge: true });
+
+    return { success: false, error: error.message, checklistId };
   }
 }
+

@@ -3,28 +3,34 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
-import { Camera, Check, RefreshCw, Loader2, VideoOff } from 'lucide-react';
+import { Camera, Check, RefreshCw, Loader2, VideoOff, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { uploadImageAndGetURLClient } from '@/lib/storage';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { cn } from '@/lib/utils';
 import { compressImage } from '@/lib/image-compressor';
 
 interface SelfieCaptureProps {
   onCapture: (imageDataUrl: string) => void;
   cameraType?: 'user' | 'environment';
+  initialImage?: string | null;
 }
 
-export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraType = 'user' }) => {
+export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraType = 'user', initialImage = null }) => {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [mode, setMode] = useState<'idle' | 'streaming' | 'captured' | 'uploading' | 'confirmed'>('idle');
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [mode, setMode] = useState<'idle' | 'streaming' | 'captured' | 'confirmed'>('idle');
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImage);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialImage) {
+        setMode('confirmed');
+        setImageSrc(initialImage);
+    }
+  }, [initialImage]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -60,10 +66,6 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
     };
   }, [stopCamera]);
 
-  const handleActivateCamera = () => {
-    startCamera();
-  };
-
   const handleTakePhoto = useCallback(async () => {
     if (mode !== 'streaming' || !videoRef.current || !canvasRef.current) return;
     
@@ -86,58 +88,48 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       
       const compressedDataUrl = await compressImage(file);
 
-      setCapturedImage(compressedDataUrl);
+      setImageSrc(compressedDataUrl);
       setMode('captured');
     } catch (err) {
       console.error(err);
       toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
-      setMode('streaming'); // Go back to streaming on error
+      setMode('streaming');
     }
   }, [mode, toast, stopCamera]);
 
-
   const handleRetake = () => {
-    setCapturedImage(null);
+    setImageSrc(null);
     onCapture('');
     setMode('idle');
   };
 
   const handleConfirm = async () => {
-    if (!capturedImage) return;
-
-    setMode('uploading');
-    toast({ title: 'Enviando imagem...', description: 'Aguarde, estamos salvando sua foto.' });
-    
-    try {
-      const filename = `img-${Date.now()}`;
-      const path = `uploads/${filename}`;
-      const downloadURL = await uploadImageAndGetURLClient(capturedImage, path, filename);
-      onCapture(downloadURL);
-      setMode('confirmed');
-       toast({ title: 'Sucesso!', description: 'Imagem enviada e confirmada.' });
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast({ variant: 'destructive', title: 'Erro de Upload', description: 'Não foi possível enviar a imagem.' });
-      setMode('captured');
-    }
+    if (!imageSrc) return;
+    onCapture(imageSrc);
+    setMode('confirmed');
+    toast({ title: 'Sucesso!', description: 'Imagem confirmada.' });
   };
   
-  const isBusy = mode === 'uploading';
+  const handleRemove = () => {
+    setImageSrc(null);
+    onCapture('');
+    setMode('idle');
+  };
 
   const renderButtons = () => {
     switch(mode) {
         case 'idle':
             return (
-                <Button type="button" onClick={handleActivateCamera} disabled={isBusy}>
+                <Button type="button" onClick={startCamera}>
                     <Camera className="mr-2 h-4 w-4" />
                     Ativar Câmera
                 </Button>
             );
         case 'streaming':
             return (
-                <Button type="button" onClick={handleTakePhoto} disabled={isBusy}>
+                <Button type="button" onClick={handleTakePhoto}>
                     <Camera className="mr-2 h-4 w-4" />
-                    {isBusy ? 'Aguarde...' : 'Capturar Foto'}
+                    Capturar Foto
                 </Button>
             );
         case 'captured':
@@ -153,18 +145,11 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
                     </Button>
                 </>
             );
-        case 'uploading':
-            return (
-                <Button type="button" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                </Button>
-            );
         case 'confirmed':
             return (
-                <Button type="button" className="bg-green-600 hover:bg-green-700" disabled>
-                    <Check className="mr-2 h-4 w-4" />
-                    Confirmada
+                <Button type="button" variant="destructive" onClick={handleRemove}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Remover Foto
                 </Button>
             );
         default:
@@ -184,14 +169,8 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
 
         {mode === 'streaming' && <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />}
 
-        {(mode === 'captured' || mode === 'confirmed' || mode === 'uploading') && capturedImage && (
-          <Image src={capturedImage} alt="Foto capturada" layout="fill" className="object-cover" />
-        )}
-        
-        {mode === 'uploading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <Loader2 className="h-8 w-8 text-white animate-spin" />
-          </div>
+        {(mode === 'captured' || mode === 'confirmed') && imageSrc && (
+          <Image src={imageSrc} alt="Foto capturada" layout="fill" className="object-cover" />
         )}
         
         {error && (

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle } from "./ui/alert";
-import { ImageUploader } from "./image-uploader";
+import { SelfieCapture } from "./selfie-capture";
 
 
 // Match the form values type
@@ -116,7 +116,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave, allowGaller
             <Label>
               Anexar Foto {isPhotoRequired && <span className="text-destructive ml-1">*</span>}
             </Label>
-            <ImageUploader 
+            <SelfieCapture 
                 onCapture={(imageDataUrl) => {
                     setPhoto(imageDataUrl);
                      if (isPhotoRequired && imageDataUrl) {
@@ -124,7 +124,7 @@ export function ItemChecklistDialog({ isOpen, onClose, item, onSave, allowGaller
                     }
                 }}
                 initialImage={photo}
-                allowGallery={allowGallery}
+                cameraType="environment"
             />
              {error && (
                 <Alert variant="destructive" className="mt-2">
