@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud, Server, Database } from "lucide-react"
-import { format, startOfDay, endOfDay } from "date-fns"
+import { format, startOfDay, endOfDay, isValid } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -71,6 +71,32 @@ const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending
     );
 };
 
+const processChecklistDoc = (doc: any): CompletedChecklist => {
+    const data = doc.data();
+    let createdAtDate: Date | null = null;
+    const rawDate = data.createdAt;
+
+    if (rawDate instanceof Timestamp) {
+        createdAtDate = rawDate.toDate();
+    } else if (typeof rawDate === 'string' || typeof rawDate === 'number') {
+        const parsedDate = new Date(rawDate);
+        if (isValid(parsedDate)) {
+            createdAtDate = parsedDate;
+        }
+    } else if (rawDate && typeof rawDate.seconds === 'number') {
+        const parsedDate = new Date(rawDate.seconds * 1000);
+            if (isValid(parsedDate)) {
+            createdAtDate = parsedDate;
+        }
+    }
+
+    return {
+        ...data,
+        id: doc.id,
+        createdAt: createdAtDate,
+    } as CompletedChecklist;
+};
+
 
 export default function ConsultasPage() {
     const [checklists, setChecklists] = React.useState<CompletedChecklist[]>([]);
@@ -91,15 +117,7 @@ export default function ConsultasPage() {
         setIsLoading(true);
         const q = query(collection(db, "completed-checklists"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
-          const checklistsData: CompletedChecklist[] = [];
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            checklistsData.push({
-              ...data,
-              id: doc.id,
-              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-            } as CompletedChecklist);
-          });
+          const checklistsData = querySnapshot.docs.map(processChecklistDoc);
           setChecklists(checklistsData);
           setIsLoading(false);
         });
@@ -132,11 +150,7 @@ export default function ConsultasPage() {
             }
 
             const querySnapshot = await getDocs(q);
-            const results: CompletedChecklist[] = querySnapshot.docs.map(doc => ({
-                ...doc.data(),
-                id: doc.id,
-                createdAt: doc.data().createdAt instanceof Timestamp ? doc.data().createdAt.toDate() : new Date(doc.data().createdAt),
-            } as CompletedChecklist));
+            const results = querySnapshot.docs.map(processChecklistDoc);
 
             setChecklists(results);
         } catch (error) {
@@ -191,9 +205,9 @@ export default function ConsultasPage() {
         }
     };
     
-    const formatDate = (date: string | Date) => {
-        if (!date) return 'N/A';
-        const d = typeof date === 'string' ? new Date(date) : date;
+    const formatDate = (date: Date | Timestamp | string | null) => {
+        if (!date || !isValid(new Date(date.toString()))) return 'N/A';
+        const d = date instanceof Timestamp ? date.toDate() : new Date(date);
         return format(d, "dd/MM/yyyy HH:mm");
     };
     
@@ -409,3 +423,5 @@ export default function ConsultasPage() {
         </>
     )
 }
+
+    
