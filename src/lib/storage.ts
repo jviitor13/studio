@@ -20,6 +20,10 @@ export async function uploadImageAndGetURL(base64: string, path: string, filenam
     if (base64 && (base64.startsWith('http') || base64.startsWith('gs:'))) {
         return base64;
     }
+    // Silently ignore if no image is provided, as some fields are optional.
+    if (!base64) {
+      return '';
+    }
     throw new Error('Invalid base64 string provided for upload.');
   }
 

@@ -4,8 +4,9 @@
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { collection, Timestamp, query, where, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
+import { Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ImageUploader } from '@/components/image-uploader';
-import { triggerChecklistUpload } from '@/lib/actions';
+import { saveChecklistAndTriggerUpload } from '@/lib/actions';
+import { CompletedChecklist } from '@/lib/types';
 
 
 const checklistItemSchema = z.object({
@@ -231,71 +233,59 @@ export default function RetroactiveChecklistPage() {
         setIsSubmitting(true);
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
-    
-        // This object contains all data URLs that need to be uploaded
+
+        // This object will only contain image data URLs for the background upload
         const imageDataUrls: Record<string, string> = {};
-    
-        // Collect image data URLs from questions
-        data.questions.forEach((q, index) => {
-            if (q.photo?.startsWith('data:image')) {
-                imageDataUrls[`questions.${index}.photo`] = q.photo;
-            }
-        });
-    
-        // Collect image data URLs from vehicle images
-        Object.entries(data.vehicleImages).forEach(([key, value]) => {
-            if (value.startsWith('data:image')) {
-                imageDataUrls[`vehicleImages.${key}`] = value;
-            }
-        });
-    
-        // Collect image data URLs from signatures
-        Object.entries(data.signatures).forEach(([key, value]) => {
-            if (value.startsWith('data:image')) {
-                imageDataUrls[`signatures.${key}`] = value;
-            }
-        });
-    
-        // Create a version of the checklist data where data URLs are replaced with placeholders
-        const checklistForFirestore = {
+
+        // This object will contain the final checklist data with image placeholders
+        let checklistForFirestore: CompletedChecklist = {
             ...data,
-            questions: data.questions.map(q => ({ ...q, photo: q.photo?.startsWith('data:image') ? '' : q.photo })),
-            vehicleImages: Object.fromEntries(
-                Object.entries(data.vehicleImages).map(([key, value]) => [key, value.startsWith('data:image') ? '' : value])
-            ),
-            signatures: Object.fromEntries(
-                Object.entries(data.signatures).map(([key, value]) => [key, value.startsWith('data:image') ? '' : value])
-            ),
-            // Add other necessary top-level fields
+            id: checklistId,
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
             name: selectedTemplate?.name || 'Checklist Retroativo',
             type: selectedTemplate?.type || 'Manutenção',
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
-            createdAt: Timestamp.now(),
-            status: 'Enviando' as const,
-            googleDriveStatus: 'pending' as const,
-            firebaseStorageStatus: 'pending' as const,
+            createdAt: Timestamp.now().toDate().toISOString(),
+            status: 'Enviando',
+            googleDriveStatus: 'pending',
+            firebaseStorageStatus: 'pending',
         };
-    
+
+        const processImages = (sourceObject: Record<string, any>, pathPrefix: string) => {
+            const newObject: Record<string, any> = {};
+            for (const [key, value] of Object.entries(sourceObject)) {
+                if (typeof value === 'string' && value.startsWith('data:image')) {
+                    imageDataUrls[`${pathPrefix}.${key}`] = value;
+                    newObject[key] = ''; // Placeholder
+                } else {
+                    newObject[key] = value;
+                }
+            }
+            return newObject;
+        };
+
+        checklistForFirestore.vehicleImages = processImages(data.vehicleImages, 'vehicleImages') as any;
+        checklistForFirestore.signatures = processImages(data.signatures, 'signatures') as any;
+        checklistForFirestore.questions = data.questions.map((q, index) => {
+            if (q.photo?.startsWith('data:image')) {
+                imageDataUrls[`questions.${index}.photo`] = q.photo;
+                return { ...q, photo: '' }; // Placeholder
+            }
+            return q;
+        });
+
         try {
-            // 1. Save the initial document to Firestore
-            const checklistRef = doc(db, 'completed-checklists', checklistId);
-            await setDoc(checklistRef, checklistForFirestore);
-    
-            // 2. Trigger the background upload flow with only the IDs and data URLs
-            await triggerChecklistUpload({
-                checklistId,
-                imageDataUrls,
-            });
-    
-            // 3. Redirect the user immediately
-            router.push(`/checklist/completed/${checklistId}`);
-    
+            const result = await saveChecklistAndTriggerUpload(checklistForFirestore, imageDataUrls);
+
+            if (result.success) {
+                router.push(`/checklist/completed/${result.checklistId}`);
+            } else {
+                throw new Error(result.error || "Failed to save checklist.");
+            }
         } catch (error: any) {
             console.error("Error submitting checklist:", error);
             toast({ variant: "destructive", title: "Erro ao Enviar", description: `Não foi possível iniciar o envio. Detalhes: ${error.message}` });
-        } finally {
             setIsSubmitting(false);
         }
     };
@@ -596,5 +586,3 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
-
-    

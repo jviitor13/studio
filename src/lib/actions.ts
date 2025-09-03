@@ -7,6 +7,7 @@ import type { AssistantFlowInput } from "@/ai/flows/assistant-flow";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { uploadChecklistFlow } from "./checklist-upload-flow";
 import type { ChecklistUploadData } from "./checklist-upload-flow";
+import { CompletedChecklist } from "./types";
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
     try {
@@ -87,4 +88,23 @@ export async function triggerChecklistUpload(data: ChecklistUploadData) {
     }
 }
 
-    
+export async function saveChecklistAndTriggerUpload(checklistData: CompletedChecklist, imageDataUrls: Record<string, string>) {
+  const checklistId = checklistData.id;
+  
+  try {
+    // 1. Save the initial document to Firestore
+    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
+    await checklistRef.set(checklistData);
+
+    // 2. Trigger the background upload flow with only the IDs and data URLs
+    uploadChecklistFlow({
+      checklistId,
+      imageDataUrls,
+    });
+
+    return { success: true, checklistId };
+  } catch (error: any) {
+    console.error(`[${checklistId}] Error saving checklist or triggering upload:`, error);
+    return { success: false, error: error.message };
+  }
+}
