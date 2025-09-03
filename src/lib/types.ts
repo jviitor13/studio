@@ -1,3 +1,4 @@
+
 import type { ChecklistTemplate, ChecklistItem } from "@/lib/checklist-templates-data";
 
 export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> & { 
@@ -25,6 +26,8 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
         carretaLateralEsquerda: string;
     };
     generalObservations?: string;
+    googleDriveStatus?: 'success' | 'error' | 'pending';
+    firebaseStorageStatus?: 'success' | 'error' | 'pending';
 };
 
 export type Report = {

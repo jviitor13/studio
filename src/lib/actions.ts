@@ -5,6 +5,8 @@ import type { AssessVehicleDamageInput } from "@/ai/flows/assess-vehicle-damage"
 import { assistantFlow } from "@/ai/flows/assistant-flow";
 import type { AssistantFlowInput } from "@/ai/flows/assistant-flow";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { uploadChecklistFlow } from "./checklist-upload-flow";
+import type { ChecklistUploadData } from "./checklist-upload-flow";
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
     try {
@@ -69,4 +71,16 @@ export async function createUser(data: UserData) {
     }
     return { success: false, error: errorMessage };
   }
+}
+
+export async function triggerChecklistUpload(data: ChecklistUploadData) {
+    try {
+        // This is a "fire-and-forget" call. We don't await the result.
+        // The flow will run in the background.
+        uploadChecklistFlow(data);
+        return { success: true };
+    } catch (error) {
+        console.error("Error triggering checklist upload flow:", error);
+        return { success: false, error: "Failed to trigger checklist upload." };
+    }
 }

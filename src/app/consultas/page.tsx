@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud, Server, Database } from "lucide-react"
 import { format, startOfDay, endOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -42,34 +42,39 @@ const checklistStatusBadgeColor : {[key:string]: string} = {
     'Pendente': ''
 }
 
-const uploadStatusVariant: { [key: string]: "default" | "destructive" | "secondary" } = {
-  "Concluído": "default",
-  "Enviando": "secondary",
-  "Falhou": "destructive",
-};
-
-const UploadStatusBadge = ({ status }: { status: CompletedChecklist['status'] }) => {
-    if (status === 'OK' || status === 'Pendente') {
-        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">N/A</Badge>;
-    }
-    
+const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending' }) => {
     let icon;
     let text;
+    let variant: "default" | "destructive" | "secondary" = "secondary";
+    let className = "";
+
     switch (status) {
-        case 'Enviando':
-            icon = <Loader2 className="mr-2 h-4 w-4 animate-spin text-amber-600" />;
-            text = "Enviando...";
+        case 'success':
+            icon = <CheckCircle className="h-3 w-3" />;
+            text = "Sucesso";
+            variant = "default";
+            className = "bg-green-500 hover:bg-green-600";
             break;
-        case 'Falhou':
-            icon = <AlertTriangle className="mr-2 h-4 w-4 text-red-600" />;
-            text = "Falhou";
+        case 'error':
+            icon = <AlertTriangle className="h-3 w-3" />;
+            text = "Falha";
+            variant = "destructive";
+            break;
+        case 'pending':
+            icon = <Loader2 className="h-3 w-3 animate-spin" />;
+            text = "Pendente";
+            variant = "secondary";
             break;
         default:
-            return <Badge variant="secondary" className="bg-gray-200 text-gray-700">N/A</Badge>;
+            icon = <Loader2 className="h-3 w-3 animate-spin" />;
+            text = "Enviando...";
+            variant = "secondary";
+            className = "animate-pulse";
+            break;
     }
 
     return (
-        <Badge variant={uploadStatusVariant[status]} className="flex items-center w-fit">
+        <Badge variant={variant} className={cn("flex items-center gap-1 w-fit text-xs", className)}>
             {icon}
             <span>{text}</span>
         </Badge>
@@ -206,6 +211,7 @@ export default function ConsultasPage() {
         switch (status) {
             case 'OK': return 'Concluído';
             case 'Pendente': return 'Com Pendências';
+            case 'Enviando': return 'Processando...';
             default: return status;
         }
     }
@@ -293,6 +299,7 @@ export default function ConsultasPage() {
                                     <SelectContent>
                                         <SelectItem value="OK">Concluído</SelectItem>
                                         <SelectItem value="Pendente">Com Pendências</SelectItem>
+                                        <SelectItem value="Enviando">Processando</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -321,7 +328,7 @@ export default function ConsultasPage() {
                                     <TableHead>Veículo</TableHead>
                                     <TableHead>Responsável</TableHead>
                                     <TableHead>Status Checklist</TableHead>
-                                    <TableHead>Status Envio</TableHead>
+                                    <TableHead>Uploads</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -339,12 +346,21 @@ export default function ConsultasPage() {
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
                                             <TableCell>
-                                                <Badge variant={checklistStatusVariant[item.status]} className={cn(checklistStatusBadgeColor[item.status])}>
+                                                <Badge variant={item.status === 'OK' ? 'default' : item.status === 'Pendente' ? 'destructive' : 'secondary'} className={cn(item.status === 'OK' && 'bg-green-500 hover:bg-green-600')}>
                                                      {getChecklistStatusLabel(item.status)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <UploadStatusBadge status={item.status} />
+                                                <div className="flex flex-col gap-1.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
+                                                        <UploadStatusBadge status={item.googleDriveStatus} />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
+                                                        <UploadStatusBadge status={item.firebaseStorageStatus} />
+                                                    </div>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <AlertDialog>
@@ -403,5 +419,3 @@ export default function ConsultasPage() {
         </>
     )
 }
-
-    

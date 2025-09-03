@@ -5,7 +5,7 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { collection, Timestamp, query, where, addDoc, getDocs, doc, setDoc, updateDoc, writeBatch, onSnapshot } from 'firebase/firestore';
+import { collection, Timestamp, query, where, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -14,18 +14,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, AlertTriangle, Edit, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle, Edit, ArrowLeft, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
 import { ChecklistTemplate } from '@/lib/checklist-templates-data';
 import { ItemChecklistDialog } from '@/components/item-checklist-dialog';
 import { SignaturePad } from '@/components/signature-pad';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { uploadImageAndGetURL } from '@/lib/storage';
 import { Progress } from '@/components/ui/progress';
 import { ImageUploader } from '@/components/image-uploader';
+import { triggerChecklistUpload } from '@/lib/actions';
 
 
 const checklistItemSchema = z.object({
@@ -67,7 +67,6 @@ const checklistSchema = z.object({
 
 type ChecklistFormValues = z.infer<typeof checklistSchema>;
 type ChecklistItemData = z.infer<typeof checklistItemSchema>;
-type UploadQueueItem = { fieldPath: string; dataUrl: string };
 
 const formSteps = [
     { id: 1, title: 'Informações Gerais', fields: ['templateId', 'cavaloPlate', 'carretaPlate', 'responsibleName', 'driverName', 'mileage'] },
@@ -87,11 +86,7 @@ export default function RetroactiveChecklistPage() {
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [checklistId, setChecklistId] = useState<string | null>(null);
-
-  const uploadQueueRef = useRef<UploadQueueItem[]>([]);
-  const isProcessingQueue = useRef(false);
-
+  
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
     return () => unsubscribe();
@@ -125,7 +120,6 @@ export default function RetroactiveChecklistPage() {
     watch,
     getValues,
     setValue,
-    reset,
     trigger
   } = useForm<ChecklistFormValues>({
     resolver: zodResolver(checklistSchema),
@@ -188,20 +182,10 @@ export default function RetroactiveChecklistPage() {
 
   const handleSaveItem = useCallback((data: { status: "OK" | "Não OK"; photo?: string; observation?: string; }) => {
     if (currentItem) {
-        const updatedItem = {
+        update(currentItem.index, {
             ...fields[currentItem.index],
             ...data,
-        };
-
-         if (data.photo?.startsWith('data:image')) {
-            uploadQueueRef.current.push({
-                fieldPath: `questions.${currentItem.index}.photo`,
-                dataUrl: data.photo,
-            });
-            updatedItem.photo = ''; // Clear from form state
-        }
-
-        update(currentItem.index, updatedItem);
+        });
         setTimeout(() => trigger(`questions.${currentItem.index}`), 100); 
     }
     setCurrentItem(null);
@@ -212,38 +196,6 @@ export default function RetroactiveChecklistPage() {
             setCurrentStep(prev => prev - 1);
         }
     };
-    
-    const processUploadQueue = useCallback(async (finalChecklistId: string) => {
-        if (isProcessingQueue.current || uploadQueueRef.current.length === 0) return;
-    
-        isProcessingQueue.current = true;
-        
-        const queue = [...uploadQueueRef.current];
-        uploadQueueRef.current = [];
-    
-        const batchSize = 3; 
-        for (let i = 0; i < queue.length; i += batchSize) {
-            const batch = queue.slice(i, i + batchSize);
-            await Promise.all(batch.map(async (imgInfo) => {
-                try {
-                    const url = await uploadImageAndGetURL(imgInfo.dataUrl, finalChecklistId, `${imgInfo.fieldPath.replace(/\./g, '-')}-${Date.now()}`);
-                    const checklistRef = doc(db, 'completed-checklists', finalChecklistId);
-                    await updateDoc(checklistRef, { [imgInfo.fieldPath]: url });
-                } catch (e) {
-                    console.error("Failed to upload an image, will mark as failed:", imgInfo.fieldPath, e);
-                    await updateDoc(doc(db, 'completed-checklists', finalChecklistId), { status: "Falhou" });
-                }
-            }));
-        }
-    
-        isProcessingQueue.current = false;
-        
-        const checklistRef = doc(db, 'completed-checklists', finalChecklistId);
-        const currentData = getValues();
-        const hasIssues = currentData.questions.some((q) => q.status === "Não OK");
-        await updateDoc(checklistRef, { status: hasIssues ? "Pendente" : "OK" });
-        
-    }, [getValues]);
     
     const handleNextStep = async () => {
         const fieldsToValidate = formSteps[currentStep - 1].fields as (keyof ChecklistFormValues)[];
@@ -257,117 +209,103 @@ export default function RetroactiveChecklistPage() {
             });
             return;
         }
-        
+
         const data = getValues();
-        if (currentStep === 2) {
+         if (currentStep === 2) {
             const hasPendingItems = data.questions.some(q => q.status === 'N/A');
             if (hasPendingItems) {
                 toast({ variant: "destructive", title: "Checklist Incompleto", description: "Avalie todos os itens antes de prosseguir." });
                 return;
             }
         }
-
+        
+        if (currentStep < formSteps.length) {
+            setCurrentStep(prev => prev + 1);
+        } else {
+            // This is the final step, submit the form.
+            onSubmit(getValues());
+        }
+    };
+    
+ const onSubmit = async (data: ChecklistFormValues) => {
         setIsSubmitting(true);
-
+        const checklistId = `checklist-${Date.now()}`;
+        const selectedTemplate = templates.find(t => t.id === data.templateId);
+    
+        const hasIssues = data.questions.some(q => q.status === 'Não OK');
+    
+        // This object contains all data URLs that need to be uploaded
+        const imageDataUrls: Record<string, string> = {};
+    
+        // Collect image data URLs from questions
+        data.questions.forEach((q, index) => {
+            if (q.photo?.startsWith('data:image')) {
+                imageDataUrls[`questions.${index}.photo`] = q.photo;
+            }
+        });
+    
+        // Collect image data URLs from vehicle images
+        Object.entries(data.vehicleImages).forEach(([key, value]) => {
+            if (value.startsWith('data:image')) {
+                imageDataUrls[`vehicleImages.${key}`] = value;
+            }
+        });
+    
+        // Collect image data URLs from signatures
+        Object.entries(data.signatures).forEach(([key, value]) => {
+            if (value.startsWith('data:image')) {
+                imageDataUrls[`signatures.${key}`] = value;
+            }
+        });
+    
+        // Create a version of the checklist data where data URLs are replaced with placeholders
+        const checklistForFirestore = {
+            ...data,
+            questions: data.questions.map(q => ({ ...q, photo: q.photo?.startsWith('data:image') ? '' : q.photo })),
+            vehicleImages: Object.fromEntries(
+                Object.entries(data.vehicleImages).map(([key, value]) => [key, value.startsWith('data:image') ? '' : value])
+            ),
+            signatures: Object.fromEntries(
+                Object.entries(data.signatures).map(([key, value]) => [key, value.startsWith('data:image') ? '' : value])
+            ),
+        };
+    
+        const submissionData = {
+            id: checklistId,
+            ...checklistForFirestore,
+            vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
+            name: selectedTemplate?.name || 'Checklist Retroativo',
+            type: selectedTemplate?.type || 'Manutenção',
+            category: selectedTemplate?.category || 'nao_aplicavel',
+            driver: data.driverName,
+            createdAt: Timestamp.now(),
+            status: 'Enviando' as const,
+            googleDriveStatus: 'pending' as const,
+            firebaseStorageStatus: 'pending' as const,
+        };
+    
         try {
-            if (currentStep === 1 && !checklistId) {
-                const newChecklistId = `checklist-${Date.now()}`;
-                const selectedTemplate = templates.find(t => t.id === data.templateId);
-                
-                const submissionData = {
-                    id: newChecklistId,
-                    templateId: data.templateId || '',
-                    cavaloPlate: data.cavaloPlate || '',
-                    carretaPlate: data.carretaPlate || '',
-                    responsibleName: data.responsibleName || '',
-                    driverName: data.driverName || '',
-                    mileage: data.mileage || 0,
-                    vehicle: `${data.cavaloPlate || ''} / ${data.carretaPlate || ''}`,
-                    name: selectedTemplate?.name || 'Checklist Retroativo',
-                    type: selectedTemplate?.type || "Manutenção",
-                    category: selectedTemplate?.category || 'nao_aplicavel',
-                    driver: data.driverName || '',
-                    createdAt: Timestamp.now(),
-                    status: "Em Andamento",
-                    questions: data.questions.map(q => ({
-                        id: q.id || '',
-                        text: q.text || '',
-                        photoRequirement: q.photoRequirement,
-                        status: q.status || 'N/A',
-                        observation: q.observation || '',
-                        photo: q.photo || '',
-                    })),
-                     vehicleImages: {
-                        cavaloFrontal: '',
-                        cavaloLateralDireita: '',
-                        cavaloLateralEsquerda: '',
-                        carretaFrontal: '',
-                        carretaLateralDireita: '',
-                        carretaLateralEsquerda: '',
-                    },
-                    signatures: {
-                        assinaturaResponsavel: '',
-                        assinaturaMotorista: '',
-                        selfieResponsavel: '',
-                        selfieMotorista: '',
-                    }
-                };
-                
-                const checklistRef = doc(db, 'completed-checklists', newChecklistId);
-                await setDoc(checklistRef, submissionData);
-                setChecklistId(newChecklistId);
-            } else if (checklistId) {
-                const checklistRef = doc(db, 'completed-checklists', checklistId);
-                const currentData = getValues();
-                const batch = writeBatch(db);
-
-                if (currentStep === 2) {
-                     const questionsToUpdate = currentData.questions.map((q, index) => {
-                        const { photo, ...rest } = q;
-                        if (photo?.startsWith('data:image')) {
-                            uploadQueueRef.current.push({ fieldPath: `questions.${index}.photo`, dataUrl: photo });
-                            return {...rest, photo: ''};
-                        }
-                        return q;
-                    });
-                    batch.update(checklistRef, { questions: questionsToUpdate });
-                } else if (currentStep === 3) {
-                     Object.entries(currentData.vehicleImages).forEach(([key, value]) => {
-                        if(value.startsWith('data:image')) {
-                            uploadQueueRef.current.push({ fieldPath: `vehicleImages.${key}`, dataUrl: value });
-                        }
-                    });
-                } else if (currentStep === 4) {
-                     Object.entries(currentData.signatures).forEach(([key, value]) => {
-                        if(value.startsWith('data:image')) {
-                            uploadQueueRef.current.push({ fieldPath: `signatures.${key}`, dataUrl: value });
-                        }
-                    });
-                }
-                await batch.commit();
-            }
-
-            if (currentStep < formSteps.length) {
-                setCurrentStep(prev => prev + 1);
-            } else {
-                await updateDoc(doc(db, 'completed-checklists', checklistId!), { status: "Enviando" });
-                router.push(`/checklist/completed/${checklistId}`);
-                setTimeout(() => processUploadQueue(checklistId!), 500);
-            }
+            // 1. Save the initial document to Firestore
+            const checklistRef = doc(db, 'completed-checklists', checklistId);
+            await setDoc(checklistRef, submissionData);
+    
+            // 2. Trigger the background upload flow
+            await triggerChecklistUpload({
+                checklistId,
+                checklistData: submissionData, // Send the complete data for JSON upload
+                imageDataUrls,
+            });
+    
+            // 3. Redirect the user immediately
+            router.push(`/checklist/completed/${checklistId}`);
+    
         } catch (error: any) {
-            console.error("Error during step progression:", error);
-            toast({ variant: "destructive", title: "Erro ao Salvar", description: `Não foi possível salvar o progresso. Detalhes: ${error.message}`});
-             if(checklistId) {
-                await updateDoc(doc(db, 'completed-checklists', checklistId), { status: "Falhou" }).catch();
-            }
+            console.error("Error submitting checklist:", error);
+            toast({ variant: "destructive", title: "Erro ao Enviar", description: `Não foi possível iniciar o envio. Detalhes: ${error.message}` });
         } finally {
             setIsSubmitting(false);
         }
     };
-    
- const onSubmit = (data: ChecklistFormValues) => {
-    handleNextStep();
- }
 
   const [shouldTriggerValidation, setShouldTriggerValidation] = useState(false);
   const currentQuestions = watch('questions');
@@ -411,7 +349,7 @@ export default function RetroactiveChecklistPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Aguarde...</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Salvando seu progresso e preparando a próxima etapa.
+                    Enviando checklist. Você será redirecionado em breve.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex justify-center items-center py-4">
@@ -421,7 +359,7 @@ export default function RetroactiveChecklistPage() {
     </AlertDialog>
 
 
-    <form onSubmit={(e) => e.preventDefault()} className="mx-auto grid w-full max-w-4xl gap-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="mx-auto grid w-full max-w-4xl gap-6">
       <PageHeader
         title="Checklist Retroativo (Admin)"
         description={formSteps[currentStep - 1].title}
@@ -655,7 +593,7 @@ export default function RetroactiveChecklistPage() {
             <div>
                  <Button type="button" onClick={handleNextStep} disabled={isSubmitting || !selectedTemplateId}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                    {isSubmitting ? 'Salvando...' : (currentStep === formSteps.length ? 'Finalizar e Enviar' : 'Avançar')}
+                    {isSubmitting ? 'Enviando...' : (currentStep === formSteps.length ? 'Finalizar e Enviar' : 'Avançar')}
                     {!isSubmitting && currentStep < formSteps.length && <ArrowRight className="ml-2 h-4 w-4"/>}
                 </Button>
             </div>
@@ -665,7 +603,3 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
-
-    
-
-    
