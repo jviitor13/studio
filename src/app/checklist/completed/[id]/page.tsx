@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { CompletedChecklist } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/page-header';
@@ -90,7 +90,7 @@ export default function ChecklistCompletedPage() {
                 setChecklist({
                     ...data,
                     id: docSnap.id,
-                    createdAt: data.createdAt.toDate().toISOString(),
+                    createdAt: (data.createdAt as Timestamp).toDate(),
                 } as CompletedChecklist);
             } else {
                 console.error("No such document!");

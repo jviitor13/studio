@@ -237,14 +237,14 @@ export default function RetroactiveChecklistPage() {
         const selectedTemplate = templates.find(t => t.id === data.templateId);
 
         const checklistForFirestore: CompletedChecklist = {
-            ...data,
+            ...(data as any),
             id: checklistId,
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
             name: selectedTemplate?.name || 'Checklist Retroativo',
             type: selectedTemplate?.type || 'Manutenção',
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
-            createdAt: Timestamp.now().toDate().toISOString(),
+            createdAt: Timestamp.now(),
             status: 'Enviando',
             firebaseStorageStatus: 'pending',
             googleDriveStatus: 'pending',

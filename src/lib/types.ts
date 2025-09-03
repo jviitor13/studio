@@ -1,9 +1,11 @@
 
+
 import type { ChecklistTemplate, ChecklistItem } from "@/lib/checklist-templates-data";
+import { Timestamp } from "firebase/firestore";
 
 export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> & { 
     id: string; 
-    createdAt: string; 
+    createdAt: Date | Timestamp; 
     vehicle: string; 
     driver: string; 
     responsibleName: string;
