@@ -81,6 +81,10 @@ export async function triggerChecklistUpload(data: ChecklistUploadData) {
         return { success: true };
     } catch (error) {
         console.error("Error triggering checklist upload flow:", error);
-        return { success: false, error: "Failed to trigger checklist upload." };
+        // This error will be caught by the client-side try-catch block.
+        // It's important to re-throw or return a structured error.
+        throw new Error("Failed to trigger checklist upload.");
     }
 }
+
+    

@@ -266,11 +266,7 @@ export default function RetroactiveChecklistPage() {
             signatures: Object.fromEntries(
                 Object.entries(data.signatures).map(([key, value]) => [key, value.startsWith('data:image') ? '' : value])
             ),
-        };
-    
-        const submissionData = {
-            id: checklistId,
-            ...checklistForFirestore,
+            // Add other necessary top-level fields
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
             name: selectedTemplate?.name || 'Checklist Retroativo',
             type: selectedTemplate?.type || 'Manutenção',
@@ -285,12 +281,11 @@ export default function RetroactiveChecklistPage() {
         try {
             // 1. Save the initial document to Firestore
             const checklistRef = doc(db, 'completed-checklists', checklistId);
-            await setDoc(checklistRef, submissionData);
+            await setDoc(checklistRef, checklistForFirestore);
     
-            // 2. Trigger the background upload flow
+            // 2. Trigger the background upload flow with only the IDs and data URLs
             await triggerChecklistUpload({
                 checklistId,
-                checklistData: submissionData, // Send the complete data for JSON upload
                 imageDataUrls,
             });
     
@@ -601,3 +596,5 @@ export default function RetroactiveChecklistPage() {
     </>
   );
 }
+
+    

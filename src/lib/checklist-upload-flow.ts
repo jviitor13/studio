@@ -14,7 +14,6 @@ import { CompletedChecklist } from './types';
 
 const ChecklistUploadDataSchema = z.object({
     checklistId: z.string(),
-    checklistData: z.any(), // Using any because CompletedChecklist is complex
     imageDataUrls: z.record(z.string(), z.string()),
 });
 export type ChecklistUploadData = z.infer<typeof ChecklistUploadDataSchema>;
@@ -62,9 +61,16 @@ export const uploadChecklistFlow = ai.defineFlow(
         inputSchema: ChecklistUploadDataSchema,
         outputSchema: z.void(),
     },
-    async ({ checklistId, checklistData, imageDataUrls }) => {
+    async ({ checklistId, imageDataUrls }) => {
         const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
         
+        const docSnap = await checklistRef.get();
+        if (!docSnap.exists) {
+            console.error(`[${checklistId}] Checklist document not found.`);
+            return;
+        }
+        const checklistData = docSnap.data() as CompletedChecklist;
+
         // --- Google Drive Upload ---
         try {
             await uploadToGoogleDrive(checklistId, checklistData, imageDataUrls);
@@ -97,3 +103,5 @@ export const uploadChecklistFlow = ai.defineFlow(
         await checklistRef.update({ status: hasIssues ? "Pendente" : "OK" });
     }
 );
+
+    
