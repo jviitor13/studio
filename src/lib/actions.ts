@@ -8,7 +8,41 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { uploadChecklistFlow } from './checklist-upload-flow';
 import type { ChecklistUploadData } from './checklist-upload-flow';
 import { CompletedChecklist } from './types';
-import { uploadImageAndGetURL } from './storage';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase-admin/storage';
+
+
+// Helper function to upload images within a server action
+async function uploadImageAndGetURL(base64: string, path: string, filename: string): Promise<string> {
+    if (!base64 || !base64.startsWith('data:image')) {
+        if (base64 && (base64.startsWith('http') || base64.startsWith('gs:'))) {
+            return base64;
+        }
+        if (!base64) {
+            return '';
+        }
+        throw new Error(`Invalid base64 string provided for upload: ${filename}`);
+    }
+
+    const storage = getStorage(adminDb.app);
+    const bucket = storage.bucket('rodocheck-244cd.appspot.com');
+    const file = bucket.file(`${path}/${filename}.jpg`);
+
+    const buffer = Buffer.from(base64.split(',')[1], 'base64');
+
+    await file.save(buffer, {
+        metadata: {
+            contentType: 'image/jpeg',
+        },
+    });
+
+    const [url] = await file.getSignedUrl({
+        action: 'read',
+        expires: '03-09-2491', // Far future expiration date
+    });
+
+    return url;
+}
+
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
   try {
@@ -42,25 +76,22 @@ interface UserData {
 
 export async function createUser(data: UserData) {
   try {
-    // Create user in Firebase Auth
     const userRecord = await adminAuth.createUser({
       email: data.email,
       password: data.password,
       displayName: data.name,
-      emailVerified: true, // Or false, depending on your flow
+      emailVerified: true, 
       disabled: false,
     });
 
-    // Set custom claims for role-based access control
     await adminAuth.setCustomUserClaims(userRecord.uid, { role: data.role });
 
-    // Create user document in Firestore
     const userDocRef = adminDb.collection('users').doc(userRecord.uid);
     await userDocRef.set({
       name: data.name,
       email: data.email,
       role: data.role,
-      status: 'Ativo', // Default status
+      status: 'Ativo', 
       createdAt: new Date().toISOString(),
     });
 
@@ -80,14 +111,10 @@ export async function createUser(data: UserData) {
 
 export async function triggerChecklistUpload(data: ChecklistUploadData) {
   try {
-    // This is a "fire-and-forget" call. We don't await the result.
-    // The flow will run in the background.
     uploadChecklistFlow(data);
     return { success: true };
   } catch (error) {
     console.error('Error triggering checklist upload flow:', error);
-    // This error will be caught by the client-side try-catch block.
-    // It's important to re-throw or return a structured error.
     throw new Error('Failed to trigger checklist upload.');
   }
 }
@@ -99,7 +126,6 @@ export async function saveChecklistAndTriggerUpload(
   const checklistId = checklistData.id;
 
   try {
-    // This server action now handles the direct upload to Firebase Storage
     const uploadedUrls: Record<string, string> = {};
     for (const [key, dataUrl] of Object.entries(imageDataUrls)) {
       if (dataUrl) {
@@ -110,10 +136,8 @@ export async function saveChecklistAndTriggerUpload(
       }
     }
     
-    // Now update the checklistData with the final URLs
     const finalChecklistData = { ...checklistData };
     
-    // Replace image placeholders with final URLs
     finalChecklistData.vehicleImages = {
       cavaloFrontal: uploadedUrls['vehicleImages.cavaloFrontal'] || '',
       cavaloLateralDireita: uploadedUrls['vehicleImages.cavaloLateralDireita'] || '',
@@ -143,14 +167,12 @@ export async function saveChecklistAndTriggerUpload(
     finalChecklistData.firebaseStorageStatus = 'success';
 
 
-    // 1. Save the final document to Firestore
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     await checklistRef.set(finalChecklistData);
 
-    // 2. Trigger the Google Drive backup flow
     uploadChecklistFlow({
       checklistId,
-      imageDataUrls, // Send original data URLs for backup
+      imageDataUrls, 
     });
 
     return { success: true, checklistId };
@@ -159,7 +181,6 @@ export async function saveChecklistAndTriggerUpload(
       `[${checklistId}] Error saving checklist or triggering upload:`,
       error
     );
-    // Return a structured error object
     return { success: false, error: error.message };
   }
 }

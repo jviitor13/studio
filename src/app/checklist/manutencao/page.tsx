@@ -222,7 +222,7 @@ export default function MaintenanceChecklistPage() {
         }
         
         if (currentStep < formSteps.length) {
-            setCurrentStep(prev => prev + 1);
+            setCurrentStep(prev => prev - 1);
         } else {
             // This is the final step, submit the form.
             await handleSubmit(onSubmit)();
@@ -234,11 +234,25 @@ export default function MaintenanceChecklistPage() {
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
 
-        // This object will only contain image data URLs for the background upload
         const imageDataUrls: Record<string, string> = {};
 
-        // This object will contain the final checklist data with image placeholders
-        let checklistForFirestore: CompletedChecklist = {
+        data.questions.forEach((q, index) => {
+            if (q.photo) imageDataUrls[`questions.${index}.photo`] = q.photo;
+        });
+        Object.assign(imageDataUrls, {
+            'vehicleImages.cavaloFrontal': data.vehicleImages.cavaloFrontal,
+            'vehicleImages.cavaloLateralDireita': data.vehicleImages.cavaloLateralDireita,
+            'vehicleImages.cavaloLateralEsquerda': data.vehicleImages.cavaloLateralEsquerda,
+            'vehicleImages.carretaFrontal': data.vehicleImages.carretaFrontal,
+            'vehicleImages.carretaLateralDireita': data.vehicleImages.carretaLateralDireita,
+            'vehicleImages.carretaLateralEsquerda': data.vehicleImages.carretaLateralEsquerda,
+            'signatures.selfieResponsavel': data.signatures.selfieResponsavel,
+            'signatures.assinaturaResponsavel': data.signatures.assinaturaResponsavel,
+            'signatures.selfieMotorista': data.signatures.selfieMotorista,
+            'signatures.assinaturaMotorista': data.signatures.assinaturaMotorista,
+        });
+
+        const checklistForFirestore: CompletedChecklist = {
             ...data,
             id: checklistId,
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
@@ -251,29 +265,6 @@ export default function MaintenanceChecklistPage() {
             googleDriveStatus: 'pending',
             firebaseStorageStatus: 'pending',
         };
-
-        const processImages = (sourceObject: Record<string, any>, pathPrefix: string) => {
-            const newObject: Record<string, any> = {};
-            for (const [key, value] of Object.entries(sourceObject)) {
-                if (typeof value === 'string' && value.startsWith('data:image')) {
-                    imageDataUrls[`${pathPrefix}.${key}`] = value;
-                    newObject[key] = ''; // Placeholder
-                } else {
-                    newObject[key] = value;
-                }
-            }
-            return newObject;
-        };
-
-        checklistForFirestore.vehicleImages = processImages(data.vehicleImages, 'vehicleImages') as any;
-        checklistForFirestore.signatures = processImages(data.signatures, 'signatures') as any;
-        checklistForFirestore.questions = data.questions.map((q, index) => {
-            if (q.photo?.startsWith('data:image')) {
-                imageDataUrls[`questions.${index}.photo`] = q.photo;
-                return { ...q, photo: '' }; // Placeholder
-            }
-            return q;
-        });
 
         try {
             const result = await saveChecklistAndTriggerUpload(checklistForFirestore, imageDataUrls);
