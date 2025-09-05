@@ -26,41 +26,57 @@ function getDriveClient() {
 
 const drive = getDriveClient();
 
-
 /**
- * Finds a folder by name within a parent folder. If not found, creates it.
+ * Finds a folder by name. If a parent folder ID is provided, it searches within that folder.
+ * If not found, it creates the folder inside the specified parent.
+ * This function now assumes the root folder "Checklists_Rodocheck" is manually created and shared.
  * @param folderName The name of the folder to find or create.
- * @param parentFolderId The ID of the parent folder. Defaults to 'root'.
+ * @param parentFolderId The ID of the parent folder. If null, it searches for a shared top-level folder.
  * @returns The ID of the found or created folder.
  */
-export async function findOrCreateFolder(folderName: string, parentFolderId: string = 'root'): Promise<string> {
+export async function findOrCreateFolder(folderName: string, parentFolderId?: string): Promise<string> {
     try {
-        // Search for the folder first.
-        const query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and '${parentFolderId}' in parents and trashed=false`;
+        let query: string;
+        if (parentFolderId) {
+            // Search inside a specific parent folder
+            query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and '${parentFolderId}' in parents and trashed=false`;
+        } else {
+            // Search for the top-level shared folder, it's not in 'parents' of 'root' for service accounts.
+             query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
+        }
+
         const response = await drive.files.list({
             q: query,
             fields: 'files(id, name)',
+            // For service accounts, corpora must be 'allDrives' or 'drive' to see shared folders/drives
+            corpora: 'allDrives',
+            includeItemsFromAllDrives: true,
+            supportsAllDrives: true,
         });
 
         if (response.data.files && response.data.files.length > 0) {
             // Folder found, return its ID.
             return response.data.files[0].id!;
         } else {
-            // Folder not found, create it.
-            const fileMetadata = {
-                name: folderName,
-                mimeType: 'application/vnd.google-apps.folder',
-                parents: [parentFolderId],
-            };
-            const newFolder = await drive.files.create({
-                requestBody: fileMetadata,
-                fields: 'id',
-            });
-            return newFolder.data.id!;
+            // If it's a subfolder, create it. If it's the root, throw error.
+            if (parentFolderId) {
+                const fileMetadata = {
+                    name: folderName,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [parentFolderId],
+                };
+                const newFolder = await drive.files.create({
+                    requestBody: fileMetadata,
+                    fields: 'id',
+                });
+                return newFolder.data.id!;
+            } else {
+                 throw new Error(`The root folder "${folderName}" was not found. Please create it on Google Drive and share it with the service account email: ${serviceAccount.client_email}`);
+            }
         }
     } catch (error) {
         console.error('Error finding or creating folder:', error);
-        throw new Error(`Failed to find or create folder "${folderName}"`);
+        throw new Error(`Failed to process folder "${folderName}". Please check sharing permissions.`);
     }
 }
 
@@ -94,6 +110,7 @@ export async function uploadFile(fileName: string, mimeType: string, content: st
             requestBody: fileMetadata,
             media: media,
             fields: 'id',
+            supportsAllDrives: true, // Required for Shared Drives
         });
     } catch (error) {
         console.error(`Error uploading file "${fileName}":`, error);
@@ -133,6 +150,7 @@ export async function uploadFileFromUrl(fileName: string, mimeType: string, url:
             requestBody: fileMetadata,
             media: media,
             fields: 'id',
+            supportsAllDrives: true,
         });
     } catch (error) {
         console.error(`Error uploading file from URL "${fileName}":`, error);
