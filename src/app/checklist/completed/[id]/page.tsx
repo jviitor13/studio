@@ -17,6 +17,7 @@ import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { UploadErrorDialog } from '@/components/upload-error-dialog';
 
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
@@ -31,11 +32,12 @@ const statusBadgeColor : {[key:string]: string} = {
     'Enviando': 'animate-pulse'
 }
 
-const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending' }) => {
+const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' | 'pending', onClick?: () => void }) => {
     let icon;
     let text;
     let variant: "default" | "destructive" | "secondary" = "secondary";
     let className = "";
+    let isClickable = false;
 
     switch (status) {
         case 'success':
@@ -48,6 +50,8 @@ const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending
             icon = <AlertTriangle className="h-3 w-3" />;
             text = "Falha";
             variant = "destructive";
+            isClickable = true;
+            className = "cursor-pointer hover:bg-destructive/80";
             break;
         case 'pending':
             icon = <Loader2 className="h-3 w-3 animate-spin" />;
@@ -63,7 +67,7 @@ const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending
     }
 
     return (
-        <Badge variant={variant} className={cn("flex items-center gap-1 w-fit text-xs", className)}>
+        <Badge variant={variant} className={cn("flex items-center gap-1 w-fit text-xs", className)} onClick={isClickable ? onClick : undefined}>
             {icon}
             <span>{text}</span>
         </Badge>
@@ -79,6 +83,7 @@ export default function ChecklistCompletedPage() {
     
     const [checklist, setChecklist] = useState<CompletedChecklist | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
 
     useEffect(() => {
         if (!checklistId) return;
@@ -214,165 +219,172 @@ export default function ChecklistCompletedPage() {
         : 'Data não disponível';
 
     return (
-        <div className="flex flex-col gap-6">
-            <PageHeader
-                title={checklist.status === 'Enviando' ? "Enviando Checklist..." : "Checklist Finalizado!"}
-                description={checklist.status === 'Enviando' ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
+        <>
+            <UploadErrorDialog
+                isOpen={isErrorDialogOpen}
+                onClose={() => setIsErrorDialogOpen(false)}
+                errorMessage={checklist.generalObservations}
             />
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        {checklist.status !== 'Enviando' ? 
-                            <CheckCircle className="h-7 w-7 text-green-600" /> : 
-                            <Loader2 className="h-7 w-7 text-primary animate-spin" />
-                        }
-                        Resumo do Envio
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 text-sm">
-                    <div className="flex flex-col gap-1">
-                        <span className="font-semibold">ID do Checklist:</span>
-                        <span className="text-muted-foreground break-all">{checklist.id}</span>
-                    </div>
-                     <div className="flex flex-col gap-1">
-                        <span className="font-semibold">Veículo:</span>
-                        <span className="text-muted-foreground">{checklist.vehicle}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <span className="font-semibold">Responsável:</span>
-                        <span className="text-muted-foreground">{checklist.driver}</span>
-                    </div>
-                     <div className="flex flex-col gap-1">
-                        <span className="font-semibold">Data/Hora:</span>
-                        <span className="text-muted-foreground">{formattedDate}</span>
-                    </div>
-                     <div className="flex flex-col gap-1">
-                        <span className="font-semibold">Tipo:</span>
-                        <span className="text-muted-foreground capitalize">{checklist.type}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <span className="font-semibold">Status:</span>
-                        <Badge variant={statusVariant[checklist.status]} className={`w-fit ${statusBadgeColor[checklist.status]}`}>
-                            {getStatusLabel(checklist.status)}
-                        </Badge>
-                    </div>
-                     <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
-                        <span className="font-semibold">Status do Upload:</span>
-                        <div className="flex items-center gap-6 mt-1">
-                             <div className="flex items-center gap-2">
-                                <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
-                                <UploadStatusBadge status={checklist.googleDriveStatus} />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
-                                <UploadStatusBadge status={checklist.firebaseStorageStatus} />
+            <div className="flex flex-col gap-6">
+                <PageHeader
+                    title={checklist.status === 'Enviando' ? "Enviando Checklist..." : "Checklist Finalizado!"}
+                    description={checklist.status === 'Enviando' ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
+                />
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            {checklist.status !== 'Enviando' ? 
+                                <CheckCircle className="h-7 w-7 text-green-600" /> : 
+                                <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                            }
+                            Resumo do Envio
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 text-sm">
+                        <div className="flex flex-col gap-1">
+                            <span className="font-semibold">ID do Checklist:</span>
+                            <span className="text-muted-foreground break-all">{checklist.id}</span>
+                        </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Veículo:</span>
+                            <span className="text-muted-foreground">{checklist.vehicle}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Responsável:</span>
+                            <span className="text-muted-foreground">{checklist.driver}</span>
+                        </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Data/Hora:</span>
+                            <span className="text-muted-foreground">{formattedDate}</span>
+                        </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Tipo:</span>
+                            <span className="text-muted-foreground capitalize">{checklist.type}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Status:</span>
+                            <Badge variant={statusVariant[checklist.status]} className={`w-fit ${statusBadgeColor[checklist.status]}`}>
+                                {getStatusLabel(checklist.status)}
+                            </Badge>
+                        </div>
+                         <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
+                            <span className="font-semibold">Status do Upload:</span>
+                            <div className="flex items-center gap-6 mt-1">
+                                 <div className="flex items-center gap-2">
+                                    <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
+                                    <UploadStatusBadge status={checklist.googleDriveStatus} onClick={() => setIsErrorDialogOpen(true)} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
+                                    <UploadStatusBadge status={checklist.firebaseStorageStatus} onClick={() => setIsErrorDialogOpen(true)} />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Detalhes Completos</CardTitle>
-                    <CardDescription>Visualização completa do checklist submetido.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg p-4">
-                         <div className="space-y-4">
-                            {checklist.questions.map((item) => (
-                            <div key={item.id} className="p-3 border rounded-lg bg-muted/30">
-                                <p className="font-medium">{item.text}</p>
-                                <p className="text-sm text-muted-foreground">Status: {item.status}</p>
-                                {item.observation && <p className="text-sm text-muted-foreground">Observação: {item.observation}</p>}
-                                {item.photo && (
-                                  <div className="mt-2">
-                                    {item.photo.startsWith('http') ?
-                                        <Image src={item.photo} alt="foto" width={200} height={150} className="rounded-md object-cover"/> :
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                                            <Loader2 className="h-3 w-3 animate-spin"/> Imagem sendo processada...
-                                        </div>
-                                    }
-                                  </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Detalhes Completos</CardTitle>
+                        <CardDescription>Visualização completa do checklist submetido.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="border rounded-lg p-4">
+                             <div className="space-y-4">
+                                {checklist.questions.map((item) => (
+                                <div key={item.id} className="p-3 border rounded-lg bg-muted/30">
+                                    <p className="font-medium">{item.text}</p>
+                                    <p className="text-sm text-muted-foreground">Status: {item.status}</p>
+                                    {item.observation && <p className="text-sm text-muted-foreground">Observação: {item.observation}</p>}
+                                    {item.photo && (
+                                      <div className="mt-2">
+                                        {item.photo.startsWith('http') ?
+                                            <Image src={item.photo} alt="foto" width={200} height={150} className="rounded-md object-cover"/> :
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                                                <Loader2 className="h-3 w-3 animate-spin"/> Imagem sendo processada...
+                                            </div>
+                                        }
+                                      </div>
+                                    )}
+                                </div>
+                                ))}
+                                {(checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) && (
+                                    <div className="p-3 border rounded-lg bg-muted/30">
+                                        <p className="font-medium">Validação e Assinaturas</p>
+                                         <div className="flex flex-col md:flex-row gap-8 mt-2">
+                                            {checklist.signatures?.selfieResponsavel && (
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Selfie Responsável: {checklist.responsibleName}</p>
+                                                    {checklist.signatures.selfieResponsavel.startsWith('http') ?
+                                                         <Image src={checklist.signatures.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                         : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[120px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                    }
+                                                </div>
+                                            )}
+                                            {checklist.signatures?.assinaturaResponsavel && (
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Assinatura Responsável</p>
+                                                     {checklist.signatures.assinaturaResponsavel.startsWith('http') ?
+                                                        <img src={checklist.signatures.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                        : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[96px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                    }
+                                                </div>
+                                            )}
+                                         </div>
+                                          <div className="flex flex-col md:flex-row gap-8 mt-4">
+                                            {checklist.signatures?.selfieMotorista && (
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Selfie Motorista: {checklist.driver}</p>
+                                                    {checklist.signatures.selfieMotorista.startsWith('http') ?
+                                                        <Image src={checklist.signatures.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
+                                                        : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[120px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                    }
+                                                </div>
+                                            )}
+                                            {checklist.signatures?.assinaturaMotorista && (
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Assinatura Motorista</p>
+                                                    {checklist.signatures.assinaturaMotorista.startsWith('http') ?
+                                                        <img src={checklist.signatures.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
+                                                         : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[96px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
+                                                    }
+                                                </div>
+                                            )}
+                                         </div>
+                                    </div>
                                 )}
                             </div>
-                            ))}
-                            {(checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) && (
-                                <div className="p-3 border rounded-lg bg-muted/30">
-                                    <p className="font-medium">Validação e Assinaturas</p>
-                                     <div className="flex flex-col md:flex-row gap-8 mt-2">
-                                        {checklist.signatures?.selfieResponsavel && (
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Selfie Responsável: {checklist.responsibleName}</p>
-                                                {checklist.signatures.selfieResponsavel.startsWith('http') ?
-                                                     <Image src={checklist.signatures.selfieResponsavel} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
-                                                     : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[120px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
-                                                }
-                                            </div>
-                                        )}
-                                        {checklist.signatures?.assinaturaResponsavel && (
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Assinatura Responsável</p>
-                                                 {checklist.signatures.assinaturaResponsavel.startsWith('http') ?
-                                                    <img src={checklist.signatures.assinaturaResponsavel} alt="assinatura" className="rounded-md border bg-white h-24" />
-                                                    : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[96px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
-                                                }
-                                            </div>
-                                        )}
-                                     </div>
-                                      <div className="flex flex-col md:flex-row gap-8 mt-4">
-                                        {checklist.signatures?.selfieMotorista && (
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Selfie Motorista: {checklist.driver}</p>
-                                                {checklist.signatures.selfieMotorista.startsWith('http') ?
-                                                    <Image src={checklist.signatures.selfieMotorista} alt="selfie" width={160} height={120} className="rounded-md border bg-white object-cover" />
-                                                    : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[120px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
-                                                }
-                                            </div>
-                                        )}
-                                        {checklist.signatures?.assinaturaMotorista && (
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Assinatura Motorista</p>
-                                                {checklist.signatures.assinaturaMotorista.startsWith('http') ?
-                                                    <img src={checklist.signatures.assinaturaMotorista} alt="assinatura" className="rounded-md border bg-white h-24" />
-                                                     : <div className="flex items-center gap-2 text-xs text-muted-foreground italic h-[96px]"><Loader2 className="h-3 w-3 animate-spin"/> Processando...</div>
-                                                }
-                                            </div>
-                                        )}
-                                     </div>
-                                </div>
-                            )}
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
 
-            <Card>
-                 <CardHeader>
-                    <CardTitle>Ações</CardTitle>
-                    <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
-                </CardHeader>
-                 <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
-                        <Download className="mr-3 h-5 w-5" />
-                        Gerar PDF
-                    </Button>
-                     <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
-                        <Printer className="mr-3 h-5 w-5" />
-                        Imprimir
-                    </Button>
-                     <Button onClick={handleShare} variant="outline" size="lg" className="h-auto py-4">
-                        <Share2 className="mr-3 h-5 w-5" />
-                        Compartilhar
-                    </Button>
-                </CardContent>
-            </Card>
+                <Card>
+                     <CardHeader>
+                        <CardTitle>Ações</CardTitle>
+                        <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
+                    </CardHeader>
+                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
+                            <Download className="mr-3 h-5 w-5" />
+                            Gerar PDF
+                        </Button>
+                         <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
+                            <Printer className="mr-3 h-5 w-5" />
+                            Imprimir
+                        </Button>
+                         <Button onClick={handleShare} variant="outline" size="lg" className="h-auto py-4">
+                            <Share2 className="mr-3 h-5 w-5" />
+                            Compartilhar
+                        </Button>
+                    </CardContent>
+                </Card>
 
-             <Button variant="link" onClick={() => router.push('/dashboard')} className="self-center">
-                <Home className="mr-2 h-4 w-4" /> Ir para o Início
-            </Button>
+                 <Button variant="link" onClick={() => router.push('/dashboard')} className="self-center">
+                    <Home className="mr-2 h-4 w-4" /> Ir para o Início
+                </Button>
 
-        </div>
+            </div>
+        </>
     );
 }

@@ -31,12 +31,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { UploadErrorDialog } from "@/components/upload-error-dialog"
 
-const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending' }) => {
+const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' | 'pending', onClick?: () => void }) => {
     let icon;
     let text;
     let variant: "default" | "destructive" | "secondary" = "secondary";
     let className = "";
+    let isClickable = false;
 
     switch (status) {
         case 'success':
@@ -49,6 +51,8 @@ const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending
             icon = <AlertTriangle className="h-3 w-3" />;
             text = "Falha";
             variant = "destructive";
+            isClickable = true;
+            className = "cursor-pointer hover:bg-destructive/80";
             break;
         case 'pending':
             icon = <Loader2 className="h-3 w-3 animate-spin" />;
@@ -64,7 +68,7 @@ const UploadStatusBadge = ({ status }: { status?: 'success' | 'error' | 'pending
     }
 
     return (
-        <Badge variant={variant} className={cn("flex items-center gap-1 w-fit text-xs", className)}>
+        <Badge variant={variant} className={cn("flex items-center gap-1 w-fit text-xs", className)} onClick={isClickable ? onClick : undefined}>
             {icon}
             <span>{text}</span>
         </Badge>
@@ -111,6 +115,8 @@ export default function ConsultasPage() {
 
     const [selectedChecklist, setSelectedChecklist] = React.useState<CompletedChecklist | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
+    const [isErrorDialogOpen, setIsErrorDialogOpen] = React.useState(false);
+
     const { toast } = useToast()
 
     React.useEffect(() => {
@@ -165,6 +171,10 @@ export default function ConsultasPage() {
         }
     };
 
+    const handleErrorClick = (checklist: CompletedChecklist) => {
+        setSelectedChecklist(checklist);
+        setIsErrorDialogOpen(true);
+    };
 
     const handleViewDetails = (checklist: CompletedChecklist) => {
         setSelectedChecklist(checklist)
@@ -222,6 +232,11 @@ export default function ConsultasPage() {
 
     return (
         <>
+            <UploadErrorDialog
+                isOpen={isErrorDialogOpen}
+                onClose={() => setIsErrorDialogOpen(false)}
+                errorMessage={selectedChecklist?.generalObservations}
+            />
             <ChecklistDetailsDialog 
                 isOpen={isDetailsOpen}
                 onClose={() => setIsDetailsOpen(false)}
@@ -358,11 +373,11 @@ export default function ConsultasPage() {
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-2">
                                                         <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
-                                                        <UploadStatusBadge status={item.googleDriveStatus} />
+                                                        <UploadStatusBadge status={item.googleDriveStatus} onClick={() => handleErrorClick(item)} />
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
-                                                        <UploadStatusBadge status={item.firebaseStorageStatus} />
+                                                        <UploadStatusBadge status={item.firebaseStorageStatus} onClick={() => handleErrorClick(item)} />
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -423,5 +438,3 @@ export default function ConsultasPage() {
         </>
     )
 }
-
-    
