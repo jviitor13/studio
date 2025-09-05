@@ -192,7 +192,6 @@ export default function ChecklistCompletedPage() {
         switch (status) {
             case 'Sem Pendências': return <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>;
             case 'Com Pendências': return <Badge variant="destructive">Com Pendências</Badge>;
-            case 'Enviando': return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
             default: return <Badge variant="secondary">{status}</Badge>;
         }
     }

@@ -245,12 +245,17 @@ export default function ConsultasPage() {
         return format(d, "dd/MM/yyyy HH:mm");
     };
     
-    const getChecklistStatusBadge = (status: CompletedChecklist['status']) => {
-        switch (status) {
+    const getChecklistStatusBadge = (item: CompletedChecklist) => {
+        const isUploading = item.firebaseStorageStatus === 'pending' || item.googleDriveStatus === 'pending';
+
+        if (isUploading) {
+            return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
+        }
+
+        switch (item.status) {
             case 'Sem Pendências': return <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>;
             case 'Com Pendências': return <Badge variant="destructive">Com Pendências</Badge>;
-            case 'Enviando': return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
-            default: return <Badge variant="secondary">{status}</Badge>;
+            default: return <Badge variant="secondary">{item.status}</Badge>;
         }
     }
     
@@ -460,7 +465,7 @@ export default function ConsultasPage() {
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
                                             <TableCell>
-                                                {getChecklistStatusBadge(item.status)}
+                                                {getChecklistStatusBadge(item)}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1.5">
