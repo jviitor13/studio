@@ -24,7 +24,6 @@ function getDriveClient() {
     return google.drive({ version: 'v3', auth });
 }
 
-const drive = getDriveClient();
 
 /**
  * Finds a folder by name. If a parent folder ID is provided, it searches within that folder.
@@ -35,6 +34,7 @@ const drive = getDriveClient();
  * @returns The ID of the found or created folder.
  */
 export async function findOrCreateFolder(folderName: string, parentFolderId?: string): Promise<string> {
+    const drive = getDriveClient();
     try {
         // Query to find a folder by name. If a parent is specified, it's included in the query.
         let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
@@ -91,6 +91,7 @@ export async function findOrCreateFolder(folderName: string, parentFolderId?: st
  * @param folderId The ID of the folder where the file will be uploaded.
  */
 export async function uploadFile(fileName: string, mimeType: string, contentStream: Readable, folderId: string): Promise<void> {
+    const drive = getDriveClient();
     try {
         const fileMetadata = {
             name: fileName,
@@ -123,6 +124,7 @@ export async function uploadFile(fileName: string, mimeType: string, contentStre
  * @param folderId The ID of the folder where the file will be uploaded.
  */
 export async function uploadFileFromUrl(fileName: string, mimeType: string, url: string, folderId: string): Promise<void> {
+    const drive = getDriveClient();
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -157,3 +159,4 @@ export async function uploadFileFromUrl(fileName: string, mimeType: string, url:
 
 
 // Remember to add the service account email to the shared Google Drive folder with 'Editor' permissions.
+
