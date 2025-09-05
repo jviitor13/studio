@@ -82,15 +82,11 @@ export async function saveChecklistAndTriggerUpload(
   try {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     // We save the document first with a 'pending' status for all uploads.
-    await checklistRef.set({
-      ...checklistData,
-      googleDriveStatus: 'pending',
-      firebaseStorageStatus: 'pending',
-    });
+    await checklistRef.set(checklistData);
     
     // Then, we trigger the upload flow as a background task.
     // This is not awaited, so the function returns immediately.
-    uploadChecklistFlow({ checklistId });
+    await uploadChecklistFlow({ checklistId });
 
     return { success: true, checklistId };
   } catch (error: any) {
@@ -99,5 +95,26 @@ export async function saveChecklistAndTriggerUpload(
       error
     );
     return { success: false, error: error.message, checklistId };
+  }
+}
+
+export async function retryChecklistUpload(checklistId: string) {
+  try {
+    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
+    
+    // Reset statuses to re-trigger the process
+    await checklistRef.update({
+      googleDriveStatus: 'pending',
+      firebaseStorageStatus: 'pending',
+      status: 'Enviando',
+    });
+
+    // Re-trigger the background flow
+    await uploadChecklistFlow({ checklistId });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(`[${checklistId}] Error re-triggering upload:`, error);
+    return { success: false, error: error.message };
   }
 }

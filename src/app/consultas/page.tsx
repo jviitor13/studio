@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud, Server, Database } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud, Server, Database, RefreshCw } from "lucide-react"
 import { format, startOfDay, endOfDay, isValid } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -29,10 +29,11 @@ import { db } from "@/lib/firebase"
 import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy, getDocs, writeBatch } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { UploadErrorDialog } from "@/components/upload-error-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { retryChecklistUpload } from "@/lib/actions"
 
 const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' | 'pending', onClick?: () => void }) => {
     let icon;
@@ -274,6 +275,19 @@ export default function ConsultasPage() {
         }
     }
 
+    const handleRetryUpload = async (checklistId: string) => {
+        toast({ title: 'Reenviando checklist...', description: 'O processo de upload foi reiniciado em segundo plano.' });
+        const result = await retryChecklistUpload(checklistId);
+        if (!result.success) {
+            toast({ variant: 'destructive', title: 'Erro ao Reenviar', description: result.error });
+        }
+    };
+
+    const hasUploadFailed = (item: CompletedChecklist) => {
+        return item.googleDriveStatus === 'error' || item.firebaseStorageStatus === 'error';
+    };
+
+
     return (
         <>
             <UploadErrorDialog
@@ -484,6 +498,12 @@ export default function ConsultasPage() {
                                                             <DropdownMenuItem onSelect={() => handleExport(item)}>
                                                                 <Download className="mr-2 h-4 w-4" /> Exportar PDF
                                                             </DropdownMenuItem>
+                                                            {hasUploadFailed(item) && (
+                                                                <DropdownMenuItem onSelect={() => handleRetryUpload(item.id)}>
+                                                                    <RefreshCw className="mr-2 h-4 w-4" /> Reenviar Upload
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuSeparator />
                                                             <AlertDialogTrigger asChild>
                                                                 <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                                                     <Trash2 className="mr-2 h-4 w-4" /> Excluir
