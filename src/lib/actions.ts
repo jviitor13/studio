@@ -78,19 +78,23 @@ export async function saveChecklistAndTriggerUpload(
   checklistData: Omit<CompletedChecklist, 'status'>,
 ) {
   const checklistId = checklistData.id;
+  const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
 
   try {
-    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    // We save the document first with a 'pending' status for all uploads.
+    // Determine the final status based on the questions, once and for all.
+    const hasIssues = checklistData.questions.some(q => q.status === 'Não OK');
+    const finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
+
+    // We save the document first with the definitive status and pending uploads.
     await checklistRef.set({
       ...checklistData,
-      status: 'Enviando',
+      status: finalStatus, // Set the correct final status here.
       firebaseStorageStatus: 'pending',
       googleDriveStatus: 'pending',
     });
     
     // Then, we trigger the upload flow as a background task.
-    // This is not awaited, so the function returns immediately.
+    // This flow will now ONLY handle file uploads and update their respective statuses.
     await uploadChecklistFlow({ checklistId });
 
     return { success: true, checklistId };
@@ -99,6 +103,15 @@ export async function saveChecklistAndTriggerUpload(
       `[${checklistId}] Error saving initial checklist or triggering upload:`,
       error
     );
+    // If the initial save fails, update the document with an error status.
+     await checklistRef.set({
+        ...checklistData,
+        status: 'Com Pendências', // Or a specific error status if you prefer
+        generalObservations: `Falha crítica ao salvar o checklist: ${error.message}`,
+        firebaseStorageStatus: 'error',
+        googleDriveStatus: 'error',
+    }, { merge: true });
+
     return { success: false, error: error.message, checklistId };
   }
 }
@@ -107,11 +120,10 @@ export async function retryChecklistUpload(checklistId: string) {
   try {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     
-    // Reset statuses to re-trigger the process
+    // Reset only upload statuses to re-trigger the process
     await checklistRef.update({
       googleDriveStatus: 'pending',
       firebaseStorageStatus: 'pending',
-      status: 'Enviando',
     });
 
     // Re-trigger the background flow

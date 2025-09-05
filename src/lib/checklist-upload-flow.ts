@@ -3,7 +3,8 @@
 /**
  * @fileOverview Handles the background upload of a completed checklist.
  * This flow is triggered in a "fire-and-forget" manner.
- * It prioritizes Google Drive upload first, then Firebase Storage.
+ * It ONLY handles file uploads to Firebase Storage and Google Drive.
+ * The final status of the checklist is set in the initial save action.
  */
 
 import { admin, adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
@@ -112,36 +113,24 @@ export const uploadChecklistFlow = ai.defineFlow(
   },
   async ({ checklistId }) => {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    
-    // Step 1: Get the document and determine its final status based on its content.
-    let originalChecklistData: CompletedChecklist;
-    let checklistWithUrls: CompletedChecklist;
+    let checklistData: CompletedChecklist;
 
     try {
-      const docSnap = await checklistRef.get();
-      if (!docSnap.exists) {
-        throw new Error(`[${checklistId}] Checklist document not found for background processing.`);
-      }
-      originalChecklistData = docSnap.data() as CompletedChecklist;
-
-      const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
-      const finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
-      
-      // Update the status immediately. This is the final state of the checklist itself.
-      await checklistRef.update({
-        status: finalStatus
-      });
-      console.log(`[${checklistId}] Final status set to: ${finalStatus}`);
-
+        const docSnap = await checklistRef.get();
+        if (!docSnap.exists) {
+          throw new Error(`[${checklistId}] Checklist document not found for background processing.`);
+        }
+        checklistData = docSnap.data() as CompletedChecklist;
     } catch (error: any) {
-        console.error(`[${checklistId}] Error setting final status:`, error);
-        // If we can't even read the doc or set the status, we can't proceed.
-        return;
+        console.error(`[${checklistId}] Critical error fetching document:`, error);
+        return; // Cannot proceed without the document
     }
-    
-    // Step 2: Process Firebase Storage uploads
+
+    let checklistWithUrls: CompletedChecklist = checklistData;
+
+    // Step 1: Process Firebase Storage uploads
     try {
-      checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
+      checklistWithUrls = await processFirebaseUploads(checklistData, checklistId);
       await checklistRef.update({
           ...checklistWithUrls,
           firebaseStorageStatus: 'success',
@@ -157,11 +146,9 @@ export const uploadChecklistFlow = ai.defineFlow(
         // We can still try to upload to Google Drive even if Firebase fails
     }
 
-    // Step 3: Upload to Google Drive
+    // Step 2: Upload to Google Drive
     try {
-        if (!checklistWithUrls!) { // If firebase failed, use original data for GDrive
-            checklistWithUrls = originalChecklistData;
-        }
+        // Use the version with URLs if available, otherwise use original data
         await uploadToGoogleDrive(checklistId, checklistWithUrls);
         await checklistRef.update({ googleDriveStatus: 'success' });
         console.log(`[${checklistId}] Google Drive upload successful.`);
