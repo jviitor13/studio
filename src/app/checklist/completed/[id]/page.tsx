@@ -211,7 +211,7 @@ export default function ChecklistCompletedPage() {
             />
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title={isProcessing ? "Processando Checklist..." : "Checklist Finalizado!"}
+                    title={checklist.status === 'Sem Pendências' ? "Checklist Finalizado!" : "Checklist com Pendências"}
                     description={isProcessing ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
                 />
                 
