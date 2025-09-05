@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Badge } from "./ui/badge";
-import { Paperclip, MessageSquare, ThumbsUp, ThumbsDown, FileQuestion, Download, Camera, PenSquare } from "lucide-react";
+import { Paperclip, MessageSquare, ThumbsUp, ThumbsDown, FileQuestion, Download, Camera, PenSquare, Truck } from "lucide-react";
 import { CompletedChecklist } from "@/lib/types";
 import { format } from "date-fns";
 
@@ -32,6 +32,15 @@ const statusBadge: Record<string, "default" | "destructive" | "secondary"> = {
 const statusBadgeColor : {[key:string]: string} = {
     'OK': 'bg-green-500 hover:bg-green-600',
     'Pendente': ''
+}
+
+const vehicleImageLabels: Record<string, string> = {
+    cavaloFrontal: "Cavalo - Frontal",
+    cavaloLateralDireita: "Cavalo - Lat. Direita",
+    cavaloLateralEsquerda: "Cavalo - Lat. Esquerda",
+    carretaFrontal: "Carreta - Frontal",
+    carretaLateralDireita: "Carreta - Lat. Direita",
+    carretaLateralEsquerda: "Carreta - Lat. Esquerda",
 }
 
 export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }: ChecklistDetailsDialogProps) {
@@ -92,7 +101,7 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
                  {item.photo && (
                     <div className="mt-2 border-t pt-2">
                         <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                           <Paperclip className="h-4 w-4" /> Anexo
+                           <Paperclip className="h-4 w-4" /> Anexo do Item
                         </p>
                         <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
                             <Image src={item.photo} data-ai-hint="car checkup" alt={`Foto do item ${item.text}`} layout="fill" className="object-cover" />
@@ -102,6 +111,25 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
               </div>
             ))}
              {checklist.questions.length === 0 && <p className="text-center text-muted-foreground">Nenhum item de checklist para exibir.</p>}
+
+            {checklist.vehicleImages && Object.values(checklist.vehicleImages).some(img => img) && (
+                 <div className="p-3 border rounded-lg bg-muted/30">
+                    <p className="font-medium mb-4 flex items-center gap-2"><Truck className="h-5 w-5" /> Fotos Gerais do Veículo</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(checklist.vehicleImages).map(([key, url]) => (
+                            url ? (
+                                <div key={key}>
+                                    <p className="text-xs font-semibold mb-1">{vehicleImageLabels[key] || key}</p>
+                                    <div className="relative aspect-video w-full rounded-md overflow-hidden border">
+                                        <Image src={url} alt={vehicleImageLabels[key]} layout="fill" className="object-cover" />
+                                    </div>
+                                </div>
+                            ) : null
+                        ))}
+                    </div>
+                </div>
+            )}
+
 
             {(checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) && (
                 <div className="p-3 border rounded-lg bg-muted/30">
