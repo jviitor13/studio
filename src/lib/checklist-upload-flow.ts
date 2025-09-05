@@ -7,7 +7,7 @@
  */
 
 import { adminDb } from './firebase-admin';
-import { findOrCreateFolder, uploadFile } from './google-drive';
+import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { getStorage } from 'firebase-admin/storage';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
@@ -111,8 +111,7 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
   // Upload the checklist JSON data first
   const checklistJson = JSON.stringify(checklistData, null, 2);
   const jsonBuffer = Buffer.from(checklistJson, 'utf-8');
-  const jsonStream = Readable.from(jsonBuffer);
-  await uploadFile('checklist.json', 'application/json', jsonStream, checklistFolderId);
+  await uploadFile('checklist.json', 'application/json', jsonBuffer, checklistFolderId);
 
   // Gather all images (Base64)
   const images: { name: string; data: string }[] = [];
@@ -156,8 +155,17 @@ export const uploadChecklistFlow = ai.defineFlow(
       }
       const originalChecklistData = docSnap.data() as CompletedChecklist;
 
+      // First, process all Firebase uploads to get the final URLs.
+      const checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
+       await checklistRef.update({
+          ...checklistWithUrls,
+          firebaseStorageStatus: 'success',
+      });
+      console.log(`[${checklistId}] Firebase Storage uploads successful.`);
+
+
       // 1. Upload to Google Drive (Priority 1)
-      await uploadToGoogleDrive(checklistId, originalChecklistData);
+      await uploadToGoogleDrive(checklistId, checklistWithUrls);
       await checklistRef.update({ googleDriveStatus: 'success' });
       console.log(`[${checklistId}] Google Drive upload successful.`);
 
@@ -166,16 +174,9 @@ export const uploadChecklistFlow = ai.defineFlow(
       const finalStatus = hasIssues ? 'Pendente' : 'OK';
       
 
-      // 2. Asynchronously upload to Firebase Storage and update document with URLs.
-      // This happens after the main processing is "done" from the user's perspective.
-      const checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
-      
       await checklistRef.update({
-          ...checklistWithUrls,
-          firebaseStorageStatus: 'success',
           status: finalStatus // Update final status only after all uploads are confirmed
       });
-      console.log(`[${checklistId}] Firebase Storage uploads successful.`);
 
     } catch (error: any) {
         console.error(`[${checklistId}] Critical background processing failure:`, error);

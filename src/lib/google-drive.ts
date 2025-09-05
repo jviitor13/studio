@@ -87,10 +87,10 @@ export async function findOrCreateFolder(folderName: string, parentFolderId?: st
  * Uploads a file to a specific folder in Google Drive.
  * @param fileName The name of the file to be saved.
  * @param mimeType The MIME type of the file.
- * @param contentStream The content of the file as a Readable stream.
+ * @param content The content of the file as a Readable stream or Buffer.
  * @param folderId The ID of the folder where the file will be uploaded.
  */
-export async function uploadFile(fileName: string, mimeType: string, contentStream: Readable, folderId: string): Promise<void> {
+export async function uploadFile(fileName: string, mimeType: string, content: Readable | Buffer, folderId: string): Promise<void> {
     const drive = getDriveClient();
     try {
         const fileMetadata = {
@@ -100,7 +100,7 @@ export async function uploadFile(fileName: string, mimeType: string, contentStre
 
         const media = {
             mimeType: mimeType,
-            body: contentStream,
+            body: content,
         };
 
         await drive.files.create({
@@ -159,4 +159,3 @@ export async function uploadFileFromUrl(fileName: string, mimeType: string, url:
 
 
 // Remember to add the service account email to the shared Google Drive folder with 'Editor' permissions.
-
