@@ -75,14 +75,19 @@ export async function createUser(data: UserData) {
 }
 
 export async function saveChecklistAndTriggerUpload(
-  checklistData: CompletedChecklist,
+  checklistData: Omit<CompletedChecklist, 'status'>,
 ) {
   const checklistId = checklistData.id;
 
   try {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     // We save the document first with a 'pending' status for all uploads.
-    await checklistRef.set(checklistData);
+    await checklistRef.set({
+      ...checklistData,
+      status: 'Enviando',
+      firebaseStorageStatus: 'pending',
+      googleDriveStatus: 'pending',
+    });
     
     // Then, we trigger the upload flow as a background task.
     // This is not awaited, so the function returns immediately.

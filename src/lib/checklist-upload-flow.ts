@@ -113,7 +113,7 @@ export const uploadChecklistFlow = ai.defineFlow(
   async ({ checklistId }) => {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     let checklistWithUrls: CompletedChecklist | null = null;
-    let finalStatus: 'OK' | 'Pendente';
+    let finalStatus: 'Sem Pendências' | 'Com Pendências';
     
     // Step 1: Upload to Firebase Storage
     try {
@@ -125,7 +125,7 @@ export const uploadChecklistFlow = ai.defineFlow(
       const originalChecklistData = docSnap.data() as CompletedChecklist;
 
       const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
-      finalStatus = hasIssues ? 'Pendente' : 'OK';
+      finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
 
       checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
       await checklistRef.update({

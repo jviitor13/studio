@@ -236,7 +236,7 @@ export default function MaintenanceChecklistPage() {
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
         
-        const checklistForFirestore: CompletedChecklist = {
+        const checklistForFirestore: Omit<CompletedChecklist, 'status'> = {
             ...(data as any),
             id: checklistId,
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
@@ -245,7 +245,6 @@ export default function MaintenanceChecklistPage() {
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
             createdAt: new Date().toISOString(),
-            status: 'Enviando', // Initial status
              firebaseStorageStatus: 'pending',
              googleDriveStatus: 'pending'
         };

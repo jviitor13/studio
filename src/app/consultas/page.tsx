@@ -247,8 +247,8 @@ export default function ConsultasPage() {
     
     const getChecklistStatusBadge = (status: CompletedChecklist['status']) => {
         switch (status) {
-            case 'OK': return <Badge className="bg-green-500 hover:bg-green-600">Concluído</Badge>;
-            case 'Pendente': return <Badge variant="destructive">Com Pendências</Badge>;
+            case 'Sem Pendências': return <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>;
+            case 'Com Pendências': return <Badge variant="destructive">Com Pendências</Badge>;
             case 'Enviando': return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
             default: return <Badge variant="secondary">{status}</Badge>;
         }
@@ -369,8 +369,8 @@ export default function ConsultasPage() {
                                         <SelectValue placeholder="Todos os status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="OK">Concluído</SelectItem>
-                                        <SelectItem value="Pendente">Com Pendências</SelectItem>
+                                        <SelectItem value="Sem Pendências">Sem Pendências</SelectItem>
+                                        <SelectItem value="Com Pendências">Com Pendências</SelectItem>
                                         <SelectItem value="Enviando">Processando</SelectItem>
                                     </SelectContent>
                                 </Select>

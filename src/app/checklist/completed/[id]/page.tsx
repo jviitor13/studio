@@ -190,8 +190,8 @@ export default function ChecklistCompletedPage() {
     
     const getStatusBadge = (status: CompletedChecklist['status']) => {
         switch (status) {
-            case 'OK': return <Badge className="bg-green-500 hover:bg-green-600">Concluído</Badge>;
-            case 'Pendente': return <Badge variant="destructive">Com Pendências</Badge>;
+            case 'Sem Pendências': return <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>;
+            case 'Com Pendências': return <Badge variant="destructive">Com Pendências</Badge>;
             case 'Enviando': return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
             default: return <Badge variant="secondary">{status}</Badge>;
         }
