@@ -196,7 +196,7 @@ export default function ChecklistCompletedPage() {
         }
     }
 
-    const isProcessing = checklist.firebaseStorageStatus === 'pending' || checklist.googleDriveStatus === 'pending';
+    const isProcessingUploads = checklist.firebaseStorageStatus === 'pending' || checklist.googleDriveStatus === 'pending';
 
     const formattedDate = checklist.createdAt && isValid(checklist.createdAt) 
         ? format(checklist.createdAt, "dd/MM/yyyy 'às' HH:mm") 
@@ -211,18 +211,15 @@ export default function ChecklistCompletedPage() {
             />
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title={checklist.status === 'Sem Pendências' ? "Checklist Finalizado!" : "Checklist com Pendências"}
-                    description={isProcessing ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
+                    title={checklist.status}
+                    description={isProcessingUploads ? "O checklist foi salvo. Os anexos estão sendo enviados em segundo plano." : "O seu checklist foi enviado e está salvo no sistema."}
                 />
                 
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            {isProcessing ? 
-                                <Loader2 className="h-7 w-7 text-primary animate-spin" /> :
-                                <CheckCircle className="h-7 w-7 text-green-600" />
-                            }
-                            Resumo do Envio
+                            <CheckCircle className="h-7 w-7 text-green-600" />
+                            Resumo do Checklist
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 text-sm">
@@ -247,11 +244,11 @@ export default function ChecklistCompletedPage() {
                             <span className="text-muted-foreground capitalize">{checklist.type}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                            <span className="font-semibold">Status:</span>
+                            <span className="font-semibold">Status dos Itens:</span>
                             {getStatusBadge(checklist.status)}
                         </div>
                          <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
-                            <span className="font-semibold">Status do Upload:</span>
+                            <span className="font-semibold">Status do Upload dos Anexos:</span>
                             <div className="flex items-center gap-6 mt-1">
                                  <div className="flex items-center gap-2">
                                     <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
@@ -347,11 +344,11 @@ export default function ChecklistCompletedPage() {
                         <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
                     </CardHeader>
                      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={isProcessing}>
+                        <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={isProcessingUploads}>
                             <Download className="mr-3 h-5 w-5" />
                             Gerar PDF
                         </Button>
-                         <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={isProcessing}>
+                         <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={isProcessingUploads}>
                             <Printer className="mr-3 h-5 w-5" />
                             Imprimir
                         </Button>
@@ -370,3 +367,4 @@ export default function ChecklistCompletedPage() {
         </>
     );
 }
+

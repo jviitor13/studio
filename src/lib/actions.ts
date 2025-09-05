@@ -81,15 +81,15 @@ export async function saveChecklistAndTriggerUpload(
   const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
 
   try {
-    // This is the correct logic. The status is already calculated on the client
-    // and passed in checklistData. We just save it.
+    // The checklistData already contains the correct final status
+    // calculated in the client-side form logic.
     await checklistRef.set({
       ...checklistData,
       firebaseStorageStatus: 'pending',
       googleDriveStatus: 'pending',
     });
     
-    // Then, we trigger the upload flow as a background task.
+    // Then, trigger the upload flow as a background task.
     // This flow will ONLY handle file uploads and update their respective statuses.
     uploadChecklistFlow({ checklistId });
 
@@ -100,7 +100,7 @@ export async function saveChecklistAndTriggerUpload(
       error
     );
     
-    // In case of a critical failure during the initial save, we record the error.
+    // In case of a critical failure during the initial save, record the error.
     await checklistRef.set({
         ...checklistData,
         generalObservations: `Falha crítica ao salvar o checklist: ${error.message}`,

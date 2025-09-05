@@ -43,3 +43,4 @@ export type Report = {
         totalCost: number;
     };
 };
+

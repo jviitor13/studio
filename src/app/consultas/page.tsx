@@ -425,7 +425,7 @@ export default function ConsultasPage() {
                                     <TableHead>Data</TableHead>
                                     <TableHead>Veículo</TableHead>
                                     <TableHead>Responsável</TableHead>
-                                    <TableHead>Status Checklist</TableHead>
+                                    <TableHead>Itens</TableHead>
                                     <TableHead>Uploads</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
@@ -534,3 +534,4 @@ export default function ConsultasPage() {
         </>
     )
 }
+
