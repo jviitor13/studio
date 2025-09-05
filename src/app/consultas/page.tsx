@@ -371,7 +371,6 @@ export default function ConsultasPage() {
                                     <SelectContent>
                                         <SelectItem value="Sem Pendências">Sem Pendências</SelectItem>
                                         <SelectItem value="Com Pendências">Com Pendências</SelectItem>
-                                        <SelectItem value="Enviando">Processando</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

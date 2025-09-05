@@ -197,6 +197,8 @@ export default function ChecklistCompletedPage() {
         }
     }
 
+    const isProcessing = checklist.firebaseStorageStatus === 'pending' || checklist.googleDriveStatus === 'pending';
+
     const formattedDate = checklist.createdAt && isValid(checklist.createdAt) 
         ? format(checklist.createdAt, "dd/MM/yyyy 'às' HH:mm") 
         : 'Data não disponível';
@@ -210,16 +212,16 @@ export default function ChecklistCompletedPage() {
             />
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title={checklist.status === 'Enviando' ? "Enviando Checklist..." : "Checklist Finalizado!"}
-                    description={checklist.status === 'Enviando' ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
+                    title={isProcessing ? "Processando Checklist..." : "Checklist Finalizado!"}
+                    description={isProcessing ? "Aguarde enquanto processamos os anexos. Você pode sair desta tela." : "O seu checklist foi enviado e está salvo no sistema."}
                 />
                 
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            {checklist.status !== 'Enviando' ? 
-                                <CheckCircle className="h-7 w-7 text-green-600" /> : 
-                                <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                            {isProcessing ? 
+                                <Loader2 className="h-7 w-7 text-primary animate-spin" /> :
+                                <CheckCircle className="h-7 w-7 text-green-600" />
                             }
                             Resumo do Envio
                         </CardTitle>
@@ -346,11 +348,11 @@ export default function ChecklistCompletedPage() {
                         <CardDescription>O que você gostaria de fazer com este checklist?</CardDescription>
                     </CardHeader>
                      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
+                        <Button onClick={handleExport} size="lg" className="h-auto py-4" disabled={isProcessing}>
                             <Download className="mr-3 h-5 w-5" />
                             Gerar PDF
                         </Button>
-                         <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={checklist.status === 'Enviando'}>
+                         <Button onClick={handlePrint} variant="outline" size="lg" className="h-auto py-4" disabled={isProcessing}>
                             <Printer className="mr-3 h-5 w-5" />
                             Imprimir
                         </Button>

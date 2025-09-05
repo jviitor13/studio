@@ -88,14 +88,14 @@ export async function saveChecklistAndTriggerUpload(
     // We save the document first with the definitive status and pending uploads.
     await checklistRef.set({
       ...checklistData,
-      status: finalStatus, // Set the correct final status here.
+      status: finalStatus,
       firebaseStorageStatus: 'pending',
       googleDriveStatus: 'pending',
     });
     
     // Then, we trigger the upload flow as a background task.
     // This flow will now ONLY handle file uploads and update their respective statuses.
-    await uploadChecklistFlow({ checklistId });
+    uploadChecklistFlow({ checklistId });
 
     return { success: true, checklistId };
   } catch (error: any) {
@@ -106,7 +106,7 @@ export async function saveChecklistAndTriggerUpload(
     // If the initial save fails, update the document with an error status.
      await checklistRef.set({
         ...checklistData,
-        status: 'Com Pendências', // Or a specific error status if you prefer
+        status: 'Com Pendências',
         generalObservations: `Falha crítica ao salvar o checklist: ${error.message}`,
         firebaseStorageStatus: 'error',
         googleDriveStatus: 'error',
@@ -124,10 +124,11 @@ export async function retryChecklistUpload(checklistId: string) {
     await checklistRef.update({
       googleDriveStatus: 'pending',
       firebaseStorageStatus: 'pending',
+      generalObservations: admin.firestore.FieldValue.delete(), // Clear previous errors
     });
 
     // Re-trigger the background flow
-    await uploadChecklistFlow({ checklistId });
+    uploadChecklistFlow({ checklistId });
 
     return { success: true };
   } catch (error: any) {

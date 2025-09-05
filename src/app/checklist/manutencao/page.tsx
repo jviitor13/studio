@@ -241,7 +241,7 @@ export default function MaintenanceChecklistPage() {
             id: checklistId,
             vehicle: `${data.cavaloPlate} / ${data.carretaPlate}`,
             name: selectedTemplate?.name || 'Checklist de Manutenção',
-            type: selectedTemplate?.type || 'Manutenção',
+            type: 'Manutenção',
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
             createdAt: new Date().toISOString(),

@@ -7,7 +7,7 @@
  * The final status of the checklist is set in the initial save action.
  */
 
-import { admin, adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
+import { adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
 import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
