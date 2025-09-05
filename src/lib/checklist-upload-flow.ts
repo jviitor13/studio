@@ -112,21 +112,35 @@ export const uploadChecklistFlow = ai.defineFlow(
   },
   async ({ checklistId }) => {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    let checklistWithUrls: CompletedChecklist | null = null;
-    let finalStatus: 'Sem Pendências' | 'Com Pendências';
     
-    // Step 1: Upload to Firebase Storage
+    // Step 1: Get the document and determine its final status based on its content.
+    let originalChecklistData: CompletedChecklist;
+    let checklistWithUrls: CompletedChecklist;
+
     try {
       const docSnap = await checklistRef.get();
       if (!docSnap.exists) {
-        console.error(`[${checklistId}] Checklist document not found for background processing.`);
-        return;
+        throw new Error(`[${checklistId}] Checklist document not found for background processing.`);
       }
-      const originalChecklistData = docSnap.data() as CompletedChecklist;
+      originalChecklistData = docSnap.data() as CompletedChecklist;
 
       const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
-      finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
+      const finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
+      
+      // Update the status immediately. This is the final state of the checklist itself.
+      await checklistRef.update({
+        status: finalStatus
+      });
+      console.log(`[${checklistId}] Final status set to: ${finalStatus}`);
 
+    } catch (error: any) {
+        console.error(`[${checklistId}] Error setting final status:`, error);
+        // If we can't even read the doc or set the status, we can't proceed.
+        return;
+    }
+    
+    // Step 2: Process Firebase Storage uploads
+    try {
       checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
       await checklistRef.update({
           ...checklistWithUrls,
@@ -140,14 +154,13 @@ export const uploadChecklistFlow = ai.defineFlow(
             firebaseStorageStatus: 'error',
             generalObservations: `Falha no upload para o Firebase Storage: ${error.message}`
         });
-        // Stop the flow if Firebase fails, as Drive needs the URLs
-        return; 
+        // We can still try to upload to Google Drive even if Firebase fails
     }
 
-    // Step 2: Upload to Google Drive
+    // Step 3: Upload to Google Drive
     try {
-        if (!checklistWithUrls) {
-            throw new Error("Checklist data with URLs is not available for Google Drive upload.");
+        if (!checklistWithUrls!) { // If firebase failed, use original data for GDrive
+            checklistWithUrls = originalChecklistData;
         }
         await uploadToGoogleDrive(checklistId, checklistWithUrls);
         await checklistRef.update({ googleDriveStatus: 'success' });
@@ -159,22 +172,8 @@ export const uploadChecklistFlow = ai.defineFlow(
             googleDriveStatus: 'error',
             generalObservations: `Falha no upload para o Google Drive: ${error.message}`
         });
-        // Stop the flow if Drive fails
-        return;
     }
 
-    // Step 3: Finalize Status
-    try {
-        await checklistRef.update({
-            status: finalStatus
-        });
-         console.log(`[${checklistId}] Process finished with status: ${finalStatus}`);
-
-    } catch (error: any) {
-         console.error(`[${checklistId}] Error setting final status:`, error);
-         await checklistRef.update({ 
-            generalObservations: `Falha ao finalizar o status: ${error.message}`
-        });
-    }
+    console.log(`[${checklistId}] Background processing finished.`);
   }
 );
