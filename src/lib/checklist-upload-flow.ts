@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
 import { Buffer } from 'buffer';
+import { Readable } from 'stream';
 
 const ChecklistUploadDataSchema = z.object({
   checklistId: z.string(),
@@ -109,7 +110,9 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
 
   // Upload the checklist JSON data first
   const checklistJson = JSON.stringify(checklistData, null, 2);
-  await uploadFile('checklist.json', 'application/json', checklistJson, checklistFolderId);
+  const jsonBuffer = Buffer.from(checklistJson, 'utf-8');
+  const jsonStream = Readable.from(jsonBuffer);
+  await uploadFile('checklist.json', 'application/json', jsonStream, checklistFolderId);
 
   // Gather all images (Base64)
   const images: { name: string; data: string }[] = [];
@@ -130,7 +133,9 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
   // Upload all images from Base64
   for (const image of images) {
     const mimeType = image.data.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
-    await uploadFile(image.name, mimeType, image.data, imagesFolderId, true);
+    const imageBuffer = Buffer.from(image.data.split(',')[1], 'base64');
+    const imageStream = Readable.from(imageBuffer);
+    await uploadFile(image.name, mimeType, imageStream, imagesFolderId);
   }
 }
 
@@ -159,28 +164,21 @@ export const uploadChecklistFlow = ai.defineFlow(
       // The checklist is now considered processed. Determine final status.
       const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
       const finalStatus = hasIssues ? 'Pendente' : 'OK';
-      await checklistRef.update({ status: finalStatus });
+      
 
       // 2. Asynchronously upload to Firebase Storage and update document with URLs.
       // This happens after the main processing is "done" from the user's perspective.
-      processFirebaseUploads(originalChecklistData, checklistId)
-        .then(async (checklistWithUrls) => {
-          await checklistRef.update({
-            ...checklistWithUrls,
-            firebaseStorageStatus: 'success',
-          });
-          console.log(`[${checklistId}] Firebase Storage uploads successful.`);
-        })
-        .catch(async (firebaseError: any) => {
-          console.error(`[${checklistId}] Firebase Storage processing failed:`, firebaseError);
-          await checklistRef.update({ 
-              firebaseStorageStatus: 'error',
-              generalObservations: `Falha no upload para o Firebase Storage: ${firebaseError.message}`
-          });
-        });
+      const checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
+      
+      await checklistRef.update({
+          ...checklistWithUrls,
+          firebaseStorageStatus: 'success',
+          status: finalStatus // Update final status only after all uploads are confirmed
+      });
+      console.log(`[${checklistId}] Firebase Storage uploads successful.`);
 
     } catch (error: any) {
-        console.error(`[${checklistId}] Google Drive processing failed:`, error);
+        console.error(`[${checklistId}] Critical background processing failure:`, error);
         await checklistRef.update({ 
             googleDriveStatus: 'error',
             firebaseStorageStatus: 'error', // If GDrive fails, we mark both as error

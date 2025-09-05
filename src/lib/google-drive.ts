@@ -87,26 +87,19 @@ export async function findOrCreateFolder(folderName: string, parentFolderId?: st
  * Uploads a file to a specific folder in Google Drive.
  * @param fileName The name of the file to be saved.
  * @param mimeType The MIME type of the file.
- * @param content The content of the file (string or data URL).
+ * @param contentStream The content of the file as a Readable stream.
  * @param folderId The ID of the folder where the file will be uploaded.
- * @param isDataUrl Whether the content is a base64 data URL.
  */
-export async function uploadFile(fileName: string, mimeType: string, content: string, folderId: string, isDataUrl: boolean = false): Promise<void> {
+export async function uploadFile(fileName: string, mimeType: string, contentStream: Readable, folderId: string): Promise<void> {
     try {
-        const media = isDataUrl
-            ? {
-                mimeType: mimeType,
-                // Convert base64 data URL to a readable stream
-                body: Readable.from(Buffer.from(content.split(',')[1], 'base64')),
-            }
-            : {
-                mimeType: mimeType,
-                body: content,
-            };
-        
         const fileMetadata = {
             name: fileName,
             parents: [folderId],
+        };
+
+        const media = {
+            mimeType: mimeType,
+            body: contentStream,
         };
 
         await drive.files.create({
