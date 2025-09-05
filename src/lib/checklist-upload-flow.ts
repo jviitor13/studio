@@ -6,7 +6,7 @@
  * It prioritizes Google Drive upload first, then Firebase Storage.
  */
 
-import { adminDb } from './firebase-admin';
+import { adminDb, admin } from './firebase-admin';
 import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
@@ -26,7 +26,7 @@ export type ChecklistUploadData = z.infer<typeof ChecklistUploadDataSchema>;
  * @returns The public URL of the uploaded file.
  */
 async function uploadBase64ToFirebaseStorage(base64String: string, path: string): Promise<string> {
-  const bucket = adminDb.app.storage().bucket();
+  const bucket = admin.storage().bucket();
   
   // Extract content type and base64 data
   const match = base64String.match(/^data:(image\/\w+);base64,(.*)$/);
@@ -213,5 +213,3 @@ export const uploadChecklistFlow = ai.defineFlow(
     }
   }
 );
-
-    
