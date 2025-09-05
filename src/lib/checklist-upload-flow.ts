@@ -144,38 +144,48 @@ export const uploadChecklistFlow = ai.defineFlow(
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     
     try {
-        const docSnap = await checklistRef.get();
-        if (!docSnap.exists) {
-            console.error(`[${checklistId}] Checklist document not found for background processing.`);
-            return;
-        }
-        const originalChecklistData = docSnap.data() as CompletedChecklist;
+      const docSnap = await checklistRef.get();
+      if (!docSnap.exists) {
+        console.error(`[${checklistId}] Checklist document not found for background processing.`);
+        return;
+      }
+      const originalChecklistData = docSnap.data() as CompletedChecklist;
 
-        // 1. Upload to Google Drive (Priority 1)
-        await uploadToGoogleDrive(checklistId, originalChecklistData);
-        await checklistRef.update({ googleDriveStatus: 'success' });
-        console.log(`[${checklistId}] Google Drive upload successful.`);
+      // 1. Upload to Google Drive (Priority 1)
+      await uploadToGoogleDrive(checklistId, originalChecklistData);
+      await checklistRef.update({ googleDriveStatus: 'success' });
+      console.log(`[${checklistId}] Google Drive upload successful.`);
 
-        // 2. Upload to Firebase Storage and get URLs
-        const checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
-        
-        // 3. Update Firestore with final URLs and success status
-        const hasIssues = checklistWithUrls.questions.some((q: any) => q.status === 'Não OK');
-        const finalStatus = hasIssues ? 'Pendente' : 'OK';
+      // The checklist is now considered processed. Determine final status.
+      const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
+      const finalStatus = hasIssues ? 'Pendente' : 'OK';
+      await checklistRef.update({ status: finalStatus });
 
-        await checklistRef.update({
+      // 2. Asynchronously upload to Firebase Storage and update document with URLs.
+      // This happens after the main processing is "done" from the user's perspective.
+      processFirebaseUploads(originalChecklistData, checklistId)
+        .then(async (checklistWithUrls) => {
+          await checklistRef.update({
             ...checklistWithUrls,
-            status: finalStatus,
             firebaseStorageStatus: 'success',
+          });
+          console.log(`[${checklistId}] Firebase Storage uploads successful.`);
+        })
+        .catch(async (firebaseError: any) => {
+          console.error(`[${checklistId}] Firebase Storage processing failed:`, firebaseError);
+          await checklistRef.update({ 
+              firebaseStorageStatus: 'error',
+              generalObservations: `Falha no upload para o Firebase Storage: ${firebaseError.message}`
+          });
         });
-        console.log(`[${checklistId}] Firebase Storage uploads successful and document finalized.`);
 
     } catch (error: any) {
-        console.error(`[${checklistId}] Background processing failed:`, error);
+        console.error(`[${checklistId}] Google Drive processing failed:`, error);
         await checklistRef.update({ 
             googleDriveStatus: 'error',
-            firebaseStorageStatus: 'error',
-            generalObservations: `Falha no processamento em segundo plano: ${error.message}`
+            firebaseStorageStatus: 'error', // If GDrive fails, we mark both as error
+            status: 'Pendente', // Keep it as pending for manual review
+            generalObservations: `Falha crítica no processamento (Google Drive): ${error.message}`
         });
     }
   }

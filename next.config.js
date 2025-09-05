@@ -5,6 +5,7 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
+      serverActionsTimeout: 120,
     },
   },
   typescript: {
