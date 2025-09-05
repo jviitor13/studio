@@ -104,7 +104,7 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
                            <Paperclip className="h-4 w-4" /> Anexo do Item
                         </p>
                         <div className="relative w-full max-w-xs aspect-video rounded-md overflow-hidden">
-                            <Image src={item.photo} data-ai-hint="car checkup" alt={`Foto do item ${item.text}`} layout="fill" className="object-cover" />
+                            <Image src={item.photo} data-ai-hint="car checkup" alt={`Foto do item ${item.text}`} fill className="object-cover" />
                         </div>
                     </div>
                 )}
@@ -121,7 +121,7 @@ export function ChecklistDetailsDialog({ isOpen, onClose, checklist, onExport }:
                                 <div key={key}>
                                     <p className="text-xs font-semibold mb-1">{vehicleImageLabels[key] || key}</p>
                                     <div className="relative aspect-video w-full rounded-md overflow-hidden border">
-                                        <Image src={url} alt={vehicleImageLabels[key]} layout="fill" className="object-cover" />
+                                        <Image src={url} alt={vehicleImageLabels[key]} fill className="object-cover" />
                                     </div>
                                 </div>
                             ) : null

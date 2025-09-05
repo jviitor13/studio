@@ -91,7 +91,6 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
       setImageSrc(compressedDataUrl);
       setMode('captured');
     } catch (err) {
-      console.error(err);
       toast({ variant: 'destructive', title: 'Erro ao processar imagem' });
       setMode('streaming');
     }
@@ -170,7 +169,7 @@ export const SelfieCapture: React.FC<SelfieCaptureProps> = ({ onCapture, cameraT
         {mode === 'streaming' && <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />}
 
         {(mode === 'captured' || mode === 'confirmed') && imageSrc && (
-          <Image src={imageSrc} alt="Foto capturada" layout="fill" className="object-cover" />
+          <Image src={imageSrc} alt="Foto capturada" fill className="object-cover" />
         )}
         
         {error && (
