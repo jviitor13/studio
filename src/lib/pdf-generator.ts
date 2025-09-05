@@ -33,6 +33,65 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     doc.setTextColor(153, 153, 153);
     doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
   };
+
+  const addVehicleImagesSection = () => {
+    if (!checklist.vehicleImages || Object.values(checklist.vehicleImages).every(url => !url)) return;
+
+    doc.addPage();
+    addHeader();
+    let currentY = 45;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(34, 34, 34);
+    doc.text('Fotos Gerais do Veículo', margin, currentY);
+    currentY += 15;
+    
+    const vehicleImageLabels: Record<string, string> = {
+        cavaloFrontal: "Cavalo - Frontal",
+        cavaloLateralDireita: "Cavalo - Lat. Direita",
+        cavaloLateralEsquerda: "Cavalo - Lat. Esquerda",
+        carretaFrontal: "Carreta - Frontal",
+        carretaLateralDireita: "Carreta - Lat. Direita",
+        carretaLateralEsquerda: "Carreta - Lat. Esquerda",
+    };
+
+    const imgWidth = (pageWidth - (margin * 3)) / 2; // Two columns
+    const imgHeight = imgWidth * 0.75; // 4:3 aspect ratio
+    let xPos = margin;
+
+    Object.entries(checklist.vehicleImages).forEach(([key, url], index) => {
+        if (!url) return;
+
+        if (currentY + imgHeight + 15 > pageHeight - 20) {
+            addFooter((doc.internal as any).getCurrentPageInfo().pageNumber, (doc.internal as any).pages.length);
+            doc.addPage();
+            addHeader();
+            currentY = 45;
+        }
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(vehicleImageLabels[key] || key, xPos, currentY);
+        currentY += 5;
+
+        try {
+            doc.addImage(url, 'JPEG', xPos, currentY, imgWidth, imgHeight);
+        } catch (e) {
+            console.error(`Error adding image ${key} to PDF:`, e);
+            doc.text("Erro ao carregar imagem.", xPos + 5, currentY + imgHeight / 2);
+        }
+        
+        // Move to next column or next row
+        if ((index + 1) % 2 === 0) {
+            xPos = margin;
+            currentY += imgHeight + 15;
+        } else {
+            xPos = margin + imgWidth + margin;
+            currentY -= 5; // Reset Y to the start of the row
+        }
+    });
+  };
   
   const addValidationSection = () => {
     // Adiciona uma nova página dedicada para as validações
@@ -180,6 +239,10 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     }
   }
   
+  if (checklist.vehicleImages) {
+    addVehicleImagesSection();
+  }
+
   if (checklist.signatures?.assinaturaResponsavel || checklist.signatures?.assinaturaMotorista) {
       addValidationSection();
   }
