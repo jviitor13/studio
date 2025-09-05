@@ -244,7 +244,7 @@ export default function MaintenanceChecklistPage() {
             type: selectedTemplate?.type || 'Manutenção',
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
-            createdAt: Timestamp.now(),
+            createdAt: new Date().toISOString(),
             status: 'Enviando', // Initial status
              firebaseStorageStatus: 'pending',
              googleDriveStatus: 'pending'
