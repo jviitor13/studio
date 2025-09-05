@@ -36,19 +36,16 @@ const drive = getDriveClient();
  */
 export async function findOrCreateFolder(folderName: string, parentFolderId?: string): Promise<string> {
     try {
-        let query: string;
+        // Query to find a folder by name. If a parent is specified, it's included in the query.
+        let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
         if (parentFolderId) {
-            // Search inside a specific parent folder
-            query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and '${parentFolderId}' in parents and trashed=false`;
-        } else {
-            // Search for the top-level shared folder, it's not in 'parents' of 'root' for service accounts.
-             query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
+            query += ` and '${parentFolderId}' in parents`;
         }
 
         const response = await drive.files.list({
             q: query,
             fields: 'files(id, name)',
-            // For service accounts, corpora must be 'allDrives' or 'drive' to see shared folders/drives
+            // For service accounts, corpora must be 'allDrives' to find items in Shared Drives or shared folders.
             corpora: 'allDrives',
             includeItemsFromAllDrives: true,
             supportsAllDrives: true,
@@ -58,7 +55,7 @@ export async function findOrCreateFolder(folderName: string, parentFolderId?: st
             // Folder found, return its ID.
             return response.data.files[0].id!;
         } else {
-            // If it's a subfolder, create it. If it's the root, throw error.
+            // If it's a subfolder, create it. If it's the root, throw an error.
             if (parentFolderId) {
                 const fileMetadata = {
                     name: folderName,
@@ -68,15 +65,21 @@ export async function findOrCreateFolder(folderName: string, parentFolderId?: st
                 const newFolder = await drive.files.create({
                     requestBody: fileMetadata,
                     fields: 'id',
+                    supportsAllDrives: true,
                 });
                 return newFolder.data.id!;
             } else {
+                 // The root folder was not found. It must be created and shared manually.
                  throw new Error(`The root folder "${folderName}" was not found. Please create it on Google Drive and share it with the service account email: ${serviceAccount.client_email}`);
             }
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error finding or creating folder:', error);
-        throw new Error(`Failed to process folder "${folderName}". Please check sharing permissions.`);
+        // Provide a more specific error message.
+        if (error.message.includes("not found")) {
+            throw new Error(`Failed to process folder "${folderName}". It might not be shared correctly. Please verify sharing permissions with ${serviceAccount.client_email}.`);
+        }
+        throw new Error(`Failed to process folder "${folderName}". Details: ${error.message}`);
     }
 }
 
