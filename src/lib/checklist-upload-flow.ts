@@ -6,7 +6,7 @@
  * It prioritizes Google Drive upload first, then Firebase Storage.
  */
 
-import { adminDb } from './firebase-admin';
+import { admin, adminDb } from './firebase-admin';
 import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
@@ -115,6 +115,7 @@ export const uploadChecklistFlow = ai.defineFlow(
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     let checklistWithUrls: CompletedChecklist | null = null;
     
+    // Step 1: Upload to Firebase Storage
     try {
       const docSnap = await checklistRef.get();
       if (!docSnap.exists) {
@@ -123,7 +124,6 @@ export const uploadChecklistFlow = ai.defineFlow(
       }
       const originalChecklistData = docSnap.data() as CompletedChecklist;
 
-      // First, process all Firebase uploads to get the final URLs.
       checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
       await checklistRef.update({
           ...checklistWithUrls,
@@ -135,18 +135,17 @@ export const uploadChecklistFlow = ai.defineFlow(
        console.error(`[${checklistId}] Firebase Storage processing failure:`, error);
         await checklistRef.update({ 
             firebaseStorageStatus: 'error',
-            status: 'Pendente',
             generalObservations: `Falha no upload para o Firebase Storage: ${error.message}`
         });
         // Stop the flow if Firebase fails, as Drive needs the URLs
         return; 
     }
 
+    // Step 2: Upload to Google Drive
     try {
         if (!checklistWithUrls) {
-            throw new Error("Checklist data with URLs is not available.");
+            throw new Error("Checklist data with URLs is not available for Google Drive upload.");
         }
-        // Upload to Google Drive (Priority 1)
         await uploadToGoogleDrive(checklistId, checklistWithUrls);
         await checklistRef.update({ googleDriveStatus: 'success' });
         console.log(`[${checklistId}] Google Drive upload successful.`);
@@ -155,15 +154,14 @@ export const uploadChecklistFlow = ai.defineFlow(
         console.error(`[${checklistId}] Google Drive processing failure:`, error);
         await checklistRef.update({ 
             googleDriveStatus: 'error',
-            status: 'Pendente',
             generalObservations: `Falha no upload para o Google Drive: ${error.message}`
         });
-        // Stop the flow
+        // Stop the flow if Drive fails
         return;
     }
 
+    // Step 3: Finalize Status
     try {
-        // If both uploads are successful, determine final status
         const docSnap = await checklistRef.get();
         const finalChecklistData = docSnap.data() as CompletedChecklist;
 
@@ -177,8 +175,8 @@ export const uploadChecklistFlow = ai.defineFlow(
 
     } catch (error: any) {
          console.error(`[${checklistId}] Error setting final status:`, error);
+         // Don't change the status, just log the error
          await checklistRef.update({ 
-            status: 'Pendente',
             generalObservations: `Falha ao finalizar o status: ${error.message}`
         });
     }
