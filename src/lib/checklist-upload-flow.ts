@@ -6,49 +6,20 @@
  * It prioritizes Google Drive upload first, then Firebase Storage.
  */
 
-import { adminDb, admin } from './firebase-admin';
+import { adminDb } from './firebase-admin';
 import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
 import { Buffer } from 'buffer';
 import { Readable } from 'stream';
+import { uploadBase64ToFirebaseStorage } from './firebase-admin';
 
 const ChecklistUploadDataSchema = z.object({
   checklistId: z.string(),
 });
 export type ChecklistUploadData = z.infer<typeof ChecklistUploadDataSchema>;
 
-/**
- * Uploads a base64 encoded image to Firebase Storage and returns the public URL.
- * @param base64String The base64 data URL.
- * @param path The path to store the file in.
- * @returns The public URL of the uploaded file.
- */
-async function uploadBase64ToFirebaseStorage(base64String: string, path: string): Promise<string> {
-  const bucket = admin.storage().bucket();
-  
-  // Extract content type and base64 data
-  const match = base64String.match(/^data:(image\/\w+);base64,(.*)$/);
-  if (!match) {
-    throw new Error('Invalid base64 string format');
-  }
-  const contentType = match[1];
-  const base64Data = match[2];
-  
-  const buffer = Buffer.from(base64Data, 'base64');
-  const file = bucket.file(path);
-
-  await file.save(buffer, {
-    metadata: {
-      contentType: contentType,
-    },
-  });
-  
-  // Make the file public and get the URL
-  await file.makePublic();
-  return file.publicUrl();
-}
 
 /**
  * Iterates through all images in the checklist data, uploads them from Base64 to Firebase Storage,
