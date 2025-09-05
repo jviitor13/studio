@@ -26,12 +26,13 @@ import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy, getDocs } from "firebase/firestore"
+import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy, getDocs, writeBatch } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { UploadErrorDialog } from "@/components/upload-error-dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' | 'pending', onClick?: () => void }) => {
     let icon;
@@ -116,6 +117,8 @@ export default function ConsultasPage() {
     const [selectedChecklist, setSelectedChecklist] = React.useState<CompletedChecklist | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false)
     const [isErrorDialogOpen, setIsErrorDialogOpen] = React.useState(false);
+    
+    const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
 
     const { toast } = useToast()
 
@@ -159,6 +162,7 @@ export default function ConsultasPage() {
             const results = querySnapshot.docs.map(processChecklistDoc);
 
             setChecklists(results);
+            setSelectedIds([]); // Clear selection on new search
         } catch (error) {
             console.error("Error searching checklists: ", error);
             toast({
@@ -198,7 +202,7 @@ export default function ConsultasPage() {
         }
     }
 
-     const handleDelete = async (checklistId: string) => {
+    const handleDelete = async (checklistId: string) => {
         try {
             await deleteDoc(doc(db, "completed-checklists", checklistId));
             toast({
@@ -211,6 +215,30 @@ export default function ConsultasPage() {
                 variant: "destructive",
                 title: "Erro ao Excluir",
                 description: "Não foi possível excluir o checklist. Tente novamente.",
+            });
+        }
+    };
+
+    const handleDeleteSelected = async () => {
+        const batch = writeBatch(db);
+        selectedIds.forEach((id) => {
+            const docRef = doc(db, "completed-checklists", id);
+            batch.delete(docRef);
+        });
+
+        try {
+            await batch.commit();
+            toast({
+                title: "Sucesso!",
+                description: `${selectedIds.length} checklists foram excluídos.`,
+            });
+            setSelectedIds([]);
+        } catch (error) {
+             console.error("Batch delete error:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Excluir",
+                description: "Não foi possível excluir os checklists selecionados.",
             });
         }
     };
@@ -227,6 +255,22 @@ export default function ConsultasPage() {
             case 'Pendente': return 'Com Pendências';
             case 'Enviando': return 'Processando...';
             default: return status;
+        }
+    }
+    
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(checklists.map(c => c.id));
+        } else {
+            setSelectedIds([]);
+        }
+    }
+
+    const handleSelectOne = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, id]);
+        } else {
+            setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
         }
     }
 
@@ -334,15 +378,51 @@ export default function ConsultasPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Resultados</CardTitle>
-                        <CardDescription>
-                            Foram encontrados {checklists.length} checklists.
-                        </CardDescription>
+                        <div className="flex justify-between items-center">
+                             <div>
+                                <CardTitle>Resultados</CardTitle>
+                                <CardDescription>
+                                    Foram encontrados {checklists.length} checklists.
+                                     {selectedIds.length > 0 && ` (${selectedIds.length} selecionados)`}
+                                </CardDescription>
+                            </div>
+                            {selectedIds.length > 0 && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Excluir Selecionados
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Excluir {selectedIds.length} checklist(s)?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Esta ação não pode ser desfeita.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDeleteSelected} className={cn(buttonVariants({ variant: "destructive" }))}>
+                                                Sim, Excluir
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-[50px]">
+                                        <Checkbox
+                                            checked={selectedIds.length === checklists.length && checklists.length > 0}
+                                            onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                                            aria-label="Selecionar todos"
+                                        />
+                                    </TableHead>
                                     <TableHead>Data</TableHead>
                                     <TableHead>Veículo</TableHead>
                                     <TableHead>Responsável</TableHead>
@@ -354,13 +434,20 @@ export default function ConsultasPage() {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={6}>
+                                        <TableCell colSpan={7}>
                                             <Skeleton className="h-24 w-full" />
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     checklists.map((item) => (
-                                        <TableRow key={item.id}>
+                                        <TableRow key={item.id} data-state={selectedIds.includes(item.id) && "selected"}>
+                                            <TableCell>
+                                                <Checkbox
+                                                     checked={selectedIds.includes(item.id)}
+                                                    onCheckedChange={(checked) => handleSelectOne(item.id, checked as boolean)}
+                                                    aria-label={`Selecionar checklist ${item.id}`}
+                                                />
+                                            </TableCell>
                                             <TableCell>{formatDate(item.createdAt)}</TableCell>
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
@@ -425,7 +512,7 @@ export default function ConsultasPage() {
                                 )}
                                  {!isLoading && checklists.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center h-24">
+                                        <TableCell colSpan={7} className="text-center h-24">
                                             Nenhum checklist encontrado com os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
