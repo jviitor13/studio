@@ -236,6 +236,10 @@ export default function RetroactiveChecklistPage() {
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
 
+        // **CORRECT STATUS LOGIC**
+        const hasIssues = data.questions.some(q => q.status === 'Não OK');
+        const finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
+
         const checklistForFirestore: CompletedChecklist = {
             ...(data as any),
             id: checklistId,
@@ -245,7 +249,7 @@ export default function RetroactiveChecklistPage() {
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
             createdAt: new Date().toISOString(),
-            status: 'Enviando',
+            status: finalStatus, // Use the correctly calculated status
             firebaseStorageStatus: 'pending',
             googleDriveStatus: 'pending',
         };

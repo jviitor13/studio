@@ -75,26 +75,18 @@ export async function createUser(data: UserData) {
 }
 
 export async function saveChecklistAndTriggerUpload(
-  checklistData: Omit<CompletedChecklist, 'status'>,
+  checklistData: CompletedChecklist,
 ) {
   const checklistId = checklistData.id;
   const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
 
   try {
-    // Determine the final status based on the questions, once and for all.
-    const hasIssues = checklistData.questions.some(q => q.status === 'Não OK');
-    const finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
-
-    // We save the document first with the definitive status and pending uploads.
-    await checklistRef.set({
-      ...checklistData,
-      status: finalStatus,
-      firebaseStorageStatus: 'pending',
-      googleDriveStatus: 'pending',
-    });
+    // The checklistData object already has the correct final status
+    // calculated on the client-side. We just save it.
+    await checklistRef.set(checklistData);
     
     // Then, we trigger the upload flow as a background task.
-    // This flow will now ONLY handle file uploads and update their respective statuses.
+    // This flow will ONLY handle file uploads and update their respective statuses.
     uploadChecklistFlow({ checklistId });
 
     return { success: true, checklistId };
@@ -103,10 +95,9 @@ export async function saveChecklistAndTriggerUpload(
       `[${checklistId}] Error saving initial checklist or triggering upload:`,
       error
     );
-    // If the initial save fails, update the document with an error status.
-     await checklistRef.set({
+    
+    await checklistRef.set({
         ...checklistData,
-        status: 'Com Pendências',
         generalObservations: `Falha crítica ao salvar o checklist: ${error.message}`,
         firebaseStorageStatus: 'error',
         googleDriveStatus: 'error',
@@ -124,7 +115,7 @@ export async function retryChecklistUpload(checklistId: string) {
     await checklistRef.update({
       googleDriveStatus: 'pending',
       firebaseStorageStatus: 'pending',
-      generalObservations: admin.firestore.FieldValue.delete(), // Clear previous errors
+      generalObservations: adminDb.FieldValue.delete(), // Clear previous errors
     });
 
     // Re-trigger the background flow

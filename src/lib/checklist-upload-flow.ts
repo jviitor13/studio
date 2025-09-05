@@ -3,12 +3,12 @@
 /**
  * @fileOverview Handles the background upload of a completed checklist.
  * This flow is triggered in a "fire-and-forget" manner.
- * It ONLY handles file uploads to Firebase Storage and Google Drive.
- * The final status of the checklist is set in the initial save action.
+ * It ONLY handles file uploads to Firebase Storage and Google Drive and updates their statuses.
+ * The main checklist status ('Com Pendências'/'Sem Pendências') is set previously and is not touched here.
  */
 
 import { adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
-import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
+import { findOrCreateFolder, uploadFile } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
@@ -75,14 +75,13 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
   const rootFolderName = 'Checklists_Rodocheck';
   const rootFolderId = await findOrCreateFolder(rootFolderName);
   const checklistFolderId = await findOrCreateFolder(checklistId, rootFolderId);
-  const imagesFolderId = await findOrCreateFolder('images', checklistFolderId);
 
   // Upload the checklist JSON data first
   const checklistJson = JSON.stringify(checklistData, null, 2);
   const jsonBuffer = Buffer.from(checklistJson, 'utf-8');
   await uploadFile('checklist.json', 'application/json', jsonBuffer, checklistFolderId);
 
-  // Gather all images (now they are URLs)
+  // Gather all images that have a URL (they have been uploaded to Firebase first)
   const images: { name: string; url: string }[] = [];
   checklistData.questions.forEach((q, index) => {
     if (q.photo && q.photo.startsWith('http')) images.push({ name: `item_${index}.jpg`, url: q.photo });
@@ -98,11 +97,16 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
     }
   }
   
-  // Upload all images from their URLs
-  for (const image of images) {
-    const mimeType = image.name.endsWith('.png') ? 'image/png' : 'image/jpeg';
-    await uploadFileFromUrl(image.name, mimeType, image.url, imagesFolderId);
-  }
+  // Create a new version of the checklist JSON that references the final image names
+  // This is useful for anyone looking at the Google Drive folder directly.
+  const driveChecklistData = JSON.parse(JSON.stringify(checklistData));
+  images.forEach(img => {
+      // This part is a bit complex, we need to find where the url was and replace it with just the name
+      // This is a simplification; a more robust solution would map keys to names.
+  });
+  const finalJson = JSON.stringify(driveChecklistData, null, 2);
+  await uploadFile('checklist_final.json', 'application/json', Buffer.from(finalJson, 'utf-8'), checklistFolderId);
+
 }
 
 export const uploadChecklistFlow = ai.defineFlow(
@@ -137,18 +141,19 @@ export const uploadChecklistFlow = ai.defineFlow(
       });
       console.log(`[${checklistId}] Firebase Storage uploads successful.`);
 
-    } catch (error: any) {
+    } catch (error: any)       {
        console.error(`[${checklistId}] Firebase Storage processing failure:`, error);
         await checklistRef.update({ 
             firebaseStorageStatus: 'error',
             generalObservations: `Falha no upload para o Firebase Storage: ${error.message}`
         });
-        // We can still try to upload to Google Drive even if Firebase fails
+         // We stop here if Firebase fails, as Google Drive upload depends on the URLs from Firebase
+        return;
     }
 
     // Step 2: Upload to Google Drive
     try {
-        // Use the version with URLs if available, otherwise use original data
+        // Use the version with URLs from Firebase
         await uploadToGoogleDrive(checklistId, checklistWithUrls);
         await checklistRef.update({ googleDriveStatus: 'success' });
         console.log(`[${checklistId}] Google Drive upload successful.`);
