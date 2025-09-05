@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DateRange } from "react-day-picker"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, UploadCloud, Server, Database, RefreshCw } from "lucide-react"
+import { CalendarIcon, Download, Search, FileText, MoreHorizontal, Trash2, Loader2, AlertTriangle, CheckCircle, RefreshCw, Server, Database } from "lucide-react"
 import { format, startOfDay, endOfDay, isValid } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -57,15 +57,10 @@ const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' |
             className = "cursor-pointer hover:bg-destructive/80";
             break;
         case 'pending':
+        default:
             icon = <Loader2 className="h-3 w-3 animate-spin" />;
             text = "Pendente";
             variant = "secondary";
-            break;
-        default:
-            icon = <Loader2 className="h-3 w-3 animate-spin" />;
-            text = "Enviando...";
-            variant = "secondary";
-            className = "animate-pulse";
             break;
     }
 
@@ -250,12 +245,12 @@ export default function ConsultasPage() {
         return format(d, "dd/MM/yyyy HH:mm");
     };
     
-    const getChecklistStatusLabel = (status: CompletedChecklist['status']) => {
+    const getChecklistStatusBadge = (status: CompletedChecklist['status']) => {
         switch (status) {
-            case 'OK': return 'Concluído';
-            case 'Pendente': return 'Com Pendências';
-            case 'Enviando': return 'Processando...';
-            default: return status;
+            case 'OK': return <Badge className="bg-green-500 hover:bg-green-600">Concluído</Badge>;
+            case 'Pendente': return <Badge variant="destructive">Com Pendências</Badge>;
+            case 'Enviando': return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
+            default: return <Badge variant="secondary">{status}</Badge>;
         }
     }
     
@@ -466,9 +461,7 @@ export default function ConsultasPage() {
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
                                             <TableCell>
-                                                <Badge variant={item.status === 'OK' ? 'default' : item.status === 'Pendente' ? 'destructive' : 'secondary'} className={cn(item.status === 'OK' && 'bg-green-500 hover:bg-green-600', item.status === 'Enviando' && 'animate-pulse')}>
-                                                     {getChecklistStatusLabel(item.status)}
-                                                </Badge>
+                                                {getChecklistStatusBadge(item.status)}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1.5">
@@ -545,5 +538,3 @@ export default function ConsultasPage() {
         </>
     )
 }
-
-    

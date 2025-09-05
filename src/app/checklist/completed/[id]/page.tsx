@@ -20,18 +20,6 @@ import { cn } from '@/lib/utils';
 import { UploadErrorDialog } from '@/components/upload-error-dialog';
 
 
-const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
-    'OK': 'default',
-    'Pendente': 'destructive',
-    'Enviando': 'secondary',
-}
-
-const statusBadgeColor : {[key:string]: string} = {
-    'OK': 'bg-green-500 hover:bg-green-600',
-    'Pendente': '',
-    'Enviando': 'animate-pulse'
-}
-
 const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' | 'pending', onClick?: () => void }) => {
     let icon;
     let text;
@@ -54,15 +42,10 @@ const UploadStatusBadge = ({ status, onClick }: { status?: 'success' | 'error' |
             className = "cursor-pointer hover:bg-destructive/80";
             break;
         case 'pending':
+        default:
             icon = <Loader2 className="h-3 w-3 animate-spin" />;
             text = "Pendente";
             variant = "secondary";
-            break;
-        default:
-            icon = <Loader2 className="h-3 w-3 animate-spin" />;
-            text = "Enviando...";
-            variant = "secondary";
-            className = "animate-pulse";
             break;
     }
 
@@ -205,12 +188,12 @@ export default function ChecklistCompletedPage() {
         return <p>Checklist não encontrado.</p>;
     }
     
-    const getStatusLabel = (status: CompletedChecklist['status']) => {
+    const getStatusBadge = (status: CompletedChecklist['status']) => {
         switch (status) {
-            case 'OK': return 'Concluído';
-            case 'Pendente': return 'Com Pendências';
-            case 'Enviando': return 'Processando...';
-            default: return status;
+            case 'OK': return <Badge className="bg-green-500 hover:bg-green-600">Concluído</Badge>;
+            case 'Pendente': return <Badge variant="destructive">Com Pendências</Badge>;
+            case 'Enviando': return <Badge variant="secondary" className="animate-pulse">Processando...</Badge>;
+            default: return <Badge variant="secondary">{status}</Badge>;
         }
     }
 
@@ -264,9 +247,7 @@ export default function ChecklistCompletedPage() {
                         </div>
                         <div className="flex flex-col gap-1">
                             <span className="font-semibold">Status:</span>
-                            <Badge variant={statusVariant[checklist.status]} className={`w-fit ${statusBadgeColor[checklist.status]}`}>
-                                {getStatusLabel(checklist.status)}
-                            </Badge>
+                            {getStatusBadge(checklist.status)}
                         </div>
                          <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
                             <span className="font-semibold">Status do Upload:</span>
@@ -388,5 +369,3 @@ export default function ChecklistCompletedPage() {
         </>
     );
 }
-
-    

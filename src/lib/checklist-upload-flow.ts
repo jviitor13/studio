@@ -6,14 +6,13 @@
  * It prioritizes Google Drive upload first, then Firebase Storage.
  */
 
-import { admin, adminDb } from './firebase-admin';
+import { admin, adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
 import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
 import { Buffer } from 'buffer';
-import { Readable } from 'stream';
-import { uploadBase64ToFirebaseStorage } from './firebase-admin';
+
 
 const ChecklistUploadDataSchema = z.object({
   checklistId: z.string(),
@@ -114,6 +113,7 @@ export const uploadChecklistFlow = ai.defineFlow(
   async ({ checklistId }) => {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
     let checklistWithUrls: CompletedChecklist | null = null;
+    let finalStatus: 'OK' | 'Pendente';
     
     // Step 1: Upload to Firebase Storage
     try {
@@ -123,6 +123,9 @@ export const uploadChecklistFlow = ai.defineFlow(
         return;
       }
       const originalChecklistData = docSnap.data() as CompletedChecklist;
+
+      const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
+      finalStatus = hasIssues ? 'Pendente' : 'OK';
 
       checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
       await checklistRef.update({
@@ -162,12 +165,6 @@ export const uploadChecklistFlow = ai.defineFlow(
 
     // Step 3: Finalize Status
     try {
-        const docSnap = await checklistRef.get();
-        const finalChecklistData = docSnap.data() as CompletedChecklist;
-
-        const hasIssues = finalChecklistData.questions.some((q: any) => q.status === 'Não OK');
-        const finalStatus = hasIssues ? 'Pendente' : 'OK';
-        
         await checklistRef.update({
             status: finalStatus
         });
@@ -175,12 +172,9 @@ export const uploadChecklistFlow = ai.defineFlow(
 
     } catch (error: any) {
          console.error(`[${checklistId}] Error setting final status:`, error);
-         // Do not change the status on finalization error, just log it.
          await checklistRef.update({ 
             generalObservations: `Falha ao finalizar o status: ${error.message}`
         });
     }
   }
 );
-
-    
