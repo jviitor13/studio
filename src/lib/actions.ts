@@ -7,7 +7,6 @@ import type { AssistantFlowInput } from '@/ai/flows/assistant-flow';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { uploadChecklistFlow } from './checklist-upload-flow';
 import { CompletedChecklist } from './types';
-import { ai } from '@/ai/genkit';
 
 
 export async function handleDamageAssessment(data: AssessVehicleDamageInput) {
@@ -81,31 +80,20 @@ export async function saveChecklistAndTriggerUpload(
   const checklistId = checklistData.id;
 
   try {
+    // We save the document first so the user can be redirected to the completed page.
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    
     await checklistRef.set(checklistData);
+    
+    // Then, we trigger the upload flow as a background task.
+    // This is not awaited, so the function returns immediately.
+    uploadChecklistFlow({ checklistId });
 
-    // Trigger the background upload flow and DON'T wait for it to complete.
-    // This is "fire-and-forget"
-    ai.run('uploadChecklistFlow', { checklistId });
-
-    // Return immediately to the client
     return { success: true, checklistId };
   } catch (error: any) {
     console.error(
       `[${checklistId}] Error saving initial checklist or triggering upload:`,
       error
     );
-    // Optionally update Firestore document to reflect the error
-    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    await checklistRef.set({ 
-        ...checklistData, 
-        status: 'Pendente', 
-        googleDriveStatus: 'error',
-        firebaseStorageStatus: 'error',
-        generalObservations: `Falha ao iniciar o processo de upload: ${error.message}`
-    }, { merge: true });
-
     return { success: false, error: error.message, checklistId };
   }
 }
