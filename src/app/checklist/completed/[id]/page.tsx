@@ -209,7 +209,7 @@ export default function ChecklistCompletedPage() {
         switch (status) {
             case 'OK': return 'Concluído';
             case 'Pendente': return 'Com Pendências';
-            case 'Enviando': return 'Processando Imagens...';
+            case 'Enviando': return 'Processando...';
             default: return status;
         }
     }
@@ -388,3 +388,5 @@ export default function ChecklistCompletedPage() {
         </>
     );
 }
+
+    

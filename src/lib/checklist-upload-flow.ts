@@ -175,10 +175,12 @@ export const uploadChecklistFlow = ai.defineFlow(
 
     } catch (error: any) {
          console.error(`[${checklistId}] Error setting final status:`, error);
-         // Don't change the status, just log the error
+         // Do not change the status on finalization error, just log it.
          await checklistRef.update({ 
             generalObservations: `Falha ao finalizar o status: ${error.message}`
         });
     }
   }
 );
+
+    
