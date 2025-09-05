@@ -8,7 +8,6 @@
 
 import { adminDb } from './firebase-admin';
 import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
-import { getStorage } from 'firebase-admin/storage';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
@@ -27,8 +26,7 @@ export type ChecklistUploadData = z.infer<typeof ChecklistUploadDataSchema>;
  * @returns The public URL of the uploaded file.
  */
 async function uploadBase64ToFirebaseStorage(base64String: string, path: string): Promise<string> {
-  const storage = getStorage(adminDb.app);
-  const bucket = storage.bucket('gs://rodocheck-244cd.appspot.com');
+  const bucket = adminDb.app.storage().bucket();
   
   // Extract content type and base64 data
   const match = base64String.match(/^data:(image\/\w+);base64,(.*)$/);
@@ -113,28 +111,26 @@ async function uploadToGoogleDrive(checklistId: string, checklistData: Completed
   const jsonBuffer = Buffer.from(checklistJson, 'utf-8');
   await uploadFile('checklist.json', 'application/json', jsonBuffer, checklistFolderId);
 
-  // Gather all images (Base64)
-  const images: { name: string; data: string }[] = [];
+  // Gather all images (now they are URLs)
+  const images: { name: string; url: string }[] = [];
   checklistData.questions.forEach((q, index) => {
-    if (q.photo && q.photo.startsWith('data:image')) images.push({ name: `item_${index}.jpg`, data: q.photo });
+    if (q.photo && q.photo.startsWith('http')) images.push({ name: `item_${index}.jpg`, url: q.photo });
   });
   if (checklistData.vehicleImages) {
     for (const [key, value] of Object.entries(checklistData.vehicleImages)) {
-      if (value.startsWith('data:image')) images.push({ name: `vehicle_${key}.jpg`, data: value });
+      if (value.startsWith('http')) images.push({ name: `vehicle_${key}.jpg`, url: value });
     }
   }
    if (checklistData.signatures) {
     for (const [key, value] of Object.entries(checklistData.signatures)) {
-      if (value.startsWith('data:image')) images.push({ name: `signature_${key}.png`, data: value });
+      if (value.startsWith('http')) images.push({ name: `signature_${key}.png`, url: value });
     }
   }
   
-  // Upload all images from Base64
+  // Upload all images from their URLs
   for (const image of images) {
-    const mimeType = image.data.match(/^data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
-    const imageBuffer = Buffer.from(image.data.split(',')[1], 'base64');
-    const imageStream = Readable.from(imageBuffer);
-    await uploadFile(image.name, mimeType, imageStream, imagesFolderId);
+    const mimeType = image.name.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    await uploadFileFromUrl(image.name, mimeType, image.url, imagesFolderId);
   }
 }
 
@@ -146,6 +142,7 @@ export const uploadChecklistFlow = ai.defineFlow(
   },
   async ({ checklistId }) => {
     const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
+    let checklistWithUrls: CompletedChecklist | null = null;
     
     try {
       const docSnap = await checklistRef.get();
@@ -156,36 +153,65 @@ export const uploadChecklistFlow = ai.defineFlow(
       const originalChecklistData = docSnap.data() as CompletedChecklist;
 
       // First, process all Firebase uploads to get the final URLs.
-      const checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
-       await checklistRef.update({
+      checklistWithUrls = await processFirebaseUploads(originalChecklistData, checklistId);
+      await checklistRef.update({
           ...checklistWithUrls,
           firebaseStorageStatus: 'success',
       });
       console.log(`[${checklistId}] Firebase Storage uploads successful.`);
 
+    } catch (error: any) {
+       console.error(`[${checklistId}] Firebase Storage processing failure:`, error);
+        await checklistRef.update({ 
+            firebaseStorageStatus: 'error',
+            status: 'Pendente',
+            generalObservations: `Falha no upload para o Firebase Storage: ${error.message}`
+        });
+        // Stop the flow if Firebase fails, as Drive needs the URLs
+        return; 
+    }
 
-      // 1. Upload to Google Drive (Priority 1)
-      await uploadToGoogleDrive(checklistId, checklistWithUrls);
-      await checklistRef.update({ googleDriveStatus: 'success' });
-      console.log(`[${checklistId}] Google Drive upload successful.`);
-
-      // The checklist is now considered processed. Determine final status.
-      const hasIssues = originalChecklistData.questions.some((q: any) => q.status === 'Não OK');
-      const finalStatus = hasIssues ? 'Pendente' : 'OK';
-      
-
-      await checklistRef.update({
-          status: finalStatus // Update final status only after all uploads are confirmed
-      });
+    try {
+        if (!checklistWithUrls) {
+            throw new Error("Checklist data with URLs is not available.");
+        }
+        // Upload to Google Drive (Priority 1)
+        await uploadToGoogleDrive(checklistId, checklistWithUrls);
+        await checklistRef.update({ googleDriveStatus: 'success' });
+        console.log(`[${checklistId}] Google Drive upload successful.`);
 
     } catch (error: any) {
-        console.error(`[${checklistId}] Critical background processing failure:`, error);
+        console.error(`[${checklistId}] Google Drive processing failure:`, error);
         await checklistRef.update({ 
             googleDriveStatus: 'error',
-            firebaseStorageStatus: 'error', // If GDrive fails, we mark both as error
-            status: 'Pendente', // Keep it as pending for manual review
-            generalObservations: `Falha crítica no processamento (Google Drive): ${error.message}`
+            status: 'Pendente',
+            generalObservations: `Falha no upload para o Google Drive: ${error.message}`
+        });
+        // Stop the flow
+        return;
+    }
+
+    try {
+        // If both uploads are successful, determine final status
+        const docSnap = await checklistRef.get();
+        const finalChecklistData = docSnap.data() as CompletedChecklist;
+
+        const hasIssues = finalChecklistData.questions.some((q: any) => q.status === 'Não OK');
+        const finalStatus = hasIssues ? 'Pendente' : 'OK';
+        
+        await checklistRef.update({
+            status: finalStatus
+        });
+         console.log(`[${checklistId}] Process finished with status: ${finalStatus}`);
+
+    } catch (error: any) {
+         console.error(`[${checklistId}] Error setting final status:`, error);
+         await checklistRef.update({ 
+            status: 'Pendente',
+            generalObservations: `Falha ao finalizar o status: ${error.message}`
         });
     }
   }
 );
+
+    
