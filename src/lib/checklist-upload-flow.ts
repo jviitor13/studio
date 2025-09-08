@@ -35,11 +35,13 @@ async function processFirebaseUploads(checklistData: CompletedChecklist, checkli
   const basePath = `checklists/${checklistId}`;
 
   // Process item photos
-  for (let i = 0; i < updatedChecklist.questions.length; i++) {
-    const photo = updatedChecklist.questions[i].photo;
-    if (photo && photo.startsWith('data:image')) {
-      const url = await uploadBase64ToFirebaseStorage(photo, `${basePath}/item_${i}.jpg`);
-      updatedChecklist.questions[i].photo = url;
+  if (updatedChecklist.questions) {
+    for (let i = 0; i < updatedChecklist.questions.length; i++) {
+        const photo = updatedChecklist.questions[i].photo;
+        if (photo && photo.startsWith('data:image')) {
+        const url = await uploadBase64ToFirebaseStorage(photo, `${basePath}/item_${i}.jpg`);
+        updatedChecklist.questions[i].photo = url;
+        }
     }
   }
 
@@ -75,33 +77,34 @@ async function processFirebaseUploads(checklistData: CompletedChecklist, checkli
 async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<void> {
   const rootFolderName = 'Checklists_Rodocheck';
   const rootFolderId = await findOrCreateFolder(rootFolderName);
-  
+
+  // Create a single folder for this specific checklist, named with vehicle and date
+  const formattedDate = checklistData.createdAt ? format(new Date(checklistData.createdAt.toString()), "dd-MM-yyyy_HH-mm") : 'data_indisponivel';
   const vehicleFolderName = checklistData.vehicle.replace(/[\/]/g, '_').trim();
-  const vehicleFolderId = await findOrCreateFolder(vehicleFolderName, rootFolderId);
+  const checklistFolderName = `${vehicleFolderName}_${formattedDate}`;
+  const checklistFolderId = await findOrCreateFolder(checklistFolderName, rootFolderId);
   
-  // 1. Generate and upload the PDF
+  // 1. Generate and upload the PDF to the specific checklist folder
   const pdfBase64 = await generateChecklistPdf(checklistData, 'base64');
   if (!pdfBase64) {
     throw new Error('PDF generation returned an empty result.');
   }
 
   const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-  const formattedDate = checklistData.createdAt ? format(new Date(checklistData.createdAt.toString()), "dd-MM-yyyy_HH-mm") : 'data_indisponivel';
-  const pdfFileName = `checklist_${vehicleFolderName}_${formattedDate}.pdf`;
-  await uploadFile(pdfFileName, 'application/pdf', pdfBuffer, vehicleFolderId);
+  const pdfFileName = `checklist_${vehicleFolderName}.pdf`;
+  await uploadFile(pdfFileName, 'application/pdf', pdfBuffer, checklistFolderId);
 
-  // 2. Create a subfolder for individual images
-  const imagesFolderName = `Checklist_${formattedDate}_${checklistData.id.substring(0, 8)}`;
-  const imagesFolderId = await findOrCreateFolder(imagesFolderName, vehicleFolderId);
-
-  // 3. Upload all individual images
+  // 2. Upload all individual images to the SAME specific checklist folder
   const imagesToUpload: { name: string; url: string; mimeType: string }[] = [];
 
-  checklistData.questions.forEach((q, i) => {
-      if (q.photo?.startsWith('http')) {
-          imagesToUpload.push({ name: `item_${i}_${q.text.substring(0,10)}.jpg`, url: q.photo, mimeType: 'image/jpeg' });
-      }
-  });
+  if(checklistData.questions) {
+      checklistData.questions.forEach((q, i) => {
+          if (q.photo?.startsWith('http')) {
+              imagesToUpload.push({ name: `item_${i}_${q.text.substring(0,10)}.jpg`, url: q.photo, mimeType: 'image/jpeg' });
+          }
+      });
+  }
+
 
   if (checklistData.vehicleImages) {
       Object.entries(checklistData.vehicleImages).forEach(([key, url]) => {
@@ -122,7 +125,7 @@ async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<v
   // Execute all image uploads in parallel
   await Promise.all(
       imagesToUpload.map(image => 
-          uploadFileFromUrl(image.name, image.mimeType, image.url, imagesFolderId)
+          uploadFileFromUrl(image.name, image.mimeType, image.url, checklistFolderId)
       )
   );
 }
