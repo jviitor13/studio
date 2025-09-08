@@ -158,7 +158,7 @@ export default function ChecklistCompletedPage() {
         } else {
             // Fallback for browsers that do not support navigator.share
             navigator.clipboard.writeText(window.location.href);
-            toast({ title: "Link Copiado!", description: "O link para o checklist foi copiado para a área de transferência." });
+            toast({ title: "Link Copiado!", description: "O link para o checklist foi copiado para la área de transferência." });
         }
     };
 
