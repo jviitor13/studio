@@ -8,13 +8,14 @@
  */
 
 import { adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
-import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
+import { findOrCreateFolder, uploadFile } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
 import { Buffer } from 'buffer';
 import { generateChecklistPdf } from './pdf-generator';
 import { format } from 'date-fns';
+import fetch from 'node-fetch';
 
 
 const ChecklistUploadDataSchema = z.object({
@@ -70,6 +71,70 @@ async function processFirebaseUploads(checklistData: CompletedChecklist, checkli
   return updatedChecklist;
 }
 
+async function fetchImageAsBase64(imageUrl: string): Promise<string> {
+    try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image ${imageUrl}: ${response.statusText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        const mimeType = response.headers.get('content-type') || 'image/jpeg';
+        return `data:${mimeType};base64,${base64}`;
+    } catch (error) {
+        console.error(`Error fetching image as base64: ${imageUrl}`, error);
+        return ''; // Return empty string or a placeholder if fetching fails
+    }
+}
+
+async function convertChecklistImagesToBase64(checklistWithUrls: CompletedChecklist): Promise<CompletedChecklist> {
+    const checklistForPdf = JSON.parse(JSON.stringify(checklistWithUrls)); // Deep copy
+
+    const conversionPromises: Promise<any>[] = [];
+
+    // Item photos
+    checklistForPdf.questions?.forEach((q: any, i: number) => {
+        if (q.photo?.startsWith('http')) {
+            conversionPromises.push(
+                fetchImageAsBase64(q.photo).then(b64 => {
+                    checklistForPdf.questions[i].photo = b64;
+                })
+            );
+        }
+    });
+
+    // Vehicle images
+    if (checklistForPdf.vehicleImages) {
+        Object.keys(checklistForPdf.vehicleImages).forEach(key => {
+            const url = (checklistForPdf.vehicleImages as any)[key];
+            if (url?.startsWith('http')) {
+                conversionPromises.push(
+                    fetchImageAsBase64(url).then(b64 => {
+                        (checklistForPdf.vehicleImages as any)[key] = b64;
+                    })
+                );
+            }
+        });
+    }
+
+    // Signatures
+    if (checklistForPdf.signatures) {
+        Object.keys(checklistForPdf.signatures).forEach(key => {
+            const url = (checklistForPdf.signatures as any)[key];
+            if (url?.startsWith('http')) {
+                conversionPromises.push(
+                    fetchImageAsBase64(url).then(b64 => {
+                        (checklistForPdf.signatures as any)[key] = b64;
+                    })
+                );
+            }
+        });
+    }
+
+    await Promise.all(conversionPromises);
+    return checklistForPdf;
+}
+
 /**
  * Generates a PDF from the checklist data, uploads it and all individual images to Google Drive.
  * @param checklistData The checklist data object with Firebase URLs for images.
@@ -78,14 +143,16 @@ async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<v
   const rootFolderName = 'Checklists_Rodocheck';
   const rootFolderId = await findOrCreateFolder(rootFolderName);
 
-  // Create a single folder for this specific checklist, named with vehicle and date
   const formattedDate = checklistData.createdAt ? format(new Date(checklistData.createdAt.toString()), "dd-MM-yyyy_HH-mm") : 'data_indisponivel';
   const vehicleFolderName = checklistData.vehicle.replace(/[\/]/g, '_').trim();
   const checklistFolderName = `${vehicleFolderName}_${formattedDate}`;
   const checklistFolderId = await findOrCreateFolder(checklistFolderName, rootFolderId);
   
-  // 1. Generate and upload the PDF to the specific checklist folder
-  const pdfBase64 = await generateChecklistPdf(checklistData, 'base64');
+  // 1. Convert all image URLs back to Base64 for PDF generation
+  const checklistForPdf = await convertChecklistImagesToBase64(checklistData);
+
+  // 2. Generate and upload the PDF
+  const pdfBase64 = await generateChecklistPdf(checklistForPdf, 'base64');
   if (!pdfBase64) {
     throw new Error('PDF generation returned an empty result.');
   }
@@ -94,7 +161,7 @@ async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<v
   const pdfFileName = `checklist_${vehicleFolderName}.pdf`;
   await uploadFile(pdfFileName, 'application/pdf', pdfBuffer, checklistFolderId);
 
-  // 2. Upload all individual images to the SAME specific checklist folder
+  // 3. Upload all individual images to the SAME checklist folder
   const imagesToUpload: { name: string; url: string; mimeType: string }[] = [];
 
   if(checklistData.questions) {
@@ -124,9 +191,19 @@ async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<v
 
   // Execute all image uploads in parallel
   await Promise.all(
-      imagesToUpload.map(image => 
-          uploadFileFromUrl(image.name, image.mimeType, image.url, checklistFolderId)
-      )
+      imagesToUpload.map(async image => {
+        try {
+            const response = await fetch(image.url);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image from URL: ${response.statusText}`);
+            }
+            const buffer = Buffer.from(await response.arrayBuffer());
+            await uploadFile(image.name, image.mimeType, buffer, checklistFolderId);
+        } catch (error) {
+            console.error(`Error uploading image from URL "${image.name}":`, error);
+            // Optionally decide if one failed image upload should fail the whole process
+        }
+      })
   );
 }
 
