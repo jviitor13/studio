@@ -362,7 +362,7 @@ export default function ConsultasPage() {
                                 <Input id="plate" placeholder="Ex: RDO1A12" value={plate} onChange={e => setPlate(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="status">Status dos Itens</Label>
+                                <Label htmlFor="status">Itens</Label>
                                 <Select value={status} onValueChange={setStatus}>
                                     <SelectTrigger id="status">
                                         <SelectValue placeholder="Todos os status" />
@@ -434,7 +434,7 @@ export default function ConsultasPage() {
                                     <TableHead>Veículo</TableHead>
                                     <TableHead>Responsável</TableHead>
                                     <TableHead>Itens</TableHead>
-                                    <TableHead>Uploads</TableHead>
+                                    <TableHead>Upload</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -447,7 +447,6 @@ export default function ConsultasPage() {
                                     </TableRow>
                                 ) : (
                                     checklists.map((item) => {
-                                        // **CORREÇÃO:** A lógica de status é aplicada aqui na renderização.
                                         const itemStatus = getChecklistStatus(item);
                                         return (
                                         <TableRow key={item.id} data-state={selectedIds.includes(item.id) && "selected"}>
@@ -469,15 +468,9 @@ export default function ConsultasPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex flex-col gap-1.5">
-                                                    <div className="flex items-center gap-2">
-                                                        <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
-                                                        <UploadStatusBadge status={item.googleDriveStatus} onClick={() => handleErrorClick(item)} />
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
-                                                        <UploadStatusBadge status={item.firebaseStorageStatus} onClick={() => handleErrorClick(item)} />
-                                                    </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
+                                                    <UploadStatusBadge status={item.googleDriveStatus} onClick={() => handleErrorClick(item)} />
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">

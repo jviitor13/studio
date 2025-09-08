@@ -189,10 +189,6 @@ export default function ChecklistCompletedPage() {
         return <p>Checklist não encontrado.</p>;
     }
     
-    // **CORREÇÃO:** A lógica de status é feita aqui, baseada apenas nos itens.
-    const hasIssues = checklist.questions?.some(q => q.status === 'Não OK');
-    const finalStatus: 'Com Pendências' | 'Sem Pendências' = hasIssues ? 'Com Pendências' : 'Sem Pendências';
-
     const getStatusBadge = (status: 'Com Pendências' | 'Sem Pendências') => {
         switch (status) {
             case 'Sem Pendências': return <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>;
@@ -250,18 +246,14 @@ export default function ChecklistCompletedPage() {
                         </div>
                         <div className="flex flex-col gap-1">
                             <span className="font-semibold">Status dos Itens:</span>
-                            {getStatusBadge(finalStatus)}
+                            {getStatusBadge(checklist.status)}
                         </div>
                          <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
-                            <span className="font-semibold">Status do Upload dos Anexos:</span>
+                            <span className="font-semibold">Status do Upload (Google Drive):</span>
                             <div className="flex items-center gap-6 mt-1">
                                  <div className="flex items-center gap-2">
                                     <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
                                     <UploadStatusBadge status={checklist.googleDriveStatus} onClick={() => setIsErrorDialogOpen(true)} />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Server className="h-4 w-4 text-muted-foreground" title="Firebase Storage" />
-                                    <UploadStatusBadge status={checklist.firebaseStorageStatus} onClick={() => setIsErrorDialogOpen(true)} />
                                 </div>
                             </div>
                         </div>
@@ -372,4 +364,3 @@ export default function ChecklistCompletedPage() {
         </>
     );
 }
-
