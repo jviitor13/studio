@@ -10,7 +10,8 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
     driver: string; 
     responsibleName: string;
     mileage: number;
-    status: 'Sem Pendências' | 'Com Pendências';
+    // **CORREÇÃO:** O status reflete APENAS os itens, não o upload.
+    status: 'Sem Pendências' | 'Com Pendências'; 
     type: "Manutenção" | "viagem" | "retorno";
     questions: (Omit<ChecklistItem, 'status'> & { status: 'OK' | 'Não OK' | 'N/A' })[];
     signatures?: {

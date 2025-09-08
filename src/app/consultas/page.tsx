@@ -99,6 +99,12 @@ const processChecklistDoc = (doc: any): CompletedChecklist => {
     } as CompletedChecklist;
 };
 
+// **CORREÇÃO:** Função para calcular o status baseado SOMENTE nos itens.
+const getChecklistStatus = (checklist: CompletedChecklist): 'Com Pendências' | 'Sem Pendências' => {
+  const hasIssues = checklist.questions?.some(q => q.status === 'Não OK');
+  return hasIssues ? 'Com Pendências' : 'Sem Pendências';
+};
+
 
 export default function ConsultasPage() {
     const [checklists, setChecklists] = React.useState<CompletedChecklist[]>([]);
@@ -151,6 +157,7 @@ export default function ConsultasPage() {
                 q = query(q, where('vehicle', '>=', plate.toUpperCase()), where('vehicle', '<=', plate.toUpperCase() + '\uf8ff'));
             }
             
+            // **CORREÇÃO:** Busca pelo status real e não pelo status de exibição
             if (status) {
                 q = query(q, where('status', '==', status));
             }
@@ -355,7 +362,7 @@ export default function ConsultasPage() {
                                 <Input id="plate" placeholder="Ex: RDO1A12" value={plate} onChange={e => setPlate(e.target.value)} />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="status">Status</Label>
+                                <Label htmlFor="status">Status dos Itens</Label>
                                 <Select value={status} onValueChange={setStatus}>
                                     <SelectTrigger id="status">
                                         <SelectValue placeholder="Todos os status" />
@@ -439,7 +446,10 @@ export default function ConsultasPage() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    checklists.map((item) => (
+                                    checklists.map((item) => {
+                                        // **CORREÇÃO:** A lógica de status é aplicada aqui na renderização.
+                                        const itemStatus = getChecklistStatus(item);
+                                        return (
                                         <TableRow key={item.id} data-state={selectedIds.includes(item.id) && "selected"}>
                                             <TableCell>
                                                 <Checkbox
@@ -452,12 +462,10 @@ export default function ConsultasPage() {
                                             <TableCell className="font-medium">{item.vehicle}</TableCell>
                                             <TableCell>{item.responsibleName || 'N/A'}</TableCell>
                                             <TableCell>
-                                                {item.status === 'Sem Pendências' ? (
+                                                {itemStatus === 'Sem Pendências' ? (
                                                     <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>
-                                                ) : item.status === 'Com Pendências' ? (
-                                                    <Badge variant="destructive">Com Pendências</Badge>
                                                 ) : (
-                                                    <Badge variant="secondary">{item.status}</Badge>
+                                                    <Badge variant="destructive">Com Pendências</Badge>
                                                 )}
                                             </TableCell>
                                             <TableCell>
@@ -518,7 +526,7 @@ export default function ConsultasPage() {
                                                 </AlertDialog>
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                    )})
                                 )}
                                  {!isLoading && checklists.length === 0 && (
                                     <TableRow>

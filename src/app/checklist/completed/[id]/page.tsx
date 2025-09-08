@@ -189,7 +189,11 @@ export default function ChecklistCompletedPage() {
         return <p>Checklist não encontrado.</p>;
     }
     
-    const getStatusBadge = (status: CompletedChecklist['status']) => {
+    // **CORREÇÃO:** A lógica de status é feita aqui, baseada apenas nos itens.
+    const hasIssues = checklist.questions?.some(q => q.status === 'Não OK');
+    const finalStatus: 'Com Pendências' | 'Sem Pendências' = hasIssues ? 'Com Pendências' : 'Sem Pendências';
+
+    const getStatusBadge = (status: 'Com Pendências' | 'Sem Pendências') => {
         switch (status) {
             case 'Sem Pendências': return <Badge className="bg-green-500 hover:bg-green-600">Sem Pendências</Badge>;
             case 'Com Pendências': return <Badge variant="destructive">Com Pendências</Badge>;
@@ -246,7 +250,7 @@ export default function ChecklistCompletedPage() {
                         </div>
                         <div className="flex flex-col gap-1">
                             <span className="font-semibold">Status dos Itens:</span>
-                            {getStatusBadge(checklist.status)}
+                            {getStatusBadge(finalStatus)}
                         </div>
                          <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
                             <span className="font-semibold">Status do Upload dos Anexos:</span>
