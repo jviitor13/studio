@@ -200,7 +200,7 @@ export default function ChecklistCompletedPage() {
     const isProcessingUploads = checklist.firebaseStorageStatus === 'pending' || checklist.googleDriveStatus === 'pending';
 
     const formattedDate = checklist.createdAt && isValid(checklist.createdAt) 
-        ? format(checklist.createdAt, "dd/MM/yyyy 'às' HH:mm") 
+        ? format(new Date(checklist.createdAt), "dd/MM/yyyy 'às' HH:mm") 
         : 'Data não disponível';
 
     return (
@@ -212,7 +212,7 @@ export default function ChecklistCompletedPage() {
             />
             <div className="flex flex-col gap-6">
                 <PageHeader
-                    title={checklist.status}
+                    title={"Checklist Concluído"}
                     description={isProcessingUploads ? "O checklist foi salvo. Os anexos estão sendo enviados em segundo plano." : "O seu checklist foi enviado e está salvo no sistema."}
                 />
                 
