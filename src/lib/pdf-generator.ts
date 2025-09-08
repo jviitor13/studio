@@ -150,7 +150,18 @@ export async function generateChecklistPdf(checklist: CompletedChecklist, output
         doc.setTextColor(85, 85, 85);
         doc.text(checklist.driver || 'Motorista', margin + selfieWidth + 10 + signatureWidth / 2, currentY + 5 + signatureHeight + 7, { align: 'center' });
     }
-    currentY += selfieHeight + 25;
+    currentY += selfieHeight + 15;
+
+    // Seção de Localização
+    if (checklist.signatures?.location) {
+        doc.setFontSize(10);
+        doc.setTextColor(85, 85, 85);
+        doc.text('Localização da Validação:', margin, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Lat: ${checklist.signatures.location.latitude.toFixed(6)}, Long: ${checklist.signatures.location.longitude.toFixed(6)}`, margin + 45, currentY);
+        currentY += 10;
+    }
+
 
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(9);

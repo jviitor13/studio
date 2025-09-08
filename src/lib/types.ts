@@ -19,6 +19,10 @@ export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> &
         assinaturaMotorista?: string;
         selfieResponsavel?: string;
         selfieMotorista?: string;
+        location?: {
+            latitude: number;
+            longitude: number;
+        }
     },
     vehicleImages?: {
         cavaloFrontal: string;

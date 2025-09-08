@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, Edit, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle, Edit, ArrowLeft, ArrowRight, MapPin } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
 import { ChecklistTemplate } from '@/lib/checklist-templates-data';
@@ -53,6 +53,12 @@ const signaturesSchema = z.object({
   assinaturaMotorista: z.string().min(1, "A assinatura do motorista é obrigatória."),
   selfieResponsavel: z.string().min(1, "A selfie do responsável é obrigatória."),
   selfieMotorista: z.string().min(1, "A selfie do motorista é obrigatória."),
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+  }).refine(loc => loc.latitude !== 0 && loc.longitude !== 0, {
+    message: "A localização é obrigatória. Ative o GPS e tente novamente."
+  })
 });
 
 const checklistSchema = z.object({
@@ -88,6 +94,7 @@ export default function RetroactiveChecklistPage() {
   const [currentItem, setCurrentItem] = useState<{item: ChecklistItemData, index: number} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(setUser);
@@ -146,6 +153,7 @@ export default function RetroactiveChecklistPage() {
         assinaturaMotorista: '',
         selfieResponsavel: '',
         selfieMotorista: '',
+        location: { latitude: 0, longitude: 0 },
       }
     },
     mode: 'onBlur',
@@ -222,12 +230,40 @@ export default function RetroactiveChecklistPage() {
         }
         
         if (currentStep < formSteps.length) {
+            if (currentStep === 3) { // Entering final step
+                getLocation();
+            }
             setCurrentStep(prev => prev + 1);
         } else {
             // This is the final step, submit the form.
             await handleSubmit(onSubmit)();
         }
     };
+
+    const getLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+        setLocationStatus('error');
+        toast({ variant: 'destructive', title: "Geolocalização não suportada."});
+        return;
+    }
+
+    setLocationStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            setValue('signatures.location', { latitude, longitude });
+            trigger('signatures.location');
+            setLocationStatus('success');
+            toast({ title: "Localização capturada com sucesso!" });
+        },
+        (error) => {
+            setLocationStatus('error');
+            console.error(error);
+            toast({ variant: 'destructive', title: "Erro ao obter localização", description: "Verifique as permissões de GPS do seu navegador." });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [setValue, trigger, toast]);
     
  const onSubmit = async (data: ChecklistFormValues) => {
         setIsSubmitting(true);
@@ -499,45 +535,66 @@ export default function RetroactiveChecklistPage() {
                     <CardTitle>Validação e Assinaturas</CardTitle>
                     <CardDescription>O responsável e o motorista devem registrar a selfie e assinar abaixo para validar o checklist.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-12">
-                     <div className="grid gap-4">
-                        <Label>Responsável Técnico: {watch('responsibleName')}</Label>
-                        <Controller
-                            name="signatures.selfieResponsavel"
-                            control={control}
-                            render={({ field }) => (
-                                <SelfieCapture onCapture={field.onChange} />
-                            )}
-                        />
-                         {errors.signatures?.selfieResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieResponsavel.message}</p>}
-                        <Controller
-                            name="signatures.assinaturaResponsavel"
-                            control={control}
-                            render={({ field }) => (
-                                <SignaturePad onEnd={field.onChange} />
-                            )}
-                        />
-                         {errors.signatures?.assinaturaResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.assinaturaResponsavel.message}</p>}
-                     </div>
-                     <div className="grid gap-4">
-                         <Label>Motorista: {watch('driverName')}</Label>
-                        <Controller
-                            name="signatures.selfieMotorista"
-                            control={control}
-                            render={({ field }) => (
-                                <SelfieCapture onCapture={field.onChange} />
-                            )}
-                        />
-                         {errors.signatures?.selfieMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieMotorista.message}</p>}
-                        <Controller
-                            name="signatures.assinaturaMotorista"
-                            control={control}
-                            render={({ field }) => (
-                                <SignaturePad onEnd={field.onChange} />
-                            )}
-                        />
-                         {errors.signatures?.assinaturaMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.assinaturaMotorista.message}</p>}
-                     </div>
+                <CardContent className="space-y-8">
+                     <div className="grid md:grid-cols-2 gap-x-8 gap-y-12">
+                        <div className="grid gap-4">
+                            <Label>Responsável Técnico: {watch('responsibleName')}</Label>
+                            <Controller
+                                name="signatures.selfieResponsavel"
+                                control={control}
+                                render={({ field }) => (
+                                    <SelfieCapture onCapture={field.onChange} />
+                                )}
+                            />
+                            {errors.signatures?.selfieResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieResponsavel.message}</p>}
+                            <Controller
+                                name="signatures.assinaturaResponsavel"
+                                control={control}
+                                render={({ field }) => (
+                                    <SignaturePad onEnd={field.onChange} />
+                                )}
+                            />
+                            {errors.signatures?.assinaturaResponsavel && <p className="text-sm text-destructive -mt-2">{errors.signatures.assinaturaResponsavel.message}</p>}
+                        </div>
+                        <div className="grid gap-4">
+                            <Label>Motorista: {watch('driverName')}</Label>
+                            <Controller
+                                name="signatures.selfieMotorista"
+                                control={control}
+                                render={({ field }) => (
+                                    <SelfieCapture onCapture={field.onChange} />
+                                )}
+                            />
+                            {errors.signatures?.selfieMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.selfieMotorista.message}</p>}
+                            <Controller
+                                name="signatures.assinaturaMotorista"
+                                control={control}
+                                render={({ field }) => (
+                                    <SignaturePad onEnd={field.onChange} />
+                                )}
+                            />
+                            {errors.signatures?.assinaturaMotorista && <p className="text-sm text-destructive -mt-2">{errors.signatures.assinaturaMotorista.message}</p>}
+                        </div>
+                    </div>
+                     <div className="border-t pt-6 grid gap-4">
+                        <Label>Geolocalização Obrigatória *</Label>
+                        <Button 
+                            type="button" 
+                            variant={locationStatus === 'success' ? 'default' : 'outline'}
+                            onClick={getLocation} 
+                            disabled={locationStatus === 'loading' || locationStatus === 'success'}
+                        >
+                            {locationStatus === 'loading' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {locationStatus === 'success' && <CheckCircle className="mr-2 h-4 w-4" />}
+                            {locationStatus !== 'loading' && locationStatus !== 'success' && <MapPin className="mr-2 h-4 w-4" />}
+                            
+                            {locationStatus === 'idle' && 'Capturar Localização'}
+                            {locationStatus === 'loading' && 'Obtendo GPS...'}
+                            {locationStatus === 'success' && `Localização Capturada!`}
+                            {locationStatus === 'error' && 'Tentar Novamente'}
+                        </Button>
+                        {errors.signatures?.location && <p className="text-sm text-destructive">{errors.signatures.location.message}</p>}
+                    </div>
                 </CardContent>
             </Card>
         )}

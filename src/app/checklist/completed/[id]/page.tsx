@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format, isValid } from 'date-fns';
-import { CheckCircle, Download, Home, Printer, Share2, Loader2, Database, Server, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Download, Home, Printer, Share2, Loader2, Database, Server, AlertTriangle, MapPin } from 'lucide-react';
 import { generateChecklistPdf } from '@/lib/pdf-generator';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -197,7 +197,7 @@ export default function ChecklistCompletedPage() {
         }
     }
 
-    const isProcessingUploads = checklist.firebaseStorageStatus === 'pending' || checklist.googleDriveStatus === 'pending';
+    const isProcessingUploads = checklist.googleDriveStatus === 'pending';
 
     const formattedDate = checklist.createdAt && isValid(checklist.createdAt) 
         ? format(new Date(checklist.createdAt), "dd/MM/yyyy 'às' HH:mm") 
@@ -248,15 +248,26 @@ export default function ChecklistCompletedPage() {
                             <span className="font-semibold">Status dos Itens:</span>
                             {getStatusBadge(checklist.status)}
                         </div>
-                         <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3">
-                            <span className="font-semibold">Status do Upload (Google Drive):</span>
-                            <div className="flex items-center gap-6 mt-1">
-                                 <div className="flex items-center gap-2">
-                                    <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
-                                    <UploadStatusBadge status={checklist.googleDriveStatus} onClick={() => setIsErrorDialogOpen(true)} />
-                                </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Status do Upload (Drive):</span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <Database className="h-4 w-4 text-muted-foreground" title="Google Drive" />
+                                <UploadStatusBadge status={checklist.googleDriveStatus} onClick={() => setIsErrorDialogOpen(true)} />
                             </div>
                         </div>
+                         {checklist.signatures?.location && (
+                            <div className="flex flex-col gap-1 sm:col-span-2">
+                                <span className="font-semibold">Localização da Validação:</span>
+                                <a 
+                                    href={`https://www.google.com/maps/search/?api=1&query=${checklist.signatures.location.latitude},${checklist.signatures.location.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground text-primary hover:underline flex items-center gap-1"
+                                >
+                                    <MapPin className="h-4 w-4" /> Ver no Mapa
+                                </a>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
