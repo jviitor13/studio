@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { CompletedChecklist } from '@/lib/types';
 import { format } from 'date-fns';
 
-export async function generateChecklistPdf(checklist: CompletedChecklist) {
+export async function generateChecklistPdf(checklist: CompletedChecklist, outputType: 'save' | 'base64' = 'save'): Promise<string | void> {
   const doc = new jsPDF();
   const pageHeight = doc.internal.pageSize.getHeight();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -59,41 +59,45 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     const imgWidth = (pageWidth - (margin * 3)) / 2; // Two columns
     const imgHeight = imgWidth * 0.75; // 4:3 aspect ratio
     let xPos = margin;
+    let colIndex = 0;
 
-    Object.entries(checklist.vehicleImages).forEach(([key, url], index) => {
+    Object.entries(checklist.vehicleImages).forEach(([key, url]) => {
         if (!url) return;
 
         if (currentY + imgHeight + 15 > pageHeight - 20) {
-            addFooter((doc.internal as any).getCurrentPageInfo().pageNumber, (doc.internal as any).pages.length);
+            addFooter((doc.internal as any).getCurrentPageInfo().pageNumber, (doc.internal as any).pages.length + 1); // Predict next page
             doc.addPage();
             addHeader();
             currentY = 45;
+            xPos = margin;
+            colIndex = 0;
         }
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text(vehicleImageLabels[key] || key, xPos, currentY);
-        currentY += 5;
-
+        
         try {
-            doc.addImage(url, 'JPEG', xPos, currentY, imgWidth, imgHeight);
+            // Check image format from URL or data URI
+            const isPng = url.startsWith('data:image/png') || url.toLowerCase().includes('.png');
+            doc.addImage(url, isPng ? 'PNG' : 'JPEG', xPos, currentY + 5, imgWidth, imgHeight);
         } catch (e) {
             console.error(`Error adding image ${key} to PDF:`, e);
-            doc.text("Erro ao carregar imagem.", xPos + 5, currentY + imgHeight / 2);
+            doc.text("Erro ao carregar imagem.", xPos + 5, currentY + 5 + imgHeight / 2);
         }
         
-        // Move to next column or next row
-        if ((index + 1) % 2 === 0) {
+        colIndex++;
+        if (colIndex % 2 === 0) {
             xPos = margin;
-            currentY += imgHeight + 15;
+            currentY += imgHeight + 20;
         } else {
             xPos = margin + imgWidth + margin;
-            currentY -= 5; // Reset Y to the start of the row
         }
     });
   };
   
   const addValidationSection = () => {
+    if (!checklist.signatures) return;
     // Adiciona uma nova página dedicada para as validações
     doc.addPage();
     addHeader();
@@ -157,7 +161,7 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
 
   addHeader();
 
-  const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt), "dd/MM/yyyy HH:mm") : 'N/A';
+  const formattedDate = checklist.createdAt ? format(new Date(checklist.createdAt.toString()), "dd/MM/yyyy HH:mm") : 'N/A';
   autoTable(doc, {
     startY: 38,
     head: [['Data', 'Veículo', 'Responsável', 'Tipo', 'Status']],
@@ -253,8 +257,12 @@ export async function generateChecklistPdf(checklist: CompletedChecklist) {
     addFooter(i, pageCount);
   }
 
-  const safeDate = formattedDate.replace(/[^0-9]/g, '_');
-  doc.save(`checklist_${checklist.vehicle}_${safeDate}.pdf`);
+  if (outputType === 'base64') {
+    return doc.output('datauristring').split(',')[1];
+  } else {
+    const safeDate = formattedDate.replace(/[^0-9]/g, '_');
+    doc.save(`checklist_${checklist.vehicle}_${safeDate}.pdf`);
+  }
 }
 
 function calculateItemHeight(doc: jsPDF, item: any): number {

@@ -100,7 +100,7 @@ export async function uploadFile(fileName: string, mimeType: string, content: Re
 
         const media = {
             mimeType: mimeType,
-            body: content,
+            body: Readable.from(content), // Ensure content is a Readable stream
         };
 
         await drive.files.create({

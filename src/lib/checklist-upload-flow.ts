@@ -4,8 +4,8 @@
 /**
  * @fileOverview Handles the background upload of a completed checklist.
  * This flow is triggered in a "fire-and-forget" manner.
- * It ONLY handles file uploads to Firebase Storage and Google Drive and updates their statuses.
- * The main checklist status ('Com Pendências'/'Sem Pendências') is set previously and is not touched here.
+ * It handles file uploads to Firebase Storage, generates a final PDF,
+ * and uploads that PDF to Google Drive.
  */
 
 import { adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
@@ -14,6 +14,8 @@ import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
 import { Buffer } from 'buffer';
+import { generateChecklistPdf } from './pdf-generator';
+import { format } from 'date-fns';
 
 
 const ChecklistUploadDataSchema = z.object({
@@ -68,46 +70,33 @@ async function processFirebaseUploads(checklistData: CompletedChecklist, checkli
 }
 
 /**
- * Uploads all checklist data and images to a structured folder in Google Drive.
+ * Generates a PDF from the checklist data and uploads it to Google Drive.
  * @param checklistId The ID of the checklist.
- * @param checklistData The checklist data object (can contain Base64 or URLs).
+ * @param checklistData The checklist data object with Firebase URLs for images.
  */
-async function uploadToGoogleDrive(checklistId: string, checklistData: CompletedChecklist): Promise<void> {
+async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<void> {
   const rootFolderName = 'Checklists_Rodocheck';
   const rootFolderId = await findOrCreateFolder(rootFolderName);
-  const checklistFolderId = await findOrCreateFolder(checklistId, rootFolderId);
-
-  // Upload the checklist JSON data first
-  const checklistJson = JSON.stringify(checklistData, null, 2);
-  const jsonBuffer = Buffer.from(checklistJson, 'utf-8');
-  await uploadFile('checklist.json', 'application/json', jsonBuffer, checklistFolderId);
-
-  // Gather all images that have a URL (they have been uploaded to Firebase first)
-  const images: { name: string; url: string }[] = [];
-  checklistData.questions.forEach((q, index) => {
-    if (q.photo && q.photo.startsWith('http')) images.push({ name: `item_${index}.jpg`, url: q.photo });
-  });
-  if (checklistData.vehicleImages) {
-    for (const [key, value] of Object.entries(checklistData.vehicleImages)) {
-      if (value.startsWith('http')) images.push({ name: `vehicle_${key}.jpg`, url: value });
-    }
-  }
-   if (checklistData.signatures) {
-    for (const [key, value] of Object.entries(checklistData.signatures)) {
-      if (value.startsWith('http')) images.push({ name: `signature_${key}.png`, url: value });
-    }
-  }
   
-  // Create a new version of the checklist JSON that references the final image names
-  // This is useful for anyone looking at the Google Drive folder directly.
-  const driveChecklistData = JSON.parse(JSON.stringify(checklistData));
-  images.forEach(img => {
-      // This part is a bit complex, we need to find where the url was and replace it with just the name
-      // This is a simplification; a more robust solution would map keys to names.
-  });
-  const finalJson = JSON.stringify(driveChecklistData, null, 2);
-  await uploadFile('checklist_final.json', 'application/json', Buffer.from(finalJson, 'utf-8'), checklistFolderId);
+  // Create a subfolder named after the vehicle plate for better organization.
+  const vehicleFolderName = checklistData.vehicle.replace(/[\/]/g, '_').trim();
+  const vehicleFolderId = await findOrCreateFolder(vehicleFolderName, rootFolderId);
+  
+  // Generate the PDF in memory.
+  const pdfBase64 = await generateChecklistPdf(checklistData, 'base64');
+  if (!pdfBase64) {
+    throw new Error('PDF generation returned an empty result.');
+  }
 
+  // Convert base64 to a Buffer for upload.
+  const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+  
+  // Create a descriptive filename.
+  const formattedDate = checklistData.createdAt ? format(new Date(checklistData.createdAt.toString()), "dd-MM-yyyy_HH-mm") : 'data_indisponivel';
+  const fileName = `checklist_${vehicleFolderName}_${formattedDate}.pdf`;
+  
+  // Upload the PDF.
+  await uploadFile(fileName, 'application/pdf', pdfBuffer, vehicleFolderId);
 }
 
 export const uploadChecklistFlow = ai.defineFlow(
@@ -137,7 +126,7 @@ export const uploadChecklistFlow = ai.defineFlow(
     try {
       checklistWithUrls = await processFirebaseUploads(checklistData, checklistId);
       await checklistRef.update({
-          ...checklistWithUrls,
+          ...checklistWithUrls, // Save URLs back to Firestore
           firebaseStorageStatus: 'success',
       });
       console.log(`[${checklistId}] Firebase Storage uploads successful.`);
@@ -148,14 +137,14 @@ export const uploadChecklistFlow = ai.defineFlow(
             firebaseStorageStatus: 'error',
             generalObservations: `Falha no upload para o Firebase Storage: ${error.message}`
         });
-         // We stop here if Firebase fails, as Google Drive upload depends on the URLs from Firebase
+        // We stop here if Firebase fails, as Google Drive PDF generation depends on these URLs
         return;
     }
 
-    // Step 2: Upload to Google Drive
+    // Step 2: Upload final PDF to Google Drive
     try {
-        // Use the version with URLs from Firebase
-        await uploadToGoogleDrive(checklistId, checklistWithUrls);
+        // Use the version with URLs from Firebase to generate the PDF
+        await uploadToGoogleDrive(checklistWithUrls);
         await checklistRef.update({ googleDriveStatus: 'success' });
         console.log(`[${checklistId}] Google Drive upload successful.`);
 
