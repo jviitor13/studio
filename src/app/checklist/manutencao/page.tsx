@@ -236,7 +236,6 @@ export default function MaintenanceChecklistPage() {
         const checklistId = `checklist-${Date.now()}`;
         const selectedTemplate = templates.find(t => t.id === data.templateId);
         
-        // **CORRECT STATUS LOGIC**
         const hasIssues = data.questions.some(q => q.status === 'Não OK');
         const finalStatus = hasIssues ? 'Com Pendências' : 'Sem Pendências';
 
@@ -249,7 +248,7 @@ export default function MaintenanceChecklistPage() {
             category: selectedTemplate?.category || 'nao_aplicavel',
             driver: data.driverName,
             createdAt: new Date().toISOString(),
-            status: finalStatus, // Use the correctly calculated status
+            status: finalStatus,
             firebaseStorageStatus: 'pending',
             googleDriveStatus: 'pending'
         };

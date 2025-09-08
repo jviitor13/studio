@@ -141,7 +141,7 @@ export const uploadChecklistFlow = ai.defineFlow(
       });
       console.log(`[${checklistId}] Firebase Storage uploads successful.`);
 
-    } catch (error: any)       {
+    } catch (error: any) {
        console.error(`[${checklistId}] Firebase Storage processing failure:`, error);
         await checklistRef.update({ 
             firebaseStorageStatus: 'error',

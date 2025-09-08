@@ -81,8 +81,8 @@ export async function saveChecklistAndTriggerUpload(
   const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
 
   try {
-    // The checklistData already contains the correct final status
-    // calculated in the client-side form logic.
+    // The checklistData now arrives with the correct final status pre-calculated
+    // in the client-side form logic. We just save it.
     await checklistRef.set({
       ...checklistData,
       firebaseStorageStatus: 'pending',
