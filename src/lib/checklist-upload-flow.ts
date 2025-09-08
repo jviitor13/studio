@@ -1,5 +1,4 @@
 
-
 'use server';
 /**
  * @fileOverview Handles the background upload of a completed checklist.
@@ -9,7 +8,7 @@
  */
 
 import { adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
-import { findOrCreateFolder, uploadFile } from './google-drive';
+import { findOrCreateFolder, uploadFile, uploadFileFromUrl } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
 import { CompletedChecklist } from './types';
@@ -70,33 +69,62 @@ async function processFirebaseUploads(checklistData: CompletedChecklist, checkli
 }
 
 /**
- * Generates a PDF from the checklist data and uploads it to Google Drive.
- * @param checklistId The ID of the checklist.
+ * Generates a PDF from the checklist data, uploads it and all individual images to Google Drive.
  * @param checklistData The checklist data object with Firebase URLs for images.
  */
 async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<void> {
   const rootFolderName = 'Checklists_Rodocheck';
   const rootFolderId = await findOrCreateFolder(rootFolderName);
   
-  // Create a subfolder named after the vehicle plate for better organization.
   const vehicleFolderName = checklistData.vehicle.replace(/[\/]/g, '_').trim();
   const vehicleFolderId = await findOrCreateFolder(vehicleFolderName, rootFolderId);
   
-  // Generate the PDF in memory.
+  // 1. Generate and upload the PDF
   const pdfBase64 = await generateChecklistPdf(checklistData, 'base64');
   if (!pdfBase64) {
     throw new Error('PDF generation returned an empty result.');
   }
 
-  // Convert base64 to a Buffer for upload.
   const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-  
-  // Create a descriptive filename.
   const formattedDate = checklistData.createdAt ? format(new Date(checklistData.createdAt.toString()), "dd-MM-yyyy_HH-mm") : 'data_indisponivel';
-  const fileName = `checklist_${vehicleFolderName}_${formattedDate}.pdf`;
-  
-  // Upload the PDF.
-  await uploadFile(fileName, 'application/pdf', pdfBuffer, vehicleFolderId);
+  const pdfFileName = `checklist_${vehicleFolderName}_${formattedDate}.pdf`;
+  await uploadFile(pdfFileName, 'application/pdf', pdfBuffer, vehicleFolderId);
+
+  // 2. Create a subfolder for individual images
+  const imagesFolderName = `Checklist_${formattedDate}_${checklistData.id.substring(0, 8)}`;
+  const imagesFolderId = await findOrCreateFolder(imagesFolderName, vehicleFolderId);
+
+  // 3. Upload all individual images
+  const imagesToUpload: { name: string; url: string; mimeType: string }[] = [];
+
+  checklistData.questions.forEach((q, i) => {
+      if (q.photo?.startsWith('http')) {
+          imagesToUpload.push({ name: `item_${i}_${q.text.substring(0,10)}.jpg`, url: q.photo, mimeType: 'image/jpeg' });
+      }
+  });
+
+  if (checklistData.vehicleImages) {
+      Object.entries(checklistData.vehicleImages).forEach(([key, url]) => {
+          if (url?.startsWith('http')) {
+              imagesToUpload.push({ name: `vehicle_${key}.jpg`, url, mimeType: 'image/jpeg' });
+          }
+      });
+  }
+
+  if (checklistData.signatures) {
+      Object.entries(checklistData.signatures).forEach(([key, url]) => {
+          if (url?.startsWith('http')) {
+              imagesToUpload.push({ name: `signature_${key}.png`, url, mimeType: 'image/png' });
+          }
+      });
+  }
+
+  // Execute all image uploads in parallel
+  await Promise.all(
+      imagesToUpload.map(image => 
+          uploadFileFromUrl(image.name, image.mimeType, image.url, imagesFolderId)
+      )
+  );
 }
 
 export const uploadChecklistFlow = ai.defineFlow(
@@ -141,9 +169,8 @@ export const uploadChecklistFlow = ai.defineFlow(
         return;
     }
 
-    // Step 2: Upload final PDF to Google Drive
+    // Step 2: Upload final PDF and images to Google Drive
     try {
-        // Use the version with URLs from Firebase to generate the PDF
         await uploadToGoogleDrive(checklistWithUrls);
         await checklistRef.update({ googleDriveStatus: 'success' });
         console.log(`[${checklistId}] Google Drive upload successful.`);
