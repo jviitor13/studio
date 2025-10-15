@@ -11,7 +11,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { adminDb } from '@/lib/firebase-admin';
+// Firebase imports removed - using Django backend
 
 
 const getTireData = async () => {

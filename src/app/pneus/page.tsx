@@ -49,8 +49,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, updateDoc, addDoc, query, where, getDocs, setDoc } from "firebase/firestore";
+// Firebase imports removed - using Django backend
+// Firebase imports removed - using Django backend
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,

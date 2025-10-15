@@ -1,7 +1,9 @@
 import type {Metadata} from 'next';
 import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { GoogleOAuthScript } from "@/components/auth/GoogleOAuthScript";
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -30,8 +32,11 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head />
       <body className="font-body antialiased">
-        {children}
-        <Toaster />
+        <GoogleOAuthScript />
+        <AuthProvider>
+          {children}
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

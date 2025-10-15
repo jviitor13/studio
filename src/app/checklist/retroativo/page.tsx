@@ -5,10 +5,9 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect, useCallback } from 'react';
-import { Timestamp } from 'firebase/firestore';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+// Firebase imports removed - using Django backend
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -86,7 +85,7 @@ const formSteps = [
 export default function RetroactiveChecklistPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const [user, setUser] = useState(auth.currentUser);
+  const { user, isAuthenticated } = useAuth();
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
@@ -97,9 +96,13 @@ export default function RetroactiveChecklistPage() {
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    return () => unsubscribe();
-  }, []);
+    if (isAuthenticated) {
+      // TODO: Load templates from Django API
+      // const templates = await apiClient.getChecklistTemplates();
+      // setTemplates(templates);
+      setIsLoadingTemplates(false);
+    }
+  }, [isAuthenticated]);
   
   useEffect(() => {
     const q = query(collection(db, "checklist-templates"), where("type", "==", "Manutenção"));

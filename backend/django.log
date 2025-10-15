@@ -1,0 +1,152 @@
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\utils\deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\http\request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /api/
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\utils\deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\http\request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /api/auth/me/
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\utils\deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\http\request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /api/vehicles/
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\utils\deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\iebt\Desktop\Workspace\studio\backend\venv\Lib\site-packages\django\http\request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /api/checklists/
+Request: GET /api/ - User: AnonymousUser
+Response: GET /api/ - Status: 404 - Duration: 0.15s
+Not Found: /api/
+Request: GET /api/auth/me/ - User: AnonymousUser
+Response: GET /api/auth/me/ - Status: 403 - Duration: 0.00s
+Forbidden: /api/auth/me/
+Request: GET /api/vehicles/ - User: AnonymousUser
+Response: GET /api/vehicles/ - Status: 403 - Duration: 0.00s
+Forbidden: /api/vehicles/
+Request: GET /api/checklists/ - User: AnonymousUser
+Response: GET /api/checklists/ - Status: 403 - Duration: 0.00s
+Forbidden: /api/checklists/
+Watching for file changes with StatReloader
+Request: GET / - User: AnonymousUser
+Response: GET / - Status: 404 - Duration: 0.04s
+Not Found: /
+"GET / HTTP/1.1" 404 2969
+Request: GET /favicon.ico - User: AnonymousUser
+Response: GET /favicon.ico - Status: 404 - Duration: 0.01s
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3020
+Request: GET / - User: AnonymousUser
+Request: GET /api/ai/ - User: AnonymousUser
+Watching for file changes with StatReloader
+Request: GET / - User: AnonymousUser
+Response: GET / - Status: 404 - Duration: 0.05s
+Not Found: /
+"GET / HTTP/1.1" 404 2969
+Request: GET /favicon.ico - User: AnonymousUser
+Response: GET /favicon.ico - Status: 404 - Duration: 0.01s
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3020
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"OPTIONS /api/vehicles/ HTTP/1.1" 200 0
+"OPTIONS /api/vehicles/ HTTP/1.1" 200 0
+Request: GET /api/vehicles/ - User: AnonymousUser
+Exception in <vehicles.views.VehicleListCreateView object at 0x00000232910AD550>: As credenciais de autenticação não foram fornecidas.
+Response: GET /api/vehicles/ - Status: 403 - Duration: 0.00s
+Forbidden: /api/vehicles/
+"GET /api/vehicles/ HTTP/1.1" 403 113
+Request: GET /api/vehicles/ - User: AnonymousUser
+Exception in <vehicles.views.VehicleListCreateView object at 0x00000232911074D0>: As credenciais de autenticação não foram fornecidas.
+Response: GET /api/vehicles/ - Status: 403 - Duration: 0.00s
+Forbidden: /api/vehicles/
+"GET /api/vehicles/ HTTP/1.1" 403 113
+"OPTIONS /api/checklists/ HTTP/1.1" 200 0
+Request: GET /api/checklists/ - User: AnonymousUser
+Exception in <checklists.views.CompletedChecklistListCreateView object at 0x00000232910AC590>: As credenciais de autenticação não foram fornecidas.
+Response: GET /api/checklists/ - Status: 403 - Duration: 0.00s
+Forbidden: /api/checklists/
+"GET /api/checklists/ HTTP/1.1" 403 113
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\urls.py changed, reloading.
+Watching for file changes with StatReloader
+Request: GET / - User: AnonymousUser
+Response: GET / - Status: 200 - Duration: 0.00s
+"GET / HTTP/1.1" 200 150
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\authentication\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\authentication\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+Request: POST /api/auth/login/ - User: AnonymousUser
+Response: POST /api/auth/login/ - Status: 400 - Duration: 0.60s
+Bad Request: /api/auth/login/
+"POST /api/auth/login/ HTTP/1.1" 400 48
+Request: GET / - User: AnonymousUser
+Response: GET / - Status: 200 - Duration: 0.00s
+"GET / HTTP/1.1" 200 157
+Request: POST /o/token/ - User: AnonymousUser
+Response: POST /o/token/ - Status: 401 - Duration: 0.48s
+Unauthorized: /o/token/
+"POST /o/token/ HTTP/1.1" 401 27
+Request: POST /o/token/ - User: AnonymousUser
+Response: POST /o/token/ - Status: 401 - Duration: 0.61s
+Unauthorized: /o/token/
+"POST /o/token/ HTTP/1.1" 401 27
+Request: GET / - User: AnonymousUser
+Response: GET / - Status: 200 - Duration: 0.00s
+"GET / HTTP/1.1" 200 157
+Request: POST /o/token/ - User: AnonymousUser
+Response: POST /o/token/ - Status: 401 - Duration: 0.55s
+Unauthorized: /o/token/
+"POST /o/token/ HTTP/1.1" 401 27
+Request: POST /o/token/ - User: AnonymousUser
+Response: POST /o/token/ - Status: 401 - Duration: 0.49s
+Unauthorized: /o/token/
+"POST /o/token/ HTTP/1.1" 401 27
+C:\Users\iebt\Desktop\Workspace\studio\backend\rodocheck_backend\settings.py changed, reloading.
+Watching for file changes with StatReloader

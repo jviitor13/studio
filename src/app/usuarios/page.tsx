@@ -45,8 +45,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUser } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+// Firebase imports removed - using Django backend
 import { format } from "date-fns";
 
 

@@ -1,11 +1,11 @@
 
 
 import type { ChecklistTemplate, ChecklistItem } from "@/lib/checklist-templates-data";
-import { Timestamp } from "firebase/firestore";
+// Firebase imports removed - using Django backend
 
 export type CompletedChecklist = Omit<ChecklistTemplate, 'questions' | 'type'> & { 
     id: string; 
-    createdAt: Date | Timestamp | string | null; 
+    createdAt: Date | string | null; 
     vehicle: string; 
     driver: string; 
     responsibleName: string;

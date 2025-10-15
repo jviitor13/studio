@@ -18,8 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { exportToExcel, generateReportPdf } from "@/lib/report-generator";
 import { Report } from "@/lib/types";
-import { collection, getDocs, query, where, Timestamp, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+// Firebase imports removed - using Django backend
 
 
 export default function RelatoriosPage() {

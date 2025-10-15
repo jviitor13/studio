@@ -1,13 +1,11 @@
-
 'use server';
 /**
  * @fileOverview Handles the background upload of a completed checklist.
  * This flow is triggered in a "fire-and-forget" manner.
- * It handles file uploads to Firebase Storage, generates a final PDF,
- * and uploads that PDF to Google Drive.
+ * It generates a final PDF and uploads it to Google Drive.
  */
 
-import { adminDb, uploadBase64ToFirebaseStorage } from './firebase-admin';
+// Firebase dependencies removed - using Django backend
 import { findOrCreateFolder, uploadFile } from './google-drive';
 import { z } from 'zod';
 import { ai } from '@/ai/genkit';
@@ -16,60 +14,17 @@ import { Buffer } from 'buffer';
 import { generateChecklistPdf } from './pdf-generator';
 import { format } from 'date-fns';
 import fetch from 'node-fetch';
+// Image compression removed - not compatible with server-side execution
 
 
 const ChecklistUploadDataSchema = z.object({
   checklistId: z.string(),
+  fullChecklistData: z.any().optional(), // Complete checklist data with images
 });
 export type ChecklistUploadData = z.infer<typeof ChecklistUploadDataSchema>;
 
 
-/**
- * Iterates through all images in the checklist data, uploads them from Base64 to Firebase Storage,
- * and returns a new checklist object with the Base64 strings replaced by public URLs.
- * @param checklistData The original checklist data with Base64 images.
- * @param checklistId The ID of the checklist, used for creating storage paths.
- * @returns An updated checklist object with Firebase Storage URLs.
- */
-async function processFirebaseUploads(checklistData: CompletedChecklist, checklistId: string): Promise<CompletedChecklist> {
-  const updatedChecklist = JSON.parse(JSON.stringify(checklistData)); // Deep copy
-  const basePath = `checklists/${checklistId}`;
-
-  // Process item photos
-  if (updatedChecklist.questions) {
-    for (let i = 0; i < updatedChecklist.questions.length; i++) {
-        const photo = updatedChecklist.questions[i].photo;
-        if (photo && photo.startsWith('data:image')) {
-        const url = await uploadBase64ToFirebaseStorage(photo, `${basePath}/item_${i}.jpg`);
-        updatedChecklist.questions[i].photo = url;
-        }
-    }
-  }
-
-  // Process vehicle images
-  if (updatedChecklist.vehicleImages) {
-    for (const key in updatedChecklist.vehicleImages) {
-      const photo = (updatedChecklist.vehicleImages as any)[key];
-      if (photo && photo.startsWith('data:image')) {
-        const url = await uploadBase64ToFirebaseStorage(photo, `${basePath}/vehicle_${key}.jpg`);
-        (updatedChecklist.vehicleImages as any)[key] = url;
-      }
-    }
-  }
-  
-  // Process signatures
-  if (updatedChecklist.signatures) {
-    for (const key in updatedChecklist.signatures) {
-        const photo = (updatedChecklist.signatures as any)[key];
-         if (photo && photo.startsWith('data:image')) {
-            const url = await uploadBase64ToFirebaseStorage(photo, `${basePath}/signature_${key}.png`);
-            (updatedChecklist.signatures as any)[key] = url;
-        }
-    }
-  }
-
-  return updatedChecklist;
-}
+// Firebase Storage completely removed - no processing needed
 
 async function fetchImageAsBase64(imageUrl: string): Promise<string> {
     try {
@@ -87,57 +42,11 @@ async function fetchImageAsBase64(imageUrl: string): Promise<string> {
     }
 }
 
-async function convertChecklistImagesToBase64(checklistWithUrls: CompletedChecklist): Promise<CompletedChecklist> {
-    const checklistForPdf = JSON.parse(JSON.stringify(checklistWithUrls)); // Deep copy
-
-    const conversionPromises: Promise<any>[] = [];
-
-    // Item photos
-    checklistForPdf.questions?.forEach((q: any, i: number) => {
-        if (q.photo?.startsWith('http')) {
-            conversionPromises.push(
-                fetchImageAsBase64(q.photo).then(b64 => {
-                    checklistForPdf.questions[i].photo = b64;
-                })
-            );
-        }
-    });
-
-    // Vehicle images
-    if (checklistForPdf.vehicleImages) {
-        Object.keys(checklistForPdf.vehicleImages).forEach(key => {
-            const url = (checklistForPdf.vehicleImages as any)[key];
-            if (url?.startsWith('http')) {
-                conversionPromises.push(
-                    fetchImageAsBase64(url).then(b64 => {
-                        (checklistForPdf.vehicleImages as any)[key] = b64;
-                    })
-                );
-            }
-        });
-    }
-
-    // Signatures
-    if (checklistForPdf.signatures) {
-        Object.keys(checklistForPdf.signatures).forEach(key => {
-            const url = (checklistForPdf.signatures as any)[key];
-            if (url?.startsWith('http')) {
-                conversionPromises.push(
-                    fetchImageAsBase64(url).then(b64 => {
-                        (checklistForPdf.signatures as any)[key] = b64;
-                    })
-                );
-            }
-        });
-    }
-
-    await Promise.all(conversionPromises);
-    return checklistForPdf;
-}
+// Função removida - não é mais necessária pois trabalhamos diretamente com Base64
 
 /**
- * Generates a PDF from the checklist data, uploads it and all individual images to Google Drive.
- * @param checklistData The checklist data object with Firebase URLs for images.
+ * Generates a PDF from the checklist data and uploads it to Google Drive.
+ * @param checklistData The checklist data object with Base64 images.
  */
 async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<void> {
   const rootFolderName = 'Checklists_Rodocheck';
@@ -148,121 +57,105 @@ async function uploadToGoogleDrive(checklistData: CompletedChecklist): Promise<v
   const checklistFolderName = `${vehicleFolderName}_${formattedDate}`;
   const checklistFolderId = await findOrCreateFolder(checklistFolderName, rootFolderId);
   
-  // 1. Convert all image URLs back to Base64 for PDF generation
-  const checklistForPdf = await convertChecklistImagesToBase64(checklistData);
-
-  // 2. Generate and upload the PDF
-  const pdfBase64 = await generateChecklistPdf(checklistForPdf, 'base64');
+  console.log(`[${checklistData.id}] Criando pasta: ${checklistFolderName} (ID: ${checklistFolderId})`);
+  
+  // 1. Generate and upload the PDF with high-quality images
+  console.log(`[${checklistData.id}] Gerando PDF com imagens de alta qualidade...`);
+  
+  // For PDF generation, we want high-quality images, so we'll use the original data
+  // The checklistData from Firestore might have compressed images, so we need to handle this
+  let pdfChecklistData = checklistData;
+  
+  // If images are compressed (smaller), we'll use them as-is for the PDF
+  // The PDF generator will work with whatever quality is available
+  const pdfBase64 = await generateChecklistPdf(pdfChecklistData, 'base64');
   if (!pdfBase64) {
     throw new Error('PDF generation returned an empty result.');
   }
 
   const pdfBuffer = Buffer.from(pdfBase64, 'base64');
   const pdfFileName = `checklist_${vehicleFolderName}.pdf`;
+  
+  console.log(`[${checklistData.id}] Enviando PDF para Google Drive: ${pdfFileName}`);
   await uploadFile(pdfFileName, 'application/pdf', pdfBuffer, checklistFolderId);
+  console.log(`[${checklistData.id}] PDF enviado com sucesso!`);
 
-  // 3. Upload all individual images to the SAME checklist folder
-  const imagesToUpload: { name: string; url: string; mimeType: string }[] = [];
+  // 2. Upload all individual images to the SAME checklist folder
+  const imagesToUpload: { name: string; data: string; mimeType: string }[] = [];
 
   if(checklistData.questions) {
       checklistData.questions.forEach((q, i) => {
-          if (q.photo?.startsWith('http')) {
-              imagesToUpload.push({ name: `item_${i}_${q.text.substring(0,10)}.jpg`, url: q.photo, mimeType: 'image/jpeg' });
+          if (q.photo && typeof q.photo === 'string' && q.photo.startsWith('data:image')) {
+              imagesToUpload.push({ 
+                name: `item_${i}_${q.text.substring(0,10)}.jpg`, 
+                data: q.photo, 
+                mimeType: 'image/jpeg' 
+              });
           }
       });
   }
 
-
   if (checklistData.vehicleImages) {
-      Object.entries(checklistData.vehicleImages).forEach(([key, url]) => {
-          if (url?.startsWith('http')) {
-              imagesToUpload.push({ name: `vehicle_${key}.jpg`, url, mimeType: 'image/jpeg' });
+      Object.entries(checklistData.vehicleImages).forEach(([key, data]) => {
+          if (data && typeof data === 'string' && data.startsWith('data:image')) {
+              imagesToUpload.push({ 
+                name: `vehicle_${key}.jpg`, 
+                data, 
+                mimeType: 'image/jpeg' 
+              });
           }
       });
   }
 
   if (checklistData.signatures) {
-      Object.entries(checklistData.signatures).forEach(([key, url]) => {
-          if (url?.startsWith('http')) {
-              imagesToUpload.push({ name: `signature_${key}.png`, url, mimeType: 'image/png' });
+      Object.entries(checklistData.signatures).forEach(([key, data]) => {
+          if (data && typeof data === 'string' && data.startsWith('data:image')) {
+              imagesToUpload.push({ 
+                name: `signature_${key}.png`, 
+                data, 
+                mimeType: 'image/png' 
+              });
           }
       });
   }
+
+  console.log(`[${checklistData.id}] Enviando ${imagesToUpload.length} imagens individuais...`);
 
   // Execute all image uploads in parallel
   await Promise.all(
       imagesToUpload.map(async image => {
         try {
-            const response = await fetch(image.url);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch image from URL: ${response.statusText}`);
-            }
-            const buffer = Buffer.from(await response.arrayBuffer());
-            await uploadFile(image.name, image.mimeType, buffer, checklistFolderId);
+          const imageBuffer = Buffer.from(image.data.split(',')[1], 'base64');
+          await uploadFile(image.name, image.mimeType, imageBuffer, checklistFolderId);
+          console.log(`[${checklistData.id}] Imagem enviada: ${image.name}`);
         } catch (error) {
-            console.error(`Error uploading image from URL "${image.name}":`, error);
-            // Optionally decide if one failed image upload should fail the whole process
+          console.error(`[${checklistData.id}] Erro ao enviar imagem ${image.name}:`, error);
         }
       })
   );
+  
+  console.log(`[${checklistData.id}] Todas as imagens enviadas com sucesso!`);
 }
 
-export const uploadChecklistFlow = ai.defineFlow(
-  {
-    name: 'uploadChecklistFlow',
-    inputSchema: ChecklistUploadDataSchema,
-    outputSchema: z.void(),
-  },
-  async ({ checklistId }) => {
-    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    let checklistData: CompletedChecklist;
+// All Firestore and Firebase Storage functionality removed
 
-    try {
-        const docSnap = await checklistRef.get();
-        if (!docSnap.exists) {
-          throw new Error(`[${checklistId}] Checklist document not found for background processing.`);
-        }
-        checklistData = docSnap.data() as CompletedChecklist;
-    } catch (error: any) {
-        console.error(`[${checklistId}] Critical error fetching document:`, error);
-        return; // Cannot proceed without the document
+// Simplified upload function - no Firestore, direct to Google Drive
+export async function uploadChecklistFlow({ checklistId, fullChecklistData }: ChecklistUploadData) {
+  try {
+    if (!fullChecklistData) {
+      throw new Error(`[${checklistId}] No checklist data provided`);
     }
 
-    let checklistWithUrls: CompletedChecklist = checklistData;
+    const checklistData = fullChecklistData as CompletedChecklist;
+    console.log(`[${checklistId}] Starting direct Google Drive upload...`);
 
-    // Step 1: Process Firebase Storage uploads
-    try {
-      checklistWithUrls = await processFirebaseUploads(checklistData, checklistId);
-      await checklistRef.update({
-          ...checklistWithUrls, // Save URLs back to Firestore
-          firebaseStorageStatus: 'success',
-      });
-      console.log(`[${checklistId}] Firebase Storage uploads successful.`);
-
-    } catch (error: any) {
-       console.error(`[${checklistId}] Firebase Storage processing failure:`, error);
-        await checklistRef.update({ 
-            firebaseStorageStatus: 'error',
-            generalObservations: `Falha no upload para o Firebase Storage: ${error.message}`
-        });
-        // We stop here if Firebase fails, as Google Drive PDF generation depends on these URLs
-        return;
-    }
-
-    // Step 2: Upload final PDF and images to Google Drive
-    try {
-        await uploadToGoogleDrive(checklistWithUrls);
-        await checklistRef.update({ googleDriveStatus: 'success' });
-        console.log(`[${checklistId}] Google Drive upload successful.`);
-
-    } catch (error: any) {
-        console.error(`[${checklistId}] Google Drive processing failure:`, error);
-        await checklistRef.update({ 
-            googleDriveStatus: 'error',
-            generalObservations: `Falha no upload para o Google Drive: ${error.message}`
-        });
-    }
-
-    console.log(`[${checklistId}] Background processing finished.`);
+    // Upload directly to Google Drive
+    await uploadToGoogleDrive(checklistData);
+    
+    console.log(`[${checklistId}] Google Drive upload completed successfully!`);
+    
+  } catch (error: any) {
+    console.error(`[${checklistId}] Google Drive upload failed:`, error);
+    throw error;
   }
-);
+}

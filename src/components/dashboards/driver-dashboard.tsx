@@ -9,12 +9,12 @@ import { ClipboardCheck, FileText, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where, Timestamp } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+// Firebase imports removed - using Django backend
 import { CompletedChecklist } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
@@ -29,33 +29,19 @@ const statusBadgeColor : {[key:string]: string} = {
 export function DriverDashboard() {
   const [lastChecklists, setLastChecklists] = useState<CompletedChecklist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(auth.currentUser);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    const unsubscribeAuth = auth.onAuthStateChanged(currentUser => {
-      setUser(currentUser);
-      if (currentUser) {
-        setIsLoading(true);
-        const q = query(collection(db, "completed-checklists"), where("driver", "==", currentUser.displayName || ""));
-        const unsubscribeFirestore = onSnapshot(q, (snapshot) => {
-            const checklistsData = snapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-                } as CompletedChecklist
-            });
-            setLastChecklists(checklistsData);
-            setIsLoading(false);
-        });
-        return () => unsubscribeFirestore();
-      } else {
-        setIsLoading(false);
-      }
-    });
-    return () => unsubscribeAuth();
-  }, []);
+    if (isAuthenticated && user) {
+      setIsLoading(true);
+      // TODO: Replace with Django API call
+      // const checklists = await apiClient.getChecklists();
+      // setLastChecklists(checklists);
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, user]);
 
   return (
     <div className="flex flex-col gap-6">

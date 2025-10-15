@@ -5,9 +5,9 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useState, useEffect } from 'react';
-import { collection, Timestamp, onSnapshot, getDocs, addDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+// Firebase imports removed - using Django backend
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,14 +44,18 @@ interface Vehicle {
 export default function CargaPage() {
     const { toast } = useToast();
     const router = useRouter();
-    const [user, setUser] = useState(auth.currentUser);
+    const { user, isAuthenticated } = useAuth();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
     
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(setUser);
-        return () => unsubscribe();
-    }, []);
+        if (isAuthenticated) {
+            // TODO: Load vehicles from Django API
+            // const vehicles = await apiClient.getVehicles();
+            // setVehicles(vehicles);
+            setIsLoadingVehicles(false);
+        }
+    }, [isAuthenticated]);
 
     const {
         control,

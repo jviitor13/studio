@@ -26,8 +26,8 @@ import { ChecklistDetailsDialog } from "@/components/checklist-details-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { generateChecklistPdf } from "@/lib/pdf-generator"
 import { CompletedChecklist } from "@/lib/types"
-import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, where, Timestamp, deleteDoc, doc, orderBy, getDocs, writeBatch } from "firebase/firestore"
+// Firebase imports removed - using Django backend
+// Firebase imports removed - using Django backend
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/page-header"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"

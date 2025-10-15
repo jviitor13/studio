@@ -10,8 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { Grip, Repeat, Trash2, PlusCircle, Thermometer, Gauge, Search } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { collection, doc, onSnapshot, query, updateDoc, where, getDocs, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+// Firebase imports removed - using Django backend
+// Firebase imports removed - using Django backend
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';

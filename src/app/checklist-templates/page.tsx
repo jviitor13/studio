@@ -20,8 +20,8 @@ import { useFieldArray, useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore';
+// Firebase imports removed - using Django backend
+// Firebase imports removed - using Django backend
 import { ChecklistTemplate } from '@/lib/checklist-templates-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 

@@ -5,7 +5,7 @@ import { assessVehicleDamage as assessVehicleDamageFlow } from '@/ai/flows/asses
 import type { AssessVehicleDamageInput } from '@/ai/flows/assess-vehicle-damage';
 import { assistantFlow } from '@/ai/flows/assistant-flow';
 import type { AssistantFlowInput } from '@/ai/flows/assistant-flow';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+// Firebase dependencies removed - using Django backend
 import { uploadChecklistFlow } from './checklist-upload-flow';
 import { CompletedChecklist } from './types';
 
@@ -40,96 +40,45 @@ interface UserData {
   role: 'Gestor' | 'Motorista' | 'Mecânico';
 }
 
+// User creation now handled by Django backend
 export async function createUser(data: UserData) {
-  try {
-    const userRecord = await adminAuth.createUser({
-      email: data.email,
-      password: data.password,
-      displayName: data.name,
-      emailVerified: true, 
-      disabled: false,
-    });
-
-    await adminAuth.setCustomUserClaims(userRecord.uid, { role: data.role });
-
-    const userDocRef = adminDb.collection('users').doc(userRecord.uid);
-    await userDocRef.set({
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      status: 'Ativo', 
-      createdAt: new Date().toISOString(),
-    });
-
-    return { success: true, uid: userRecord.uid };
-  } catch (error: any) {
-    console.error('Error creating user:', error);
-    let errorMessage = 'Ocorreu um erro desconhecido.';
-    if (error.code === 'auth/email-already-exists') {
-      errorMessage = 'Este e-mail já está em uso por outro usuário.';
-    } else if (error.code === 'auth/invalid-password') {
-      errorMessage =
-        'A senha fornecida não é válida. Deve ter pelo menos 6 caracteres.';
-    }
-    return { success: false, error: errorMessage };
-  }
+  // This function is now handled by Django backend
+  // Users are created through Google OAuth or Django admin
+  return { success: false, error: 'User creation now handled by Django backend' };
 }
 
 export async function saveChecklistAndTriggerUpload(
   checklistData: CompletedChecklist,
 ) {
   const checklistId = checklistData.id;
-  const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
 
   try {
-    // The checklistData now arrives with the correct final status pre-calculated
-    // in the client-side form logic. We just save it.
-    await checklistRef.set({
-      ...checklistData,
-      firebaseStorageStatus: 'pending',
-      googleDriveStatus: 'pending',
-    });
+    console.log(`[${checklistId}] Iniciando upload direto para Google Drive...`);
     
-    // Then, trigger the upload flow as a background task.
-    // This flow will ONLY handle file uploads and update their respective statuses.
-    uploadChecklistFlow({ checklistId });
+    // Skip Firestore completely - go directly to Google Drive
+    try {
+      // Pass the complete checklist data directly to Google Drive upload
+      await uploadChecklistFlow({ checklistId, fullChecklistData: checklistData });
+      console.log(`[${checklistId}] Upload para Google Drive iniciado com sucesso!`);
+    } catch (uploadError: any) {
+      console.error(`[${checklistId}] Error uploading to Google Drive:`, uploadError);
+      throw new Error(`Falha ao enviar para Google Drive: ${uploadError.message}`);
+    }
 
     return { success: true, checklistId };
   } catch (error: any) {
     console.error(
-      `[${checklistId}] Error saving initial checklist or triggering upload:`,
+      `[${checklistId}] Error uploading checklist:`,
       error
     );
-    
-    // In case of a critical failure during the initial save, record the error.
-    await checklistRef.set({
-        ...checklistData,
-        generalObservations: `Falha crítica ao salvar o checklist: ${error.message}`,
-        firebaseStorageStatus: 'error',
-        googleDriveStatus: 'error',
-    }, { merge: true });
 
     return { success: false, error: error.message, checklistId };
   }
 }
 
+// Retry function removed - no Firestore to retry
 export async function retryChecklistUpload(checklistId: string) {
-  try {
-    const checklistRef = adminDb.collection('completed-checklists').doc(checklistId);
-    
-    // Reset only upload statuses to re-trigger the process
-    await checklistRef.update({
-      googleDriveStatus: 'pending',
-      firebaseStorageStatus: 'pending',
-      generalObservations: adminDb.FieldValue.delete(), // Clear previous errors
-    });
-
-    // Re-trigger the background flow
-    uploadChecklistFlow({ checklistId });
-
-    return { success: true };
-  } catch (error: any) {
-    console.error(`[${checklistId}] Error re-triggering upload:`, error);
-    return { success: false, error: error.message };
-  }
+  // This function is now handled by Django backend
+  // Use the Django API to retry upload
+  return { success: false, error: 'Retry now handled by Django backend' };
 }

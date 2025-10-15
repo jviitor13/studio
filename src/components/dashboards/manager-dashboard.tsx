@@ -21,12 +21,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DollarSign, Truck, Clock, AlertCircle, TestTube2 } from 'lucide-react';
 import { ChartConfig } from '@/components/ui/chart';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, Timestamp } from 'firebase/firestore';
+// Firebase imports removed - using Django backend
 import { CompletedChecklist } from '@/lib/types';
+import apiClient from '@/lib/api';
 import { differenceInHours } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
 
 // Mock data, in a real scenario this would come from Firestore.
 interface Vehicle {
@@ -86,97 +87,80 @@ export function ManagerDashboard() {
 
 
   useEffect(() => {
-    // Listener for 'vehicles' collection
-    const unsubscribeVehicles = onSnapshot(collection(db, "vehicles"), (snapshot) => {
-        const vehiclesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
-        setVehicles(vehiclesData);
+    let isMounted = true;
+    const load = async () => {
+      // Vehicles
+      const vehiclesResp = await apiClient.getVehicles();
+      const vehiclesData = (vehiclesResp.data as any[]) || [];
+      if (!isMounted) return;
+      setVehicles(vehiclesData as Vehicle[]);
 
-        const statusCounts = vehiclesData.reduce((acc, vehicle) => {
-            acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
-            return acc;
+      const statusCounts = vehiclesData.reduce((acc: Record<string, number>, vehicle: any) => {
+        const st = vehicle.status || 'Disponível';
+        acc[st] = (acc[st] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      const chartData = Object.entries(statusCounts).map(([status, value]) => ({
+        status,
+        value,
+        fill: (fleetChartConfig as any)[status]?.color || 'hsl(var(--chart-3))',
+      }));
+      setFleetStatus(chartData);
+      setMaintenanceVehicles((vehiclesData as any[]).filter(v => v.status === 'Em Manutenção'));
+
+      // Checklists
+      const checklistsResp = await apiClient.getChecklists();
+      const checklistsData = (checklistsResp.data as any[]) || [];
+      if (!isMounted) return;
+      setChecklists(checklistsData as CompletedChecklist[]);
+      setActiveAlerts(checklistsData.filter((c: any) => c.status === 'Pendente').length);
+
+      const problemCounts = (checklistsData as any[])
+        .filter(c => c.status === 'Pendente')
+        .flatMap(c => c.questions || [])
+        .filter((q: any) => q.status === 'Não OK')
+        .reduce((acc: Record<string, number>, q: any) => {
+          const problemKey = String(q.text || '').toLowerCase().trim();
+          acc[problemKey] = (acc[problemKey] || 0) + 1;
+          return acc;
         }, {} as Record<string, number>);
-
-        const chartData = Object.entries(statusCounts).map(([status, value]) => ({
-            status,
-            value,
-            fill: fleetChartConfig[status as keyof typeof fleetChartConfig]?.color || 'hsl(var(--chart-3))'
+      const sortedProblems = Object.entries(problemCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([problem, count], index) => ({
+          problem: problem.charAt(0).toUpperCase() + problem.slice(1),
+          count,
+          fill: `hsl(var(--chart-${index + 1}))`,
         }));
-        setFleetStatus(chartData);
+      setProblematicItems(sortedProblems);
 
-        setMaintenanceVehicles(vehiclesData.filter(v => v.status === 'Em Manutenção'));
-    });
+      // Maintenance metrics (derivadas dos checklists ou endpoint futuro)
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const maintenances: any[] = (checklistsData as any[]).filter(c => c.type === 'manutencao');
+      const cost = maintenances.reduce((acc, m) => {
+        const completedAt = m.completedAt ? new Date(m.completedAt) : null;
+        if (m.status === 'Concluída' && m.cost && completedAt && completedAt.getMonth() === currentMonth && completedAt.getFullYear() === currentYear) {
+          return acc + Number(m.cost || 0);
+        }
+        return acc;
+      }, 0);
+      setMonthlyCost(cost);
 
-    // Listener for 'completed-checklists' collection
-    const unsubscribeChecklists = onSnapshot(collection(db, "completed-checklists"), (snapshot) => {
-        const checklistsData = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              ...data,
-              id: doc.id,
-              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-            } as CompletedChecklist
-        });
-        setChecklists(checklistsData);
-        setActiveAlerts(checklistsData.filter(c => c.status === 'Pendente').length);
-
-        const problemCounts = checklistsData
-            .filter(c => c.status === 'Pendente')
-            .flatMap(c => c.questions)
-            .filter(q => q.status === 'Não OK')
-            .reduce((acc, q) => {
-                // Normalize problem text to group similar items
-                const problemKey = q.text.toLowerCase().trim();
-                acc[problemKey] = (acc[problemKey] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-        
-        const sortedProblems = Object.entries(problemCounts)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 5) // Top 5 problems
-            .map(([problem, count], index) => ({
-                problem: problem.charAt(0).toUpperCase() + problem.slice(1), // Capitalize first letter
-                count,
-                fill: `hsl(var(--chart-${index + 1}))`
-            }));
-        setProblematicItems(sortedProblems);
-    });
-    
-    // Listener for 'manutencoes' collection
-    const unsubscribeMaintenances = onSnapshot(collection(db, 'manutencoes'), (snapshot) => {
-        const maintenancesData = snapshot.docs.map(doc => doc.data() as Maintenance);
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        const cost = maintenancesData.reduce((acc, m) => {
-            if (m.status === 'Concluída' && m.cost && m.completedAt) {
-                 const completedDate = m.completedAt.toDate();
-                 if(completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear) {
-                    return acc + m.cost;
-                 }
-            }
-            return acc;
-        }, 0);
-        setMonthlyCost(cost);
-
-        const downtime = maintenancesData.reduce((acc, m) => {
-             if (m.status === 'Concluída' && m.startedAt && m.completedAt) {
-                 const completedDate = m.completedAt.toDate();
-                 if(completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear) {
-                    const hours = differenceInHours(completedDate, m.startedAt.toDate());
-                    return acc + hours;
-                 }
-            }
-            return acc;
-        }, 0);
-        setDowntimeHours(downtime);
-    });
-
-    // Cleanup function to unsubscribe from listeners on component unmount
+      const downtime = maintenances.reduce((acc, m) => {
+        const completedAt = m.completedAt ? new Date(m.completedAt) : null;
+        const startedAt = m.startedAt ? new Date(m.startedAt) : null;
+        if (m.status === 'Concluída' && startedAt && completedAt && completedAt.getMonth() === currentMonth && completedAt.getFullYear() === currentYear) {
+          return acc + differenceInHours(completedAt, startedAt);
+        }
+        return acc;
+      }, 0);
+      setDowntimeHours(downtime);
+    };
+    load();
     return () => {
-        unsubscribeVehicles();
-        unsubscribeChecklists();
-        unsubscribeMaintenances();
+      isMounted = false;
     };
   }, []);
 

@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Wrench, PlusCircle, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+// Firebase imports removed - using Django backend
 import { CompletedChecklist } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import apiClient from "@/lib/api";
 
 const statusVariant : {[key:string]: "default" | "destructive" | "secondary"} = {
     'OK': 'default',
@@ -31,20 +32,18 @@ export function MechanicDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "completed-checklists"), where("status", "==", "Pendente"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const checklistsData = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-            } as CompletedChecklist
-        });
-        setPendingMaintenance(checklistsData);
-        setIsLoading(false);
-    });
-    return () => unsubscribe();
+    let isMounted = true;
+    const load = async () => {
+      setIsLoading(true);
+      const resp = await apiClient.getChecklists();
+      const all = (resp.data as any[]) || [];
+      if (!isMounted) return;
+      const pending = all.filter((c: any) => c.status === 'Pendente');
+      setPendingMaintenance(pending as CompletedChecklist[]);
+      setIsLoading(false);
+    };
+    load();
+    return () => { isMounted = false };
   }, []);
 
   return (

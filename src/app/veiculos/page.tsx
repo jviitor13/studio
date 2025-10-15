@@ -54,8 +54,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
-import { collection, addDoc, onSnapshot, doc, deleteDoc, query, where, updateDoc, setDoc } from "firebase/firestore";
+import apiClient from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
@@ -198,30 +197,60 @@ export default function VeiculosPage() {
     });
 
     React.useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, "vehicles"), (snapshot) => {
-            const vehiclesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Vehicle));
-            setVehicles(vehiclesData);
+        let isMounted = true;
+        const load = async () => {
+            setIsLoading(true);
+            const resp = await apiClient.getVehicles();
+            if (!isMounted) return;
+            const data = (resp.data as any[]) || [];
+            // Adaptar campos caso backend use chaves diferentes
+            const mapped = data.map((v: any) => ({
+                id: String(v.id ?? v.plate),
+                plate: v.plate,
+                model: v.model,
+                year: Number(v.year),
+                fuel: v.fuel,
+                driver: v.driver,
+                status: v.status || "Disponível",
+                nextMaintenance: v.nextMaintenance,
+            })) as Vehicle[];
+            setVehicles(mapped);
             setIsLoading(false);
-        });
-        return () => unsubscribe();
+        };
+        load();
+        return () => { isMounted = false };
     }, []);
 
     const onSubmit = async (data: VehicleFormValues) => {
         try {
-            const vehicleId = data.plate.toUpperCase();
-            const vehicleRef = doc(db, "vehicles", vehicleId);
-            await setDoc(vehicleRef, {
-                plate: vehicleId,
+            const vehiclePayload = {
+                plate: data.plate.toUpperCase(),
                 model: data.model,
                 year: data.year,
                 fuel: data.fuel,
                 status: "Disponível",
                 driver: "",
-            });
+            };
+            const result = await apiClient.createVehicle(vehiclePayload);
+            if (result.error) throw new Error(result.error);
+            // Reload list
+            const resp = await apiClient.getVehicles();
+            const list = (resp.data as any[]) || [];
+            const mapped = list.map((v: any) => ({
+                id: String(v.id ?? v.plate),
+                plate: v.plate,
+                model: v.model,
+                year: Number(v.year),
+                fuel: v.fuel,
+                driver: v.driver,
+                status: v.status || "Disponível",
+                nextMaintenance: v.nextMaintenance,
+            })) as Vehicle[];
+            setVehicles(mapped);
 
             toast({
                 title: "Veículo Adicionado!",
-                description: `O veículo ${data.model} (${vehicleId}) foi cadastrado com sucesso.`,
+                description: `O veículo ${data.model} (${vehiclePayload.plate}) foi cadastrado com sucesso.`,
             });
             setOpenNewVehicleDialog(false);
             reset();
@@ -237,11 +266,25 @@ export default function VeiculosPage() {
 
     const handleDeleteVehicle = async (vehicleId: string) => {
         try {
-            await deleteDoc(doc(db, "vehicles", vehicleId));
+            await apiClient.deleteVehicle(Number(vehicleId));
             toast({
                 title: "Veículo Excluído",
                 description: "O veículo foi removido com sucesso.",
             });
+            // Reload list
+            const resp = await apiClient.getVehicles();
+            const list = (resp.data as any[]) || [];
+            const mapped = list.map((v: any) => ({
+                id: String(v.id ?? v.plate),
+                plate: v.plate,
+                model: v.model,
+                year: Number(v.year),
+                fuel: v.fuel,
+                driver: v.driver,
+                status: v.status || "Disponível",
+                nextMaintenance: v.nextMaintenance,
+            })) as Vehicle[];
+            setVehicles(mapped);
         } catch (error) {
             console.error("Error deleting vehicle: ", error);
             toast({
@@ -255,13 +298,26 @@ export default function VeiculosPage() {
     const handleAssignDriver = async (driverName: string) => {
         if (!selectedVehicle) return;
         try {
-            const vehicleRef = doc(db, 'vehicles', selectedVehicle.id);
-            await updateDoc(vehicleRef, { driver: driverName });
+            await apiClient.updateVehicle(Number(selectedVehicle.id), { driver: driverName });
             toast({
                 title: "Motorista Atribuído!",
                 description: `${driverName} foi atribuído ao veículo ${selectedVehicle.plate}.`,
             });
             setDialogType(null);
+            // Reload list
+            const resp = await apiClient.getVehicles();
+            const list = (resp.data as any[]) || [];
+            const mapped = list.map((v: any) => ({
+                id: String(v.id ?? v.plate),
+                plate: v.plate,
+                model: v.model,
+                year: Number(v.year),
+                fuel: v.fuel,
+                driver: v.driver,
+                status: v.status || "Disponível",
+                nextMaintenance: v.nextMaintenance,
+            })) as Vehicle[];
+            setVehicles(mapped);
         } catch (error) {
             console.error("Error assigning driver:", error);
             toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível atribuir o motorista.' });
